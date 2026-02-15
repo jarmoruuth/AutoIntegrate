@@ -590,7 +590,7 @@ function Autorun(parent)
       var substack_saved_lightFileNames = global.lightFileNames;
       var saved_integrate_only = par.integrate_only.val;
 
-      if (substack_mode) {
+      if (substack_mode && global.lightFileNames) {
             console.writeln("AutoRun substack size " + substack_size);
             for (var i = 0; i < global.lightFileNames.length; i += substack_size) {
                   substack_files[substack_files.length] = global.lightFileNames.slice(i, i + substack_size);
@@ -632,7 +632,7 @@ function Autorun(parent)
             console.writeln("AutoRun in normal mode");
       }
       do {  
-            if (global.lightFileNames == null) {
+            if (global.lightFileNames == null && !par.generate_masters_only.val) {
                   if (par.batch_mode.val) {
                         global.lightFileNames = batch_files.shift();
                   } else if (par.open_directory.val) {
@@ -662,8 +662,8 @@ function Autorun(parent)
                         stopped = false;
                   }
             }  
-            if (global.lightFileNames != null) {
-                  if (batch_narrowband_palette_mode) {
+            if (global.lightFileNames != null || par.generate_masters_only.val) {
+                  if (batch_narrowband_palette_mode && global.lightFileNames != null) {
                         var filteredFiles = engine.getFilterFiles(global.lightFileNames, global.pages.LIGHTS, '');
                         if (!filteredFiles.narrowband) {
                               batch_narrowband_palette_mode = false;
@@ -910,12 +910,24 @@ function biasOptions(parent)
       var sizer = filesOptionsSizer(parent, "Add bias images", parent.filesToolTip[global.pages.BIAS]);
 
       var checkbox = guitools.newCheckBox(parent, "SuperBias", par.create_superbias, 
-            "<p>Create SuperBias from bias files.</p>" );
+            "<p>Create SuperBias from bias files.</p>" +
+            "<p>For modern CMOS sensors you should not use superbias.</p>" +
+            "<p>For CCD sensors you can use superbias.</p>");
       var checkbox2 = guitools.newCheckBox(parent, "Master files", par.bias_master_files, 
             "<p>Files are master files.</p>" );
+      var checkbox3 = guitools.newCheckBox(parent, "Use on lights", par.bias_use_on_lights, 
+            "<p>Use bias files on light frames.</p>" +
+            "<p>For modern CMOS sensors you should not use bias files on light frames.</p>" +
+            "<p>For CCD sensors you can use bias files on light frames.</p>");
+      var checkbox4 = guitools.newCheckBox(parent, "Use on darks", par.bias_use_on_darks,
+            "<p>Use bias files on dark frames.</p>" +
+            "<p>For modern CMOS sensors you should not use bias files on dark frames.</p>" +
+            "<p>For CCD sensors you can use bias files on dark frames.</p>");
 
       sizer.add(checkbox);
       sizer.add(checkbox2);
+      sizer.add(checkbox3);
+      sizer.add(checkbox4);
       sizer.addStretch();
 
       return sizer;
@@ -926,19 +938,11 @@ function darksOptions(parent)
       var sizer = filesOptionsSizer(parent, "Add dark images", parent.filesToolTip[global.pages.DARKS]);
 
       var checkbox = guitools.newCheckBox(parent, "Pre-calibrate", par.pre_calibrate_darks, 
-            "<p>If checked darks are pre-calibrated with bias and not during ImageCalibration. " + 
-            "Normally this is not recommended and it is better to calibrate darks during " + 
-            "ImageCalibration.</p>" );
+            "<p>If checked darks are pre-calibrated with bias and not during ImageCalibration.</p>" );
       var checkbox2 = guitools.newCheckBox(parent, "Optimize", par.optimize_darks, 
-            "<p>If checked darks are optimized when calibrating lights." + 
-            "</p><p>" +
-            "Normally using the optimize flag should not cause any problems. " +
-            "With cameras without temperature control it can greatly improve the results. " +
-            'With cameras that have "amplifier glow" dark optimization may give worse results. ' +
-            "</p><p>" +
-            "When Optimize is not checked bias frames are ignored and dark and flat file optimize " + 
-            "and calibrate flags are disabled in light file calibration. " +
-            "</p>" );
+            "<p>If checked darks are optimized when calibrating lights.</p>" + 
+            "<p>For modern CMOS cameras optimization should not be used.</p>" + 
+            "<p>For CCD cameras it can be used.</p>");
       var checkbox3 = guitools.newCheckBox(parent, "Master files", par.dark_master_files, 
             "<p>Files are master files.</p>" );
 
@@ -958,11 +962,8 @@ function flatsOptions(parent)
             "<p>If you have stars in your flats then checking this option will lower percentile " + 
             "clip values and should help remove the stars.</p>" );
       global.rootingArr.push(checkboxStars);
-      var checkboxDarks = guitools.newCheckBox(parent, "Do not use darks", par.no_darks_on_flat_calibrate, 
-            "<p>For some sensors darks should not be used to calibrate flats.  " + 
-            "An example of such sensor is most CMOS sensors.</p>"  +
-            "<p>If flat darks are selected then darks are not used " + 
-            "to calibrate flats.</p>");
+      var checkboxDarks = guitools.newCheckBox(parent, "Use darks", par.use_darks_on_flat_calibrate, 
+            "<p>If selected then darks are used for flat calibration.</p>");
       global.rootingArr.push(checkboxDarks);
       var checkboxManual = guitools.newCheckBox(parent, "Add manually", par.flats_add_manually, 
             "<p>Add flat files manually by selecting files for each filter.</p>" );
@@ -4663,10 +4664,14 @@ function AutoIntegrateDialog()
       this.fastIntegrationCheckBox = guitools.newCheckBox(this, "Fast integration", par.use_fastintegration, 
             "<p>If checked, use FastIntegration process instead of ImageIntegration process when integrating light images.</p>" +
             "<p>In <i>Integration</i> tab there are some settings for FastIntegration.</p>");
-      this.CalibrateOnlyCheckBox = guitools.newCheckBox(this, "Calibrate only", par.calibrate_only, 
+      this.CalibrateOnlyCheckBox = guitools.newCheckBox(this, "Calibrate only", par.calibrate_only,
             "<p>Stop after image calibration step.</p>" +
-            "<p>Stopping after calibration could be useful if you for example want to check the quality of calibrated light files " + 
+            "<p>Stopping after calibration could be useful if you for example want to check the quality of calibrated light files " +
             "and maybe set some filtering rules.</p>" );
+      this.GenerateMastersOnlyCheckBox = guitools.newCheckBox(this, "Generate masters only", par.generate_masters_only,
+            "<p>Generate master calibration files (bias, dark, flat dark, flat) from calibration files without requiring light files.</p>" +
+            "<p>This is useful for remote telescopes where calibration files do not change often. " +
+            "Generated master files can later be reused with the Master files option to speed up light file processing.</p>" );
       this.DebayerOnlyCheckBox = guitools.newCheckBox(this, "Debayer only", par.debayer_only, 
             "<p>Stop after Debayering step. Later it is possible to continue by selecting Debayered files " + 
             "and choosing None for Debayer.</p>" );
@@ -4925,6 +4930,7 @@ function AutoIntegrateDialog()
       this.imageParamsSet1_left.margin = 6;
       this.imageParamsSet1_left.spacing = 4;
       this.imageParamsSet1_left.add( this.CalibrateOnlyCheckBox );
+      this.imageParamsSet1_left.add( this.GenerateMastersOnlyCheckBox );
       this.imageParamsSet1_left.add( this.IntegrateOnlyCheckBox );
       this.imageParamsSet1_left.add( this.FixColumnDefectsCheckBox );
       this.imageParamsSet1_left.add( this.FixRowDefectsCheckBox );

@@ -989,6 +989,16 @@ function closeAllWindowsFromArray(arr, keep_base_image = false, print_names = fa
                         util.closeOneWindowById(arr[i] + "_background");
                         util.closeOneWindowById(arr[i] + "_map_background");
                   }
+                  if (arr[i] == "AutoMasterDark") {
+                        // Close all windows starting with AutoMasterDark, as we may have multiple master darks with different integration settings
+                        for (;;) {
+                              var win = util.findWindowStartsWith("AutoMasterDark");
+                              if (win == null) {
+                                    break;
+                              }
+                              util.closeOneWindow(win);
+                        }
+                  }
             }
       }
 }
