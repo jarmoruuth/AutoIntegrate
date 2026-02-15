@@ -18449,9 +18449,30 @@ function getOutputDirFromCalibrationFiles()
         * for each exposure time group.
         */
        if (par.dark_master_files.val) {
-            // We have an array of master dark files, we match them by resolution
              util.addProcessingStep("calibrateEngine use existing master dark files " + engine.darkFileNames);
-             var masterdarkPath = engine.darkFileNames;
+             if (engine.darkFileNames.length == 1) {
+                   var masterdarkPath = engine.darkFileNames[0];
+             } else {
+                   // Group master darks by exposure time so selectMasterDarkForExptime can match them
+                   var darkExptimeGroups = groupDarksByExposureTime(engine.darkFileNames);
+                   if (darkExptimeGroups.length == 1) {
+                         // All same exposure time, pass as array for resolution matching
+                         var masterdarkPath = engine.darkFileNames;
+                   } else {
+                         // Multiple exposure time groups, build { exptime, path } array
+                         var masterdarkPath = [];
+                         for (var dg = 0; dg < darkExptimeGroups.length; dg++) {
+                               var groupFiles = darkExptimeGroups[dg].files;
+                               var groupExptime = darkExptimeGroups[dg].exptime;
+                               if (groupFiles.length == 1) {
+                                     masterdarkPath.push({ exptime: groupExptime, path: groupFiles[0] });
+                               } else {
+                                     // Multiple master darks at same exposure, pass array for resolution matching
+                                     masterdarkPath.push({ exptime: groupExptime, path: groupFiles });
+                               }
+                         }
+                   }
+             }
        } else if (engine.darkFileNames.length == 1) {
              util.addProcessingStep("calibrateEngine use existing master dark " + engine.darkFileNames[0]);
              var masterdarkPath = engine.darkFileNames[0];
