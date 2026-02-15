@@ -914,7 +914,8 @@ function biasOptions(parent)
             "<p>For modern CMOS sensors you should not use superbias.</p>" +
             "<p>For CCD sensors you can use superbias.</p>");
       var checkbox2 = guitools.newCheckBox(parent, "Master files", par.bias_master_files,
-            "<p>Files are master files.</p>" );
+            "<p>Files are master files.</p>" +
+            "<p>When there are multiple master files, they are matched by resolution.</p>" );
       parent.biasMasterFilesCheckBox = checkbox2;
       var checkbox3 = guitools.newCheckBox(parent, "Use on lights", par.bias_use_on_lights, 
             "<p>Use bias files on light frames.</p>" +
@@ -945,7 +946,8 @@ function darksOptions(parent)
             "<p>For modern CMOS cameras optimization should not be used.</p>" + 
             "<p>For CCD cameras it can be used.</p>");
       var checkbox3 = guitools.newCheckBox(parent, "Master files", par.dark_master_files,
-            "<p>Files are master files.</p>" );
+            "<p>Files are master files.</p>" +
+            "<p>When there are multiple master files in a group, they are matched by resolution.</p>" );
       parent.darkMasterFilesCheckBox = checkbox3;
 
       sizer.add(checkbox);
@@ -960,6 +962,11 @@ function flatsOptions(parent)
 {
       var sizer = filesOptionsSizer(parent, "Add flat images", parent.filesToolTip[global.pages.FLATS]);
 
+      var checkboxMaster = guitools.newCheckBox(parent, "Master files", par.flat_master_files,
+            "<p>Files are master files.</p>" +
+            "<p>When there are multiple master files in a group, they are matched by resolution.</p>" );
+      parent.flatMasterFilesCheckBox = checkboxMaster;
+      global.rootingArr.push(checkboxMaster);
       var checkboxStars = guitools.newCheckBox(parent, "Stars in flats", par.stars_in_flats, 
             "<p>If you have stars in your flats then checking this option will lower percentile " + 
             "clip values and should help remove the stars.</p>" );
@@ -975,6 +982,7 @@ function flatsOptions(parent)
             showOrHideFilterSectionBar(global.pages.FLATS);
       }
 
+      sizer.add(checkboxMaster);
       sizer.add(checkboxStars);
       sizer.add(checkboxDarks);
       sizer.add(checkboxManual);
@@ -988,7 +996,8 @@ function flatdarksOptions(parent)
       var sizer = filesOptionsSizer(parent, "Add flat dark images", parent.filesToolTip[global.pages.FLAT_DARKS]);
 
       var checkbox = guitools.newCheckBox(parent, "Master files", par.flat_dark_master_files,
-            "<p>Files are master files.</p>" );
+            "<p>Files are master files.</p>" +
+            "<p>When there are multiple master files in a group, they are matched by resolution.</p>" );
       parent.flatDarkMasterFilesCheckBox = checkbox;
       global.rootingArr.push(checkbox);
       var checkboxManual = guitools.newCheckBox(parent, "Add manually", par.flatdarks_add_manually, 
@@ -2880,6 +2889,10 @@ function addMastersButton(parent)
             }
             if (imagetypes[global.pages.FLATS].length > 0) {
                   addFilesToTreeBox(parent, global.pages.FLATS, imagetypes[global.pages.FLATS]);
+                  par.flat_master_files.val = true;
+                  if (parent.flatMasterFilesCheckBox) {
+                        parent.flatMasterFilesCheckBox.checked = true;
+                  }
                   if (firstPageIndex == -1) firstPageIndex = global.pages.FLATS;
             }
             if (imagetypes[global.pages.FLAT_DARKS].length > 0) {

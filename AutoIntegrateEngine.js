@@ -2202,7 +2202,7 @@ function runCalibrateLights(images, masterbiasPath, masterdarkPath, masterflatPa
       if (masterflatPath != null) {
             console.writeln("runCalibrateLights, master flat " + masterflatPath);
             P.masterFlatEnabled = true;
-            P.masterFlatPath = masterflatPath;
+            P.masterFlatPath = matchMasterToImages(images, masterflatPath);
       } else {
             console.writeln("runCalibrateLights, no master flat");
             P.masterFlatEnabled = false;
@@ -18360,6 +18360,7 @@ function getOutputDirFromCalibrationFiles()
         * Generate a master bias file.
         */
        if (par.bias_master_files.val) {
+             // We have an array of master bias files, we match them by resolution
              util.addProcessingStep("calibrateEngine use existing master bias files " + engine.biasFileNames);
              var masterbiasPath = engine.biasFileNames;
        } else if (engine.biasFileNames.length == 1) {
@@ -18404,7 +18405,11 @@ function getOutputDirFromCalibrationFiles()
                   var filterFiles = filtered_flatdarks.allfilesarr[i].files;
                   var filterName = filtered_flatdarks.allfilesarr[i].filter;
                   flowchart.flowchartChildBegin(filterName);
-                  if (filterFiles.length == 1) {
+                  if (par.flat_dark_master_files.val) {
+                        // We have an array of master flat dark files, we match them by resolution
+                        util.addProcessingStep("calibrateEngine use existing " + filterName + " master flat dark files");
+                        masterflatdarkPath[i] = filterFiles.length == 1 ? filterFiles[0].name : filterFiles.map(function(f) { return f.name; });
+                  } else if (filterFiles.length == 1) {
                         util.addProcessingStep("calibrateEngine use existing " + filterName + " master flat dark " + filterFiles[0].name);
                         masterflatdarkPath[i] = filterFiles[0].name;
                   } else if (filterFiles.length > 0) {
@@ -18441,6 +18446,7 @@ function getOutputDirFromCalibrationFiles()
         * for each exposure time group.
         */
        if (par.dark_master_files.val) {
+            // We have an array of master dark files, we match them by resolution
              util.addProcessingStep("calibrateEngine use existing master dark files " + engine.darkFileNames);
              var masterdarkPath = engine.darkFileNames;
        } else if (engine.darkFileNames.length == 1) {
@@ -18529,7 +18535,11 @@ function getOutputDirFromCalibrationFiles()
              var filterFiles = filtered_flats.allfilesarr[i].files;
              var filterName = filtered_flats.allfilesarr[i].filter;
              flowchart.flowchartChildBegin(filterName);
-             if (filterFiles.length == 1) {
+             if (par.flat_master_files.val) {
+                  // We have an array of master flat files, we match them by resolution
+                   util.addProcessingStep("calibrateEngine use existing " + filterName + " master flat files");
+                   masterflatPath[i] = filterFiles.length == 1 ? filterFiles[0].name : filterFiles.map(function(f) { return f.name; });
+             } else if (filterFiles.length == 1) {
                    util.addProcessingStep("calibrateEngine use existing " + filterName + " master flat " + filterFiles[0].name);
                    masterflatPath[i] = filterFiles[0].name;
              } else if (filterFiles.length > 0) {

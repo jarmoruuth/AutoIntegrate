@@ -743,6 +743,7 @@ this.par = {
       optimize_darks: { val: false, def: false, name : "Optimize darks", type : 'B' },
       dark_master_files: { val: false, def: false, name : "Dark master files", type : 'B' },
       flat_dark_master_files: { val: false, def: false, name : "Flat dark master files", type : 'B' },
+      flat_master_files: { val: false, def: false, name : "Flat master files", type : 'B' },
       stars_in_flats: { val: false, def: false, name : "Stars in flats", type : 'B' },
       use_darks_on_flat_calibrate: { val: false, def: false, name : "Use darks on flats", type : 'B' },
       lights_add_manually: { val: false, def: false, name : "Add lights manually", type : 'B' },
