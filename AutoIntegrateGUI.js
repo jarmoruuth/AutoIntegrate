@@ -913,8 +913,9 @@ function biasOptions(parent)
             "<p>Create SuperBias from bias files.</p>" +
             "<p>For modern CMOS sensors you should not use superbias.</p>" +
             "<p>For CCD sensors you can use superbias.</p>");
-      var checkbox2 = guitools.newCheckBox(parent, "Master files", par.bias_master_files, 
+      var checkbox2 = guitools.newCheckBox(parent, "Master files", par.bias_master_files,
             "<p>Files are master files.</p>" );
+      parent.biasMasterFilesCheckBox = checkbox2;
       var checkbox3 = guitools.newCheckBox(parent, "Use on lights", par.bias_use_on_lights, 
             "<p>Use bias files on light frames.</p>" +
             "<p>For modern CMOS sensors you should not use bias files on light frames.</p>" +
@@ -943,8 +944,9 @@ function darksOptions(parent)
             "<p>If checked darks are optimized when calibrating lights.</p>" + 
             "<p>For modern CMOS cameras optimization should not be used.</p>" + 
             "<p>For CCD cameras it can be used.</p>");
-      var checkbox3 = guitools.newCheckBox(parent, "Master files", par.dark_master_files, 
+      var checkbox3 = guitools.newCheckBox(parent, "Master files", par.dark_master_files,
             "<p>Files are master files.</p>" );
+      parent.darkMasterFilesCheckBox = checkbox3;
 
       sizer.add(checkbox);
       sizer.add(checkbox2);
@@ -985,8 +987,9 @@ function flatdarksOptions(parent)
 {
       var sizer = filesOptionsSizer(parent, "Add flat dark images", parent.filesToolTip[global.pages.FLAT_DARKS]);
 
-      var checkbox = guitools.newCheckBox(parent, "Master files", par.flat_dark_master_files, 
+      var checkbox = guitools.newCheckBox(parent, "Master files", par.flat_dark_master_files,
             "<p>Files are master files.</p>" );
+      parent.flatDarkMasterFilesCheckBox = checkbox;
       global.rootingArr.push(checkbox);
       var checkboxManual = guitools.newCheckBox(parent, "Add manually", par.flatdarks_add_manually, 
             "<p>Add flat dark files manually by selecting files for each filter.</p>" );
@@ -2821,6 +2824,83 @@ function addOneFilesButton(parent, filetype, pageIndex, toolTip)
       return filesAdd_Button;
 }
 
+function addMastersButton(parent)
+{
+      var filesAdd_Button = new PushButton( parent );
+      global.rootingArr.push(filesAdd_Button);
+      filesAdd_Button.text = "Masters";
+      filesAdd_Button.icon = parent.scaledResource( ":/icons/add.png" );
+      filesAdd_Button.toolTip = util.formatToolTip(
+            "<p>Select a directory containing master calibration files (master bias, master darks, master flats, master flat darks).</p>" +
+            "<p>Files are auto-classified by IMAGETYP keyword and loaded into the correct tabs. " +
+            "Master file checkboxes are automatically checked for each loaded type.</p>" +
+            "<p>Supported file formats: FITS (.fit, .fits, .fts) and XISF (.xisf).</p>");
+      filesAdd_Button.onClick = function()
+      {
+            var gdd = new GetDirectoryDialog;
+            gdd.initialPath = ppar.lastDir;
+            gdd.caption = "Select master calibration files directory";
+
+            if (!gdd.execute()) {
+                  return;
+            }
+
+            var fileExtensions = ["*.fit", "*.fits", "*.fts", "*.xisf"];
+            var fileNames = [];
+            for (var i = 0; i < fileExtensions.length; i++) {
+                  var filelist = searchDirectory(gdd.directory + "/" + fileExtensions[i], false /*not recursive*/);
+                  fileNames = fileNames.concat(filelist);
+            }
+            if (fileNames.length == 0) {
+                  console.writeln("addMastersButton: No image files found in directory " + gdd.directory);
+                  return;
+            }
+
+            util.saveLastDir(gdd.directory);
+
+            var imagetypes = engine.getImagetypFiles(fileNames);
+
+            var firstPageIndex = -1;
+
+            if (imagetypes[global.pages.BIAS].length > 0) {
+                  addFilesToTreeBox(parent, global.pages.BIAS, imagetypes[global.pages.BIAS]);
+                  par.bias_master_files.val = true;
+                  if (parent.biasMasterFilesCheckBox) {
+                        parent.biasMasterFilesCheckBox.checked = true;
+                  }
+                  if (firstPageIndex == -1) firstPageIndex = global.pages.BIAS;
+            }
+            if (imagetypes[global.pages.DARKS].length > 0) {
+                  addFilesToTreeBox(parent, global.pages.DARKS, imagetypes[global.pages.DARKS]);
+                  par.dark_master_files.val = true;
+                  if (parent.darkMasterFilesCheckBox) {
+                        parent.darkMasterFilesCheckBox.checked = true;
+                  }
+                  if (firstPageIndex == -1) firstPageIndex = global.pages.DARKS;
+            }
+            if (imagetypes[global.pages.FLATS].length > 0) {
+                  addFilesToTreeBox(parent, global.pages.FLATS, imagetypes[global.pages.FLATS]);
+                  if (firstPageIndex == -1) firstPageIndex = global.pages.FLATS;
+            }
+            if (imagetypes[global.pages.FLAT_DARKS].length > 0) {
+                  addFilesToTreeBox(parent, global.pages.FLAT_DARKS, imagetypes[global.pages.FLAT_DARKS]);
+                  par.flat_dark_master_files.val = true;
+                  if (parent.flatDarkMasterFilesCheckBox) {
+                        parent.flatDarkMasterFilesCheckBox.checked = true;
+                  }
+                  if (firstPageIndex == -1) firstPageIndex = global.pages.FLAT_DARKS;
+            }
+
+            updateInfoLabel(parent);
+            updateExclusionAreaLabel(parent);
+
+            if (firstPageIndex != -1) {
+                  parent.tabBox.currentPageIndex = firstPageIndex;
+            }
+      };
+      return filesAdd_Button;
+}
+
 function addTargetType(parent)
 {
       var lbl = new Label( parent );
@@ -3005,6 +3085,7 @@ function addFilesButtons(parent)
 {
       var buttons = {
             addLightsButton: addOneFilesButton(parent, "Lights", global.pages.LIGHTS, parent.filesToolTip[global.pages.LIGHTS]),
+            addMastersButton: addMastersButton(parent),
             addBiasButton: addOneFilesButton(parent, "Bias", global.pages.BIAS, parent.filesToolTip[global.pages.BIAS]),
             addDarksButton: addOneFilesButton(parent, "Darks", global.pages.DARKS, parent.filesToolTip[global.pages.DARKS]),
             addFlatsButton: addOneFilesButton(parent, "Flats", global.pages.FLATS, parent.filesToolTip[global.pages.FLATS]),
@@ -3026,6 +3107,7 @@ function addFilesButtons(parent)
       global.rootingArr.push(filesButtons_Sizer1);
       filesButtons_Sizer1.spacing = 4;
       filesButtons_Sizer1.add( buttons.addLightsButton );
+      filesButtons_Sizer1.add( buttons.addMastersButton );
       filesButtons_Sizer1.add( buttons.addBiasButton );
       filesButtons_Sizer1.add( buttons.addDarksButton );
       filesButtons_Sizer1.add( buttons.addFlatsButton );
