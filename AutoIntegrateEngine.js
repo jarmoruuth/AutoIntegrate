@@ -1337,6 +1337,9 @@ function openImageFiles(filetype, lights_only, json_only, filetype_is_full_capti
       var ofd = new OpenFileDialog;
 
       ofd.multipleSelections = true;
+      if (ppar.lastDir != "") {
+            ofd.initialPath = ppar.lastDir;
+      }
       if (filetype_is_full_caption) {
             ofd.caption = filetype;
       } else if (lights_only) {
