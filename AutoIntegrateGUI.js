@@ -2847,7 +2847,7 @@ function addMastersButton(parent)
       filesAdd_Button.onClick = function()
       {
             var gdd = new GetDirectoryDialog;
-            gdd.initialPath = ppar.lastDir;
+            gdd.initialPath = ppar.masterDir != '' ? ppar.masterDir : ppar.lastDir;
             gdd.caption = "Select master calibration files directory";
 
             if (!gdd.execute()) {
@@ -2865,7 +2865,7 @@ function addMastersButton(parent)
                   return;
             }
 
-            util.saveLastDir(gdd.directory);
+            util.saveMasterDir(gdd.directory);
 
             var imagetypes = engine.getImagetypFiles(fileNames);
 

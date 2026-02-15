@@ -1194,6 +1194,24 @@ function restoreLastDir()
       }
 }
 
+function saveMasterDir(dirname)
+{
+      ppar.masterDir = util.removePathEndSlash(dirname);
+      if (!global.do_not_write_settings) {
+            Settings.write(SETTINGSKEY + '/masterDir', DataType_String, ppar.masterDir);
+            if (global.debug) console.writeln("Save masterDir '" + ppar.masterDir + "'");
+      }
+}
+
+function restoreMasterDir()
+{
+      var tempSetting = Settings.read(SETTINGSKEY + "/masterDir", DataType_String);
+      if (Settings.lastReadOK) {
+            if (global.debug) console.writeln("AutoIntegrate: Restored masterDir '" + tempSetting + "' from settings.");
+            ppar.masterDir = tempSetting;
+      }
+}
+
 function readAndMigrateSetting(newname, oldname, type, old_interface_version)
 {
       if (global.ppar.savedInterfaceVersion <= old_interface_version) {
@@ -2956,6 +2974,7 @@ function initStandalone()
 {
     readParametersFromPersistentModuleSettings();
     restoreLastDir();
+    restoreMasterDir();
 }
 
 /* Interface functions.
@@ -2990,6 +3009,8 @@ this.testDirectoryIsWriteable = testDirectoryIsWriteable;
 this.ensureDir = ensureDir;
 this.saveLastDir = saveLastDir;
 this.restoreLastDir = restoreLastDir;
+this.saveMasterDir = saveMasterDir;
+this.restoreMasterDir = restoreMasterDir;
 this.combinePath = combinePath;
 this.getOptionalUniqueFilenamePart = getOptionalUniqueFilenamePart;
 this.ensureDialogFilePath = ensureDialogFilePath;

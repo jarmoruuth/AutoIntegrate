@@ -345,6 +345,7 @@ function readPersistentSettings()
             ppar.userColumnCount = -1;
       }
       util.restoreLastDir();
+      util.restoreMasterDir();
       var tempSetting = Settings.read(SETTINGSKEY + "/savedVersion", DataType_String);
       if (Settings.lastReadOK) {
             console.writeln("AutoIntegrate: Restored savedVersion '" + tempSetting + "' from settings.");

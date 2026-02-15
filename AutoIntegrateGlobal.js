@@ -781,6 +781,7 @@ this.ppar = {
                               // every array element is [icon-column, prefix-name, icon-count]
       userColumnCount: -1,    // User set column position, if -1 use automatic column position
       lastDir: '',            // Last save or load dir, used as a default when dir is unknown
+      masterDir: '',          // Last master calibration files dir
       savedVersion: "",       // Saved version of the script
       savedInterfaceVersion: 0,     // Saved interface version of the script
       preview: {
