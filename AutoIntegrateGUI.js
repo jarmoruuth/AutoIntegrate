@@ -2840,32 +2840,31 @@ function addMastersButton(parent)
       filesAdd_Button.text = "Masters";
       filesAdd_Button.icon = parent.scaledResource( ":/icons/add.png" );
       filesAdd_Button.toolTip = util.formatToolTip(
-            "<p>Select a directory containing master calibration files (master bias, master darks, master flats, master flat darks).</p>" +
+            "<p>Select master calibration files (master bias, master darks, master flats, master flat darks).</p>" +
             "<p>Files are auto-classified by IMAGETYP keyword and loaded into the correct tabs. " +
-            "Master file checkboxes are automatically checked for each loaded type.</p>" +
-            "<p>Supported file formats: FITS (.fit, .fits, .fts) and XISF (.xisf).</p>");
+            "Master file checkboxes are automatically checked for each loaded type.</p>");
       filesAdd_Button.onClick = function()
       {
-            var gdd = new GetDirectoryDialog;
-            gdd.initialPath = ppar.masterDir != '' ? ppar.masterDir : ppar.lastDir;
-            gdd.caption = "Select master calibration files directory";
+            var ofd = new OpenFileDialog;
+            ofd.multipleSelections = true;
+            ofd.caption = "Select master calibration files";
+            ofd.initialPath = ppar.masterDir != '' ? ppar.masterDir : ppar.lastDir;
+            var fits_files = "*.fit *.fits *.fts";
+            ofd.filters = [
+                  ["Image files", fits_files + " *.xisf"],
+                  ["All files", "*.*"]
+            ];
 
-            if (!gdd.execute()) {
+            if (!ofd.execute()) {
                   return;
             }
 
-            var fileExtensions = ["*.fit", "*.fits", "*.fts", "*.xisf"];
-            var fileNames = [];
-            for (var i = 0; i < fileExtensions.length; i++) {
-                  var filelist = searchDirectory(gdd.directory + "/" + fileExtensions[i], false /*not recursive*/);
-                  fileNames = fileNames.concat(filelist);
-            }
+            var fileNames = ofd.fileNames;
             if (fileNames.length == 0) {
-                  console.writeln("addMastersButton: No image files found in directory " + gdd.directory);
                   return;
             }
 
-            util.saveMasterDir(gdd.directory);
+            util.saveMasterDir(File.extractDrive(fileNames[0]) + File.extractDirectory(fileNames[0]));
 
             var imagetypes = engine.getImagetypFiles(fileNames);
 
