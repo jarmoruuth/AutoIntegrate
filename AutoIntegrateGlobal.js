@@ -60,11 +60,16 @@ var self = this;
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
 this.autointegrate_version = "AutoIntegrate v1.84 test1";         // Version, also updated into updates.xri
-this.autointegrate_info = "Simple and expert modes";              // For updates.xri
+this.autointegrate_info = "Calibration updates";                  // For updates.xri
 
 this.autointegrate_version_info = [
       "Changes since the previous version:",
+      "- Grouping dark frames based on exposure time.",
       "- Matching dark frames to light frames based on exposure time.",
+      "- Defaults changed to work better with modern CMOS sensors.",
+      "- Added an option to generate master calibration files only.",
+      "- Added an option to load master calibration files.",
+      "- Bug fixes.",
 ];
 
 /* Interface version changes:
