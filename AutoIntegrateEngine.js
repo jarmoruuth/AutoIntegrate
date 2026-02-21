@@ -2985,7 +2985,7 @@ function getSubframeSelectorMeasurements(fileNames, flowchart_name)
 {
       console.writeln("run SubframeSelector on " + fileNames.length + " files");
       if (flowchart_name) {
-            var node = flowchart.Operation(flowchart_name);
+            var node = flowchart.flowchartOperation(flowchart_name);
       }
 
       var P = new SubframeSelector;
