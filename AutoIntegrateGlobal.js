@@ -59,8 +59,8 @@ var self = this;
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-this.autointegrate_version = "AutoIntegrate v1.84";         // Version, also updated into updates.xri
-this.autointegrate_info = "Calibration updates";            // For updates.xri
+this.autointegrate_version = "AutoIntegrate v1.84.1 fix1";  // Version, also updated into updates.xri
+this.autointegrate_info = "Calibration updates, fixes";     // For updates.xri
 
 this.autointegrate_version_info = [
       "Changes since the previous version:",
@@ -69,7 +69,7 @@ this.autointegrate_version_info = [
       "- Defaults changed to work better with modern CMOS sensors.",
       "- Added an option to generate master calibration files only.",
       "- Added an option to load master calibration files.",
-      "- Bug fixes.",
+      "- Calibration and other bug fixes.",
 ];
 
 /* Interface version changes:
