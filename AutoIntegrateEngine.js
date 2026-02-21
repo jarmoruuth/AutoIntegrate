@@ -1872,6 +1872,26 @@ function groupDarksByExposureTime(fileNames)
       return result;
 }
 
+// Group light file-info objects (which already carry .exptime) by exposure time.
+// Returns array of { exptime, files[] } similar to groupDarksByExposureTime.
+function groupLightsByExposureTime(filearr)
+{
+      var groups = {};
+      for (var i = 0; i < filearr.length; i++) {
+            var exptime = filearr[i].exptime;
+            var key = exptime.toString();
+            if (!groups[key]) {
+                  groups[key] = { exptime: exptime, files: [] };
+            }
+            groups[key].files.push(filearr[i]);
+      }
+      var result = [];
+      for (var key in groups) {
+            result.push(groups[key]);
+      }
+      return result;
+}
+
 /* Select the best matching master dark for a target exposure time.
  * masterdarkInfoArr is an array of { exptime, path } objects.
  * Returns the path of the best matching master dark.
@@ -18643,28 +18663,35 @@ function getOutputDirFromCalibrationFiles()
              var filterName = filtered_lights.allfilesarr[i].filter;
              flowchart.flowchartChildBegin(filterName);
              if (filterFiles.length > 0) {
-                   // calibrate light frames with master bias, master dark and master flat
-                   // optionally master dark can be left out
-                   let fileProcessedStatus = getFileProcessedStatusCalibrated(fileNamesFromFilearr(filterFiles), '_c');
-                   if (fileProcessedStatus.unprocessed.length == 0) {
-                        var node = flowchart.flowchartOperation("ImageCalibration:lights");
-                        calibratedLightFileNames = calibratedLightFileNames.concat(fileProcessedStatus.processed);
-                        engine_end_process(node);
-                   } else {
-                         util.addProcessingStep("calibrateEngine calibrate " + filterName + " lights for " + fileProcessedStatus.unprocessed.length + " files");
-                         let lightcalimages = fileNamesToEnabledPath(fileProcessedStatus.unprocessed);
+                   // Sub-group lights by exposure time so each group gets the
+                   // correct master dark when multiple exposure times are present.
+                   var lightExptimeGroups = groupLightsByExposureTime(filterFiles);
+                   for (var lg = 0; lg < lightExptimeGroups.length; lg++) {
+                         var lgFiles   = lightExptimeGroups[lg].files;
+                         var lgExptime = lightExptimeGroups[lg].exptime;
 
-                         var selectedMasterDark;
-                         if (Array.isArray(masterdarkPath)) {
-                               var lightExptime = filterFiles[0].exptime;
-                               selectedMasterDark = selectMasterDarkForExptime(masterdarkPath, lightExptime);
-                               util.addProcessingStep("calibrateEngine selected master dark for light exptime " + lightExptime + "s: " + selectedMasterDark);
+                         // calibrate light frames with master bias, master dark and master flat
+                         // optionally master dark can be left out
+                         let fileProcessedStatus = getFileProcessedStatusCalibrated(fileNamesFromFilearr(lgFiles), '_c');
+                         if (fileProcessedStatus.unprocessed.length == 0) {
+                               var node = flowchart.flowchartOperation("ImageCalibration:lights");
+                               calibratedLightFileNames = calibratedLightFileNames.concat(fileProcessedStatus.processed);
+                               engine_end_process(node);
                          } else {
-                               selectedMasterDark = masterdarkPath;
-                         }
-                         let lightcalFileNames = runCalibrateLights(lightcalimages, masterbiasPath, selectedMasterDark, masterflatPath[i], filterName);
+                               util.addProcessingStep("calibrateEngine calibrate " + filterName + " lights for " + fileProcessedStatus.unprocessed.length + " files at " + lgExptime + "s");
+                               let lightcalimages = fileNamesToEnabledPath(fileProcessedStatus.unprocessed);
 
-                         calibratedLightFileNames = calibratedLightFileNames.concat(lightcalFileNames, fileProcessedStatus.processed);
+                               var selectedMasterDark;
+                               if (Array.isArray(masterdarkPath)) {
+                                     selectedMasterDark = selectMasterDarkForExptime(masterdarkPath, lgExptime);
+                                     util.addProcessingStep("calibrateEngine selected master dark for light exptime " + lgExptime + "s: " + selectedMasterDark);
+                               } else {
+                                     selectedMasterDark = masterdarkPath;
+                               }
+                               let lightcalFileNames = runCalibrateLights(lightcalimages, masterbiasPath, selectedMasterDark, masterflatPath[i], filterName);
+
+                               calibratedLightFileNames = calibratedLightFileNames.concat(lightcalFileNames, fileProcessedStatus.processed);
+                         }
                    }
              }
              flowchart.flowchartChildEnd(filterName);
