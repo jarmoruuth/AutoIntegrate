@@ -2052,7 +2052,7 @@ function runCalibrateFlats(images, masterbiasPath, masterdarkPath, masterflatdar
       P.masterFlatEnabled = false;
       P.masterFlatPath = "";
       P.calibrateBias = false;
-      if (par.pre_calibrate_darks.val) {
+      if (darkIsBiasCalibrated(masterdarkPath)) {
             P.calibrateDark = false;
       } else {
             P.calibrateDark = true;
@@ -2082,22 +2082,9 @@ function runImageIntegrationFlats(images, name, filterName)
       }
 
       var P = new ImageIntegration;
-      switch (par.integration_combination.val) {
-            case 'Average':
-                  P.combination = ImageIntegration.prototype.Average;
-                  break;
-            case 'Median':
-                  P.combination = ImageIntegration.prototype.Median;
-                  break;
-            case 'Minimum':
-                  P.combination = ImageIntegration.prototype.Minimum;
-                  break;
-            case 'Maximum':
-                  P.combination = ImageIntegration.prototype.Maximum;
-                  break;
-            default:
-                  util.throwError("runImageIntegrationFlats, unknown combination " + par.integration_combination.val);
-      }
+      // Flats must always use Average combination for a proper master flat;
+      // the user's integration_combination setting applies only to light frames.
+      P.combination = ImageIntegration.prototype.Average;
             
       P.images = images; // [ enabled, path, drizzlePath, localNormalizationDataPath ];
       P.weightMode = ImageIntegration.prototype.DontCare;
@@ -2143,7 +2130,16 @@ function appendTxtWithComma(txt, append)
 function runCalibrateLights(images, masterbiasPath, masterdarkPath, masterflatPath, filterName)
 {
       if (!par.bias_use_on_lights.val) {
-            masterbiasPath = null;
+            if (masterdarkPath != null && !darkIsBiasCalibrated(masterdarkPath)) {
+                  // Dark still contains bias signal (not pre-calibrated), so subtracting
+                  // the dark from lights naturally cancels the bias — no need to apply
+                  // bias separately.
+                  console.noteln("runCalibrateLights, master dark has bias (CALSTAT has no B), bias cancels via dark subtraction, ignore master bias");
+                  masterbiasPath = null;
+            }
+            // When the dark had bias subtracted (CALSTAT has B, or pre_calibrate_darks
+            // is set), the dark has no bias, so master bias must be applied directly
+            // to lights — do not null masterbiasPath.
       }
       if (masterbiasPath == null && masterdarkPath == null && masterflatPath == null) {
             console.noteln("runCalibrateLights, no master bias, dark or flat");
@@ -2213,7 +2209,7 @@ function runCalibrateLights(images, masterbiasPath, masterdarkPath, masterflatPa
       }
       if (par.optimize_darks.val) {
             P.calibrateBias = false;
-            if (par.pre_calibrate_darks.val) {
+            if (darkIsBiasCalibrated(masterdarkPath)) {
                   P.calibrateDark = false;
             } else {
                   P.calibrateDark = true;
@@ -2222,9 +2218,6 @@ function runCalibrateLights(images, masterbiasPath, masterdarkPath, masterflatPa
             P.optimizeDarks = true;
 
       } else {
-            P.masterBiasEnabled = false;
-            P.masterBiasPath = "";
-
             P.calibrateBias = false;
             P.calibrateDark = false;
             P.calibrateFlat = false;
@@ -4078,6 +4071,27 @@ function getFileKeywords(filePath)
       f.close();
 
       return keywords;
+}
+
+// Returns true if the master dark file had bias subtracted during its creation,
+// detected via the CALSTAT FITS keyword ('B' present). Falls back to the
+// pre_calibrate_darks parameter when the keyword is absent (e.g. older files).
+function darkIsBiasCalibrated(darkPath)
+{
+      if (darkPath == null) {
+            return par.pre_calibrate_darks.val;
+      }
+      var keywords = getFileKeywords(darkPath);
+      for (var i = 0; i < keywords.length; i++) {
+            if (keywords[i].name == "CALSTAT") {
+                  var calstat = keywords[i].strippedValue.trim().toUpperCase();
+                  console.writeln("darkIsBiasCalibrated, CALSTAT=" + calstat + " in " + darkPath);
+                  return calstat.indexOf('B') >= 0;
+            }
+      }
+      // No CALSTAT keyword — fall back to user parameter.
+      console.writeln("darkIsBiasCalibrated, no CALSTAT in " + darkPath + ", using pre_calibrate_darks=" + par.pre_calibrate_darks.val);
+      return par.pre_calibrate_darks.val;
 }
 
 // Get filter keywpord for image. If filter is not found from FILTER keyword
@@ -18494,6 +18508,9 @@ function getOutputDirFromCalibrationFiles()
                    let win = util.findWindow(masterdarkid);
                    util.setFITSKeyword(win, "EXPTIME", groupExptime.toString(), "Exposure time for master dark");
                    setImagetypKeyword(win, "Master dark");
+                   if (par.pre_calibrate_darks.val && masterbiasPath != null) {
+                         util.setFITSKeyword(win, "CALSTAT", "B", "Calibration status: B=bias subtracted");
+                   }
                    var masterdarkPath = saveMasterWindow(global.outputRootDir, masterdarkid);
                    guiUpdatePreviewId(masterdarkid);
              } else {
@@ -18523,6 +18540,9 @@ function getOutputDirFromCalibrationFiles()
                                let win = util.findWindow(masterdarkid);
                                setImagetypKeyword(win, "Master dark");
                                util.setFITSKeyword(win, "EXPTIME", groupExptime.toString(), "Exposure time for master dark");
+                               if (par.pre_calibrate_darks.val && masterbiasPath != null) {
+                                     util.setFITSKeyword(win, "CALSTAT", "B", "Calibration status: B=bias subtracted");
+                               }
                                var groupMasterPath = saveMasterWindow(global.outputRootDir, masterdarkid);
                                guiUpdatePreviewId(masterdarkid);
                                masterdarkPath.push({ exptime: groupExptime, path: groupMasterPath });

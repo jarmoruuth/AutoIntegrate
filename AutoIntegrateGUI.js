@@ -919,8 +919,7 @@ function biasOptions(parent)
       parent.biasMasterFilesCheckBox = checkbox2;
       var checkbox3 = guitools.newCheckBox(parent, "Use on lights", par.bias_use_on_lights, 
             "<p>Use bias files on light frames.</p>" +
-            "<p>For modern CMOS sensors you should not use bias files on light frames.</p>" +
-            "<p>For CCD sensors you can use bias files on light frames.</p>");
+            "<p>If there are master dark files, bias files are ignored on light frames unless explicitly enabled.</p>");
       var checkbox4 = guitools.newCheckBox(parent, "Use on darks", par.bias_use_on_darks,
             "<p>Use bias files on dark frames.</p>" +
             "<p>For modern CMOS sensors you should not use bias files on dark frames.</p>" +
