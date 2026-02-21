@@ -3808,9 +3808,6 @@ function updateParameterDependencies()
       if (stretching != null) {
             guitools.stretchingComboBox.currentItem = guitools.stretchingComboBox.aiValarray.indexOf(stretching);
             guitools.stretchingComboBox.aiParam.val = stretching;
-      } else {
-            guitools.stretchingComboBox.currentItem = 0;
-            guitools.stretchingComboBox.aiParam.val = guitools.stretchingComboBox.aiValarray[0];
       }
       // console.writeln("Setting stretchingComboBox.enabled to " + dialog.stretchingComboBox.enabled + " based on target_type " + par.target_type.val);
 }
