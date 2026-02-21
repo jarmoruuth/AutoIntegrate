@@ -18498,6 +18498,7 @@ function getOutputDirFromCalibrationFiles()
              if (darkExptimeGroups.length == 1) {
                    // Single exposure time group, create one master dark as before
                    var groupExptime = darkExptimeGroups[0].exptime;
+                   var groupName = groupExptime + "s";
                    if (par.pre_calibrate_darks.val && masterbiasPath != null) {
                          var darkcalFileNames = runCalibrateDarks(darkExptimeGroups[0].files, masterbiasPath);
                          var darkimages = filesForImageIntegration(darkcalFileNames);
