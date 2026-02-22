@@ -1767,10 +1767,11 @@ function writeImage(filePath, imageWindow)
  */
 
 // Integrate (stack) bias and dark images
-function runImageIntegrationBiasDarks(images, name, type)
+function runImageIntegrationBiasDarks(images, name, type, exptime)
 {
       console.writeln("runImageIntegrationBiasDarks, images[0] " + images[0][1] + ", name " + name);
-      var node = flowchart.flowchartOperation("ImageIntegration:" + type);
+      var exptimeTxt = (exptime != null && exptime > 0) ? " (" + exptime + "s)" : "";
+      var node = flowchart.flowchartOperation("ImageIntegration:" + type + exptimeTxt);
 
       if (global.get_flowchart_data) {
             return flowchartNewIntegrationImage(images[0][1], name);
@@ -1893,14 +1894,18 @@ function groupLightsByExposureTime(filearr)
 }
 
 /* Select the best matching master dark for a target exposure time.
- * masterdarkInfoArr is an array of { exptime, path } objects.
- * Returns the path of the best matching master dark.
+ * masterdarkInfoArr may be a single path string, an array of { exptime, path }
+ * objects, or null. Returns the best matching path, or null if none available.
  */
 function selectMasterDarkForExptime(masterdarkInfoArr, targetExptime)
 {
+      if (masterdarkInfoArr == null) {
+            return null;
+      }
       if (!Array.isArray(masterdarkInfoArr)) {
             // Single master dark — warn if its exposure time differs too much from the lights.
             var darkExptime = getExptimeFromFile(masterdarkInfoArr);
+            console.writeln("selectMasterDarkForExptime: single master dark " + masterdarkInfoArr + ", exptime " + darkExptime + "s, targetExptime " + targetExptime + "s");
             if (darkExptime > 0 && Math.abs(darkExptime - targetExptime) > 0.1 * targetExptime) {
                   util.addWarningStatus("Warning: Master dark exposure time " + darkExptime + "s does not closely match light exposure time " + targetExptime + "s");
             }
@@ -1918,6 +1923,7 @@ function selectMasterDarkForExptime(masterdarkInfoArr, targetExptime)
       }
       // Report a warning if exposure times differ too much (e.g. more than 10%)
       var bestExptime = masterdarkInfoArr[bestIdx].exptime;
+      console.writeln("selectMasterDarkForExptime: best match " + masterdarkInfoArr[bestIdx].path + ", exptime " + bestExptime + "s, targetExptime " + targetExptime + "s");
       if (bestDiff > 0.1 * targetExptime) {
             util.addWarningStatus("Warning: No closely matching master dark found for exposure time " + targetExptime + ". Best match is " + bestExptime);
       }
@@ -2152,7 +2158,7 @@ function appendTxtWithComma(txt, append)
       return txt + append;
 }
 
-function runCalibrateLights(images, masterbiasPath, masterdarkPath, masterflatPath, filterName)
+function runCalibrateLights(images, masterbiasPath, masterdarkPath, masterflatPath, filterName, exptime)
 {
       if (!par.bias_use_on_lights.val) {
             if (masterdarkPath != null && !darkIsBiasCalibrated(masterdarkPath)) {
@@ -2182,6 +2188,9 @@ function runCalibrateLights(images, masterbiasPath, masterdarkPath, masterflatPa
       }
       if (masterflatPath != null) {
             txt = appendTxtWithComma(txt, "flats");
+      }
+      if (exptime != null && exptime > 0) {
+            txt = appendTxtWithComma(txt, exptime + "s");
       }
       if (txt != "") {
             txt = " (" + txt + ")";
@@ -18530,7 +18539,7 @@ function getOutputDirFromCalibrationFiles()
                    } else {
                          var darkimages = filesForImageIntegration(darkExptimeGroups[0].files);
                    }
-                   var masterdarkid = runImageIntegrationBiasDarks(darkimages, ppar.win_prefix + "AutoMasterDark_" + groupName, "dark");
+                   var masterdarkid = runImageIntegrationBiasDarks(darkimages, ppar.win_prefix + "AutoMasterDark_" + groupName, "dark", groupExptime);
                    let win = util.findWindow(masterdarkid);
                    util.setFITSKeyword(win, "EXPTIME", groupExptime.toString(), "Exposure time for master dark");
                    setImagetypKeyword(win, "Master dark");
@@ -18562,7 +18571,7 @@ function getOutputDirFromCalibrationFiles()
                                } else {
                                      var darkimages = filesForImageIntegration(groupFiles);
                                }
-                               var masterdarkid = runImageIntegrationBiasDarks(darkimages, ppar.win_prefix + "AutoMasterDark_" + groupName, "dark");
+                               var masterdarkid = runImageIntegrationBiasDarks(darkimages, ppar.win_prefix + "AutoMasterDark_" + groupName, "dark", groupExptime);
                                let win = util.findWindow(masterdarkid);
                                setImagetypKeyword(win, "Master dark");
                                util.setFITSKeyword(win, "EXPTIME", groupExptime.toString(), "Exposure time for master dark");
@@ -18619,12 +18628,10 @@ function getOutputDirFromCalibrationFiles()
                    console.writeln("flatcalimages[0] " + flatcalimages[0][1]);
                    var selectedMasterDarkForFlat = null;
                    if (par.use_darks_on_flat_calibrate.val) {
-                        if (Array.isArray(masterdarkPath)) {
-                              var flatExptime = filterFiles[0].exptime;
-                              selectedMasterDarkForFlat = selectMasterDarkForExptime(masterdarkPath, flatExptime);
+                        var flatExptime = filterFiles[0].exptime;
+                        selectedMasterDarkForFlat = selectMasterDarkForExptime(masterdarkPath, flatExptime);
+                        if (selectedMasterDarkForFlat != null) {
                               util.addProcessingStep("calibrateEngine selected master dark for flat exptime " + flatExptime + "s: " + selectedMasterDarkForFlat);
-                        } else {
-                              selectedMasterDarkForFlat = masterdarkPath;
                         }
                   }
                    var flatcalFileNames = runCalibrateFlats(flatcalimages, masterbiasPath, selectedMasterDarkForFlat, masterflatdarkPath ? masterflatdarkPath[i] : null, filterName);
@@ -18686,14 +18693,11 @@ function getOutputDirFromCalibrationFiles()
                                util.addProcessingStep("calibrateEngine calibrate " + filterName + " lights for " + fileProcessedStatus.unprocessed.length + " files at " + lgExptime + "s");
                                let lightcalimages = fileNamesToEnabledPath(fileProcessedStatus.unprocessed);
 
-                               var selectedMasterDark;
-                               if (Array.isArray(masterdarkPath)) {
-                                     selectedMasterDark = selectMasterDarkForExptime(masterdarkPath, lgExptime);
-                                     util.addProcessingStep("calibrateEngine selected master dark for light exptime " + lgExptime + "s: " + selectedMasterDark);
-                               } else {
-                                     selectedMasterDark = masterdarkPath;
+                               var selectedMasterDark = selectMasterDarkForExptime(masterdarkPath, lgExptime);
+                               if (selectedMasterDark != null) {
+                                    util.addProcessingStep("calibrateEngine selected master dark for light exptime " + lgExptime + "s: " + selectedMasterDark);
                                }
-                               let lightcalFileNames = runCalibrateLights(lightcalimages, masterbiasPath, selectedMasterDark, masterflatPath[i], filterName);
+                               let lightcalFileNames = runCalibrateLights(lightcalimages, masterbiasPath, selectedMasterDark, masterflatPath[i], filterName, lgExptime);
 
                                calibratedLightFileNames = calibratedLightFileNames.concat(lightcalFileNames, fileProcessedStatus.processed);
                          }
@@ -19618,7 +19622,7 @@ function autointegrateProcessingEngine(parent, auto_continue, autocontinue_narro
        console.writeln("Run Garbage Collection");
        util.runGarbageCollection();
  
-       console.writeln("global.testmode " + global.testmode);
+       if (global.debug) console.writeln("global.testmode " + global.testmode);
        if (global.testmode) {
             global.testmode_log += "\n" + global.processing_steps;
             writeTestmodeLog(global.testmode_log, "TestMode.log");
