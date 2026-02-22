@@ -450,18 +450,20 @@ function flowchartFilterFiles(fileNames, filetype)
       var renamedFileNames = [];
       var maxsize = Math.max(flowchar_filtered_files.maxwidth, flowchar_filtered_files.maxheigth);
 
-      // Pick first files for each channel
+      // Pick first files for each channel, one file per exposure time group
       console.writeln("flowchartFilterFiles, " + allfilesarr.length + " channels");
       console.flush();
       for (var i = 0; i < allfilesarr.length; i++) {
             console.writeln("flowchartFilterFiles, " + allfilesarr[i].filter + ", " + allfilesarr[i].files.length);
-            for (var j = 0; j < allfilesarr[i].files.length; j++) {
-                  console.writeln("flowchartFilterFiles, " + allfilesarr[i].filter + ", " + allfilesarr[i].files[j].name);
-                  var name = allfilesarr[i].files[j].name;
-                  newFileNames[newFileNames.length] = name;
-                  console.writeln("flowchartFilterFiles, " + allfilesarr[i].filter + ", " + name);
-                  if (j == stop_on_image) {
-                        break;
+            var exptimeGroups = groupLightsByExposureTime(allfilesarr[i].files);
+            for (var eg = 0; eg < exptimeGroups.length; eg++) {
+                  for (var j = 0; j < exptimeGroups[eg].files.length; j++) {
+                        var name = exptimeGroups[eg].files[j].name;
+                        console.writeln("flowchartFilterFiles, " + allfilesarr[i].filter + ", " + exptimeGroups[eg].exptime + "s, " + name);
+                        newFileNames[newFileNames.length] = name;
+                        if (j == stop_on_image) {
+                              break;
+                        }
                   }
             }
       }
@@ -508,7 +510,7 @@ function flowchartNewIntegrationImage(fileName, targetImageName)
             binning++;
             binned_size = minsize / binning;
       }
-      console.writeln("flowchartFilterFiles, binning " + binning);
+      console.writeln("flowchartNewIntegrationImage, binning " + binning);
       runBinning(imgWin, binning);
 
       return targetImageName;
@@ -516,7 +518,7 @@ function flowchartNewIntegrationImage(fileName, targetImageName)
 
 function flowchartNewImage(imgWin, targetImageName)
 {
-      console.writeln("flowchartNewIntegrationImage");
+      console.writeln("flowchartNewImage: " + targetImageName);
 
       // copy image file
       util.copyWindow(imgWin, util.ensure_win_prefix(targetImageName));
@@ -18372,6 +18374,9 @@ function getOutputDirFromCalibrationFiles()
             // Filter files for global.get_flowchart_data.
             engine.flatFileNames = flowchartFilterFiles(engine.flatFileNames, global.pages.FLATS);
             engine.flatdarkFileNames = flowchartFilterFiles(engine.flatdarkFileNames, global.pages.FLAT_DARKS);
+            // Dark files are not filtered here: the dark integration code calls
+            // groupDarksByExposureTime internally, so each exposure group already
+            // produces its own flowchart operation without further filtering needed.
       }
 
        // Collect filter files
