@@ -1899,7 +1899,12 @@ function groupLightsByExposureTime(filearr)
 function selectMasterDarkForExptime(masterdarkInfoArr, targetExptime)
 {
       if (!Array.isArray(masterdarkInfoArr)) {
-            return masterdarkInfoArr; // single path, return as-is
+            // Single master dark — warn if its exposure time differs too much from the lights.
+            var darkExptime = getExptimeFromFile(masterdarkInfoArr);
+            if (darkExptime > 0 && Math.abs(darkExptime - targetExptime) > 0.1 * targetExptime) {
+                  util.addWarningStatus("Warning: Master dark exposure time " + darkExptime + "s does not closely match light exposure time " + targetExptime + "s");
+            }
+            return masterdarkInfoArr;
       }
       // Find exact or closest match
       var bestIdx = 0;
