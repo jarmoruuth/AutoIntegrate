@@ -3503,13 +3503,15 @@ function saveParametersToPersistentModuleSettings()
             return;
       }
       console.writeln("saveParametersToPersistentModuleSettings");
-      // Ask from user before saving
-      var txt = "Do you want to save current settings to persistent module settings?";
-      var response = new MessageBox(txt, "AutoIntegrate", StdIcon_Question, StdButton_Yes, StdButton_No ).execute();
-      if (response != StdButton_Yes) {
+
+      // Ask for confirmation before saving default values because it can overwrite previously saved values.
+      var mb = new MessageBox("<p>Are you sure you want to save current parameter values to persistent module settings?</p>" +
+                              "<p>This will overwrite any previously saved values.</p>", "Save default values", StdIcon_Question, StdButton_Yes, StdButton_No);
+      if (mb.execute() != StdButton_Yes) {
             console.noteln("User canceled saving settings");
             return;
       }
+
       for (let x in par) {
             util.writeParameterToSettings(par[x]);
       }
@@ -3642,7 +3644,10 @@ function newAutoContinueButton(parent, toolbutton)
 
             guitools.current_preview.image = null;
             guitools.current_preview.image_versions = [];
-            util.clearDefaultDirs();
+            if (global.outputRootDir == "" || util.pathIsRelative(global.outputRootDir)) {
+                  // If we do not have a fixed output directory then do not use subdirectories 
+                  util.clearDefaultDirs();
+            }
             getFilesFromTreebox(parent.dialog);
             if (isbatchNarrowbandPaletteMode() && engine.autocontinueHasNarrowband()) {
                   var batch_narrowband_palette_mode = true;
@@ -7644,6 +7649,7 @@ function AutoIntegrateDialog()
             "<p>Set default button sets default values for all parameters.</p>";
       this.savedefaults_Button.onClick = function()
       {
+            // We ask for confirmation in function saveParametersToPersistentModuleSettings
             saveParametersToPersistentModuleSettings();
       };
       this.reset_Button = new ToolButton(this);
@@ -7651,6 +7657,12 @@ function AutoIntegrateDialog()
       this.reset_Button.toolTip = "<p>Set default values for all parameters.</p>";
       this.reset_Button.onClick = function()
       {
+            // Ask for confirmation before setting default values because it can not be undone.
+            var mb = new MessageBox("<p>Are you sure you want to set default values for all parameters?</p>" +
+                                    "<p>This can not be undone.</p>", "Set default values", StdIcon_Question, StdButton_Yes, StdButton_No);
+            if (mb.execute() != StdButton_Yes) {
+                  return;
+            }
             util.setParameterDefaults();
       };
       this.changedParametersButton = new ToolButton(this);
