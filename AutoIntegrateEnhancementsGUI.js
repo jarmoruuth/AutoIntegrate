@@ -230,7 +230,7 @@ function copy_new_edit_image(id)
 
       // Get edit count from file name
       var id_editcount = getNumberAfterUnderscore(id);
-      console.writeln("copy_new_edit_image:id_editcount " + id_editcount);
+      if (global.debug) console.writeln("copy_new_edit_image:id_editcount " + id_editcount);
       
       // Get edit count from image metadata
       var win = ImageWindow.windowById(id);
@@ -241,14 +241,14 @@ function copy_new_edit_image(id)
       } else {
             editcount = parseInt(editcount);
       }
-      console.writeln("copy_new_edit_image:editcount " + editcount);
+      if (global.debug) console.writeln("copy_new_edit_image:editcount " + editcount);
 
       if (id_editcount > 0) {
             // Check if next number is available
             var basename = removeUnderscoreNumber(id);
-            console.writeln("copy_new_edit_image:basename " + basename);
+            if (global.debug) console.writeln("copy_new_edit_image:basename " + basename);
             var next_id = basename + "_" + (id_editcount + 1).toString();
-            console.writeln("copy_new_edit_image:next_id " + next_id);
+            if (global.debug) console.writeln("copy_new_edit_image:next_id " + next_id);
             if (util.findWindow(next_id) == null) {
                   // Next id is free, use it
                   copy_id = next_id;
@@ -266,7 +266,7 @@ function copy_new_edit_image(id)
             }
       }
       var copy_win = util.copyWindowEx(win, copy_id, true);
-      console.writeln("Copy image " + copy_win.mainView.id);
+      if (global.debug) console.writeln("Copy image " + copy_win.mainView.id);
       util.setFITSKeyword(
             copy_win, 
             "AutoIntegrateEditCount", 
