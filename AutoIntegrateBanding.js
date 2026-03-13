@@ -153,10 +153,10 @@ function AutoIntegrateBandingEngine() {
              this.convertedImage=null;
           }else{
              // convert image to floating point format, since int would not handle negatives or overflows
-             if ( this.targetImage.sampleType == SampleType_Integer ){
+             if ( this.targetImage.sampleType == PixelSampleType.Integer ){
                 this.convertedImage = new Image( this.targetImage.width, this.targetImage.height,
                                   this.targetImage.numberOfChannels, this.targetImage.colorSpace,
-                                  (this.targetImage.bitsPerSample < 32) ? 32 : 64, SampleType_Real );
+                                  (this.targetImage.bitsPerSample < 32) ? 32 : 64, PixelSampleType.Real );
                 this.targetImage.resetSelections();
                 this.convertedImage.resetSelections()
                 this.convertedImage.assign( this.targetImage );
@@ -187,7 +187,7 @@ function AutoIntegrateBandingEngine() {
  
           this.fixImage=new Image( targetImage.width, targetImage.height,
                                   targetImage.numberOfChannels, targetImage.colorSpace,
-                                  targetImage.bitsPerSample, SampleType_Real );
+                                  targetImage.bitsPerSample, PixelSampleType.Real );
           var fixImage=this.fixImage;
           targetImage.resetSelections();
           fixImage.resetSelections();
@@ -251,10 +251,10 @@ function AutoIntegrateBandingEngine() {
           if ( false ){
              fixImage.normalize();
              var wtmp = new ImageWindow( 1000, 1000, 3,
-                                  fixImage.bitsPerSample, fixImage.sampleType == SampleType_Real, fixImage.isColor,"FixImage" );
+                                  fixImage.bitsPerSample, fixImage.sampleType == PixelSampleType.Real, fixImage.isColor,"FixImage" );
              var v = wtmp.mainView;
  
-             v.beginProcess( UndoFlag_NoSwapFile );
+             v.beginProcess( UndoFlag.NoSwapFile );
              v.image.assign( fixImage );
              v.endProcess();
              wtmp.bringToFront();
@@ -283,7 +283,7 @@ function AutoIntegrateBandingEngine() {
           }
           this.resultImage=new Image( targetImage.width, targetImage.height,
                                   targetImage.numberOfChannels, targetImage.colorSpace,
-                                  targetImage.bitsPerSample, SampleType_Real );
+                                  targetImage.bitsPerSample, PixelSampleType.Real );
           targetImage.resetSelections();
           var resultImage=this.resultImage;
           this.fixImage.resetSelections();
@@ -300,7 +300,7 @@ function AutoIntegrateBandingEngine() {
           //I just clip the values between 0.0 and 1.1.
           var clipImage=new Image( targetImage.width, targetImage.height,
                                   targetImage.numberOfChannels, targetImage.colorSpace,
-                                  targetImage.bitsPerSample, SampleType_Real );
+                                  targetImage.bitsPerSample, PixelSampleType.Real );
           clipImage.fill(0.0);
           resultImage.apply(clipImage,ImageOp_Max);
           clipImage.fill(1.0);

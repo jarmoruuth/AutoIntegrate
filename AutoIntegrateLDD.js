@@ -51,22 +51,23 @@ Copyright (c) 2019 Vicent Peris (OAUV). All Rights Reserved.
 #ifndef AUTOINTEGRATELDD_JS
 #define AUTOINTEGRATELDD_JS
 
-function AutoIntegrateLDD(util)
+class AutoIntegrateLDD extends Object
 {
+    constructor(util) {
+        super();
+        this.util = util;
+    }
 
-this.__base__ = Object;
-this.__base__();
-
-function LDDEngine( win, detectColumns, detectPartialLines,
+LDDEngine( win, detectColumns, detectPartialLines,
     layersToRemove, rejectionLimit, imageShift,
     detectionThreshold, partialLineDetectionThreshold )
 {
     console.writeln("LDDEngine");
-    let WI = new DefineWindowsAndImages( win, detectPartialLines );
+    let WI = this.DefineWindowsAndImages( win, detectPartialLines );
 
     // Generate the small-scale image by subtracting
     // the large-scale components of the image.
-    MultiscaleIsolation( WI.referenceSSImage, null, layersToRemove );
+    this.MultiscaleIsolation( WI.referenceSSImage, null, layersToRemove );
 
     // Build a list of lines in the image.
     // This can include entire or partial rows or columns.
@@ -74,7 +75,7 @@ function LDDEngine( win, detectColumns, detectPartialLines,
     layersToRemove = 7;
     let partialLines;
     if ( detectPartialLines )
-        partialLines = new PartialLineDetection( detectColumns, WI.referenceImageCopy,
+        partialLines = this.PartialLineDetection( detectColumns, WI.referenceImageCopy,
                     layersToRemove - 3, imageShift,
                     partialLineDetectionThreshold );
 
@@ -92,13 +93,13 @@ function LDDEngine( win, detectColumns, detectPartialLines,
 
     let lines;
     if ( detectPartialLines )
-        lines = new LineList( true,
+        lines = this.LineList( true,
                         partialLines.columnOrRow,
                         partialLines.startPixel,
                         partialLines.endPixel,
                         maxPixelPara, maxPixelPerp );
     else
-        lines = new LineList( true, [], [], [], maxPixelPara, maxPixelPerp );
+        lines = this.LineList( true, [], [], [], maxPixelPara, maxPixelPerp );
 
     // Calculate the median value of each line in the image.
     // Create a model image with the lines filled
@@ -119,7 +120,7 @@ function LDDEngine( win, detectColumns, detectPartialLines,
             lineRect.moveTo( lines.startPixel[i], lines.columnOrRow[i] );
         }
 
-        let lineStatistics = new IterativeStatistics( WI.referenceSSImage, lineRect, rejectionLimit );
+        let lineStatistics = this.IterativeStatistics( WI.referenceSSImage, lineRect, rejectionLimit );
         WI.lineModelImage.selectedRect = lineRect;
         WI.lineModelImage.apply( lineStatistics.median );
         lineValues.push( lineStatistics.median );
@@ -179,9 +180,9 @@ function LDDEngine( win, detectColumns, detectPartialLines,
     WI.lineDetectionImage.free();
     if ( detectPartialLines )
         WI.referenceImageCopy.free();
-    util.closeOneWindowById(WI.lineModelWindow.mainView.id);
-    util.closeOneWindowById(WI.lineDetectionWindow.mainView.id);
-    util.closeOneWindowById("partial_line_detection");
+    this.util.closeOneWindowById(WI.lineModelWindow.mainView.id);
+    this.util.closeOneWindowById(WI.lineDetectionWindow.mainView.id);
+    this.util.closeOneWindowById("partial_line_detection");
 }
 
 // ----------------------------------------------------------------------------
@@ -190,7 +191,7 @@ function LDDEngine( win, detectColumns, detectPartialLines,
 * Function to subtract the large-scale components from an image using the
 * median wavelet transform.
 */
-function MultiscaleIsolation( image, LSImage, layersToRemove )
+MultiscaleIsolation( image, LSImage, layersToRemove )
 {
     // Generate the large-scale components image.
     // First we generate the array that defines
@@ -222,7 +223,7 @@ function MultiscaleIsolation( image, LSImage, layersToRemove )
 * partial sections is specified in the input par. This list is used to
 * input the selected regions in the IterativeStatistics function.
 */
-function LineList( correctEntireImage, partialColumnOrRow, partialStartPixel, partialEndPixel, maxPixelPara, maxPixelPerp )
+LineList( correctEntireImage, partialColumnOrRow, partialStartPixel, partialEndPixel, maxPixelPara, maxPixelPerp )
 {
     this.columnOrRow = new Array;
     this.startPixel = new Array;
@@ -293,7 +294,7 @@ function LineList( correctEntireImage, partialColumnOrRow, partialStartPixel, pa
 * reject bright objects in a background-dominated image, especially if the
 * input image is the output image of MultiscaleIsolation.
 */
-function IterativeStatistics( image, rectangle, rejectionLimit )
+IterativeStatistics( image, rectangle, rejectionLimit )
 {
     image.selectedRect = rectangle;
     let formerHighRejectionLimit = 1000;
@@ -328,7 +329,7 @@ function IterativeStatistics( image, rectangle, rejectionLimit )
 /*
 * Function to detect defective partial columns or rows in an image.
 */
-function PartialLineDetection( detectColumns, image, layersToRemove, imageShift, threshold )
+PartialLineDetection( detectColumns, image, layersToRemove, imageShift, threshold )
 {
     if ( ( detectColumns ? image.height : image.width ) < imageShift * 4 )
         throw new Error( "imageShift parameter too high for the current image size" );
@@ -350,14 +351,14 @@ function PartialLineDetection( detectColumns, image, layersToRemove, imageShift,
                         image.numberOfChannels,
                         image.colorSpace,
                         image.bitsPerSample,
-                        SampleType_Real );
+                        PixelSampleType.Real );
 
     this.SSImage.apply( image );
 
     // Subtract the large-scale components to the image.
     console.noteln( "<end><cbr><br>* Isolating small-scale image components..." );
     console.flush();
-    MultiscaleIsolation( this.SSImage, null, layersToRemove );
+    this.MultiscaleIsolation( this.SSImage, null, layersToRemove );
 
     // The clipping mask is an image to reject the highlights
     // of the processed small-scale component image. The initial
@@ -372,7 +373,7 @@ function PartialLineDetection( detectColumns, image, layersToRemove, imageShift,
                             image.numberOfChannels,
                             image.colorSpace,
                             image.bitsPerSample,
-                            SampleType_Real );
+                            PixelSampleType.Real );
 
     clippingMask.apply( this.SSImage );
     clippingMask.binarize( clippingMask.MAD() * 5 );
@@ -459,7 +460,7 @@ function PartialLineDetection( detectColumns, image, layersToRemove, imageShift,
         image.height,
         image.numberOfChannels,
         image.colorSpace,
-        32, SampleType_Real );
+        32, PixelSampleType.Real );
 
     shiftedSSImage.apply( this.SSImage );
     detectColumns ? shiftedSSImage.shiftBy( 0, -imageShift )
@@ -472,7 +473,7 @@ function PartialLineDetection( detectColumns, image, layersToRemove, imageShift,
     // This will give a cleaner result before binarizing.
     console.writeln( "<end><cbr>Isolating small-scale image components..." );
     console.flush();
-    MultiscaleIsolation( this.SSImage, null, layersToRemove - 3 );
+    this.MultiscaleIsolation( this.SSImage, null, layersToRemove - 3 );
 
     // Binarize the image to isolate the partial line detection structures.
     console.writeln( "<end><cbr>Isolating partial line defects..." );
@@ -551,7 +552,7 @@ function PartialLineDetection( detectColumns, image, layersToRemove, imageShift,
 * These are the image windows and images that will be used by the script
 * engine.
 */
-function DefineWindowsAndImages( win, detectPartialLines )
+DefineWindowsAndImages( win, detectPartialLines )
 {
     // Define the working image windows and images.
     this.referenceImageWindow = win;
@@ -560,7 +561,7 @@ function DefineWindowsAndImages( win, detectPartialLines )
             this.referenceImageWindow.mainView.image.height,
             this.referenceImageWindow.mainView.image.numberOfChannels,
             this.referenceImageWindow.mainView.image.colorSpace,
-            32, SampleType_Real );
+            32, PixelSampleType.Real );
 
     this.referenceImage.apply( this.referenceImageWindow.mainView.image );
 
@@ -570,7 +571,7 @@ function DefineWindowsAndImages( win, detectPartialLines )
                 this.referenceImageWindow.mainView.image.height,
                 this.referenceImageWindow.mainView.image.numberOfChannels,
                 this.referenceImageWindow.mainView.image.colorSpace,
-                32, SampleType_Real );
+                32, PixelSampleType.Real );
 
         this.referenceImageCopy.apply( this.referenceImageWindow.mainView.image );
     }
@@ -579,7 +580,7 @@ function DefineWindowsAndImages( win, detectPartialLines )
             this.referenceImage.height,
             this.referenceImage.numberOfChannels,
             this.referenceImage.colorSpace,
-            32, SampleType_Real );
+            32, PixelSampleType.Real );
 
     this.referenceSSImage.apply( this.referenceImage );
 
@@ -592,7 +593,7 @@ function DefineWindowsAndImages( win, detectPartialLines )
             this.referenceImage.height,
             this.referenceImage.numberOfChannels,
             this.referenceImage.colorSpace,
-            32, SampleType_Real );
+            32, PixelSampleType.Real );
 
     this.lineDetectionWindow = new ImageWindow( this.referenceImage.width,
                     this.referenceImage.height,
@@ -603,13 +604,13 @@ function DefineWindowsAndImages( win, detectPartialLines )
                 this.referenceImage.height,
                 this.referenceImage.numberOfChannels,
                 this.referenceImage.colorSpace,
-                32, SampleType_Real );
+                32, PixelSampleType.Real );
 }
 
 /*
 * LDDOutput the list of detected lines to console and text file.
 */
-function LDDOutput( detectColumns, detectedLines, threshold, outputDir )
+LDDOutput( detectColumns, detectedLines, threshold, outputDir )
 {
     console.writeln( "LDDOutput" );
     var defects = [];
@@ -646,8 +647,10 @@ function LDDOutput( detectColumns, detectedLines, threshold, outputDir )
     return defects;
 }
 
+/*
 this.LDDEngine = LDDEngine;
 this.LDDOutput = LDDOutput;
+*/
 
 }  /* AutoIntegrateLDD */
 

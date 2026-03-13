@@ -176,7 +176,7 @@ For calibration another useful link is a PixInsight forum post
 "For beginners: Guide to PI's ImageCalibration":
 https://pixinsight.com/forum/index.php?threads/for-beginners-guide-to-pis-imagecalibration.11547/
 
-Routines ApplyAutoSTF and applySTF are from PixInsight scripts that are 
+Routines applyAutoSTF and applySTF are from PixInsight scripts that are 
 distributed with PixInsight. 
 
 Routines for Linear Defect Detection are from PixInsight scripts 
@@ -204,11 +204,11 @@ The following copyright notice is for Linear Defect Detection
 
    Copyright (c) 2019 Vicent Peris (OAUV). All Rights Reserved.
 
-The following copyright notice is for routines ApplyAutoSTF and applySTF:
+The following copyright notice is for routines applyAutoSTF and applySTF:
 
    Copyright (c) 2003-2020 Pleiades Astrophoto S.L. All Rights Reserved.
 
-The following condition apply for routines ApplyAutoSTF, applySTF and 
+The following condition apply for routines applyAutoSTF, applySTF and 
 Linear Defect Detection:
 
    Redistribution and use in both source and binary forms, with or without
@@ -306,7 +306,7 @@ function readPersistentSettings()
       // Read prefix info. We use new setting names to avoid conflict with
       // older global.columnCount/winPrefix names
       console.noteln("Read window prefix settings");
-      var tempSetting = Settings.read(SETTINGSKEY + "/prefixName", DataType_String);
+      var tempSetting = Settings.read(SETTINGSKEY + "/prefixName", DataType.String);
       if (Settings.lastReadOK) {
             console.writeln("AutoIntegrate: Restored prefixName '" + tempSetting + "' from settings.");
             ppar.win_prefix = tempSetting;
@@ -314,7 +314,7 @@ function readPersistentSettings()
       if (par.start_with_empty_window_prefix.val) {
             ppar.win_prefix = '';
       }
-      var tempSetting  = Settings.read(SETTINGSKEY + "/prefixArray", DataType_String);
+      var tempSetting  = Settings.read(SETTINGSKEY + "/prefixArray", DataType.String);
       if (Settings.lastReadOK) {
             console.writeln("AutoIntegrate: Restored prefixArray '" + tempSetting + "' from settings.");
             ppar.prefixArray = JSON.parse(tempSetting);
@@ -336,7 +336,7 @@ function readPersistentSettings()
             }
             gui.fix_win_prefix_array();
       }
-      var tempSetting = Settings.read(SETTINGSKEY + "/global.columnCount", DataType_Int32);
+      var tempSetting = Settings.read(SETTINGSKEY + "/global.columnCount", DataType.Int32);
       if (Settings.lastReadOK) {
             console.writeln("AutoIntegrate: Restored global.columnCount '" + tempSetting + "' from settings.");
             ppar.userColumnCount = tempSetting;
@@ -346,18 +346,18 @@ function readPersistentSettings()
       }
       util.restoreLastDir();
       util.restoreMasterDir();
-      var tempSetting = Settings.read(SETTINGSKEY + "/savedVersion", DataType_String);
+      var tempSetting = Settings.read(SETTINGSKEY + "/savedVersion", DataType.String);
       if (Settings.lastReadOK) {
             console.writeln("AutoIntegrate: Restored savedVersion '" + tempSetting + "' from settings.");
             ppar.savedVersion = tempSetting;
       }
-      var tempSetting = Settings.read(SETTINGSKEY + "/savedInterfaceVersion", DataType_Int32);
+      var tempSetting = Settings.read(SETTINGSKEY + "/savedInterfaceVersion", DataType.Int32);
       if (Settings.lastReadOK) {
             console.writeln("AutoIntegrate: Restored savedInterfaceVersion '" + tempSetting + "' from settings.");
             ppar.savedInterfaceVersion = tempSetting;
       }
 
-      var tempSetting = Settings.read(SETTINGSKEY + "/previewSettings", DataType_String);
+      var tempSetting = Settings.read(SETTINGSKEY + "/previewSettings", DataType.String);
       if (Settings.lastReadOK) {
             console.writeln("AutoIntegrate: Restored previewSettings '" + tempSetting + "' from settings.");
             var preview = JSON.parse(tempSetting);
@@ -382,46 +382,46 @@ function readPersistentSettings()
             global.use_preview = ppar.preview.use_preview;
       } else {
             /* Read old style separate settings. */
-            var tempSetting = Settings.read(SETTINGSKEY + "/usePreview", DataType_Boolean);
+            var tempSetting = Settings.read(SETTINGSKEY + "/usePreview", DataType.Boolean);
             if (Settings.lastReadOK) {
                   console.writeln("AutoIntegrate: Restored usePreview '" + tempSetting + "' from settings.");
                   ppar.preview.use_preview = tempSetting;
                   global.use_preview = tempSetting;
             }
             /* Now we have preview size for each screen size. */
-            var tempSetting = Settings.read(SETTINGSKEY + "/previewWidth", DataType_Int32);
+            var tempSetting = Settings.read(SETTINGSKEY + "/previewWidth", DataType.Int32);
             if (Settings.lastReadOK) {
                   console.writeln("AutoIntegrate: Restored previewWidth '" + tempSetting + "' from settings.");
                   ppar.preview.preview_width = tempSetting;
             }
-            var tempSetting = Settings.read(SETTINGSKEY + "/previewHeight", DataType_Int32);
+            var tempSetting = Settings.read(SETTINGSKEY + "/previewHeight", DataType.Int32);
             if (Settings.lastReadOK) {
                   console.writeln("AutoIntegrate: Restored previewHeight '" + tempSetting + "' from settings.");
                   ppar.preview.preview_height = tempSetting;
             }
       }
 
-      var tempSetting = Settings.read(SETTINGSKEY + "/useSingleColumn", DataType_Boolean);
+      var tempSetting = Settings.read(SETTINGSKEY + "/useSingleColumn", DataType.Boolean);
       if (Settings.lastReadOK) {
             console.writeln("AutoIntegrate: Restored useSingleColumn '" + tempSetting + "' from settings.");
             ppar.use_single_column = tempSetting;
       }
-      var tempSetting = Settings.read(SETTINGSKEY + "/useMoreTabs ", DataType_Boolean);
+      var tempSetting = Settings.read(SETTINGSKEY + "/useMoreTabs ", DataType.Boolean);
       if (Settings.lastReadOK) {
             console.writeln("AutoIntegrate: Restored useMoreTabs '" + tempSetting + "' from settings.");
             ppar.use_more_tabs = tempSetting;
       }
-      var tempSetting = Settings.read(SETTINGSKEY + "/filesInTab", DataType_Boolean);
+      var tempSetting = Settings.read(SETTINGSKEY + "/filesInTab", DataType.Boolean);
       if (Settings.lastReadOK) {
             console.writeln("AutoIntegrate: Restored filesInTab '" + tempSetting + "' from settings.");
             ppar.files_in_tab = tempSetting;
       }
-      var tempSetting = Settings.read(SETTINGSKEY + "/showStartupImage ", DataType_Boolean);
+      var tempSetting = Settings.read(SETTINGSKEY + "/showStartupImage ", DataType.Boolean);
       if (Settings.lastReadOK) {
             console.writeln("AutoIntegrate: Restored showStartupImage '" + tempSetting + "' from settings.");
             ppar.show_startup_image = tempSetting;
       }
-      var tempSetting = Settings.read(SETTINGSKEY + "/startupImageName", DataType_String);
+      var tempSetting = Settings.read(SETTINGSKEY + "/startupImageName", DataType.String);
       if (Settings.lastReadOK) {
             console.writeln("AutoIntegrate: Restored startupImageName '" + tempSetting + "' from settings.");
             ppar.startup_image_name = tempSetting;
@@ -642,11 +642,11 @@ this.autointegrate_main = function(runsetuppath = null)
              * For example:
              *    run -a="do_not_read_settings" -a="do_not_write_settings" --execute-mode=auto "C:/path_to_script/AutoIntegrate.js"
              */
-            for (let i = 0; i < jsArguments.length && !global.testmode; i++) {
-                  if (jsArguments[i].startsWith("runsetup=")) {
-                        var eqpos = jsArguments[i].indexOf('=');
+            for (let i = 0; i < Runtime.jsArguments.length && !global.testmode; i++) {
+                  if (Runtime.jsArguments[i].startsWith("runsetup=")) {
+                        var eqpos = Runtime.jsArguments[i].indexOf('=');
                         if (eqpos > 0) {
-                              runsetuppath = jsArguments[i].substring(eqpos + 1).trim();
+                              runsetuppath = Runtime.jsArguments[i].substring(eqpos + 1).trim();
                               if (runsetuppath.length > 0) {
                                     console.writeln("Found runsetup argument, file " + runsetuppath);
                               } else {
@@ -657,14 +657,14 @@ this.autointegrate_main = function(runsetuppath = null)
                               console.criticalln("Error: runsetup argument missing file name");
                               errors = true;
                         }
-                  } else if (jsArguments[i] == "do_not_read_settings") {
+                  } else if (Runtime.jsArguments[i] == "do_not_read_settings") {
                         console.writeln("Found do_not_read_settings argument, no parameters are read from persistent module settings or from icon.");
                         global.do_not_read_settings = true;
-                  } else if (jsArguments[i] == "do_not_write_settings") {
+                  } else if (Runtime.jsArguments[i] == "do_not_write_settings") {
                         console.writeln("Found do_not_write_settings argument, no parameters are written to persistent module settings.");
                         global.do_not_write_settings = true;
                   } else {
-                        console.criticalln("Unknown argument " + jsArguments[i]);
+                        console.criticalln("Unknown argument " + Runtime.jsArguments[i]);
                         errors = true;
                   }
             }

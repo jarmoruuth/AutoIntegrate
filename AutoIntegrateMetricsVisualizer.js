@@ -300,24 +300,24 @@ function StatsControl(parent, title, data) {
     // Create labels for statistics
     this.titleLabel = new Label(this);
     this.titleLabel.text = this.title + " Statistics:";
-    this.titleLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
+    this.titleLabel.textAlignment = TextAlignment.Left|TextAlignment.VertCenter;
     this.titleLabel.styleSheet = "font-weight: bold;";
     
     this.meanLabel = new Label(this);
     this.meanLabel.text = "Mean: " + this.mean.toFixed(8);
-    this.meanLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
+    this.meanLabel.textAlignment = TextAlignment.Left|TextAlignment.VertCenter;
     
     this.minLabel = new Label(this);
     this.minLabel.text = "Min: " + this.min.toFixed(8);
-    this.minLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
+    this.minLabel.textAlignment = TextAlignment.Left|TextAlignment.VertCenter;
     
     this.maxLabel = new Label(this);
     this.maxLabel.text = "Max: " + this.max.toFixed(8);
-    this.maxLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
+    this.maxLabel.textAlignment = TextAlignment.Left|TextAlignment.VertCenter;
     
     this.stdDevLabel = new Label(this);
     this.stdDevLabel.text = "Std Dev: " + this.stdDev.toFixed(8);
-    this.stdDevLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
+    this.stdDevLabel.textAlignment = TextAlignment.Left|TextAlignment.VertCenter;
     
     // Layout
     this.sizer = new VerticalSizer;
@@ -342,9 +342,9 @@ function newLimitEdit(parent, title, plot) {
     }
     
     limitEdit.real = true;
-    limitEdit.textAlignment = TextAlign_Left|TextAlign_VertCenter;
+    limitEdit.textAlignment = TextAlignment.Left|TextAlignment.VertCenter;
     limitEdit.label.text = title + " Limit" + (plot.filter_high ? " (Max)" : " (Min)");
-    limitEdit.label.textAlignment = TextAlign_Left|TextAlign_VertCenter;
+    limitEdit.label.textAlignment = TextAlignment.Left|TextAlignment.VertCenter;
     limitEdit.minWidth = 50;
     limitEdit.setPrecision( 8 );
     limitEdit.setRange(0, 1000000);
@@ -371,7 +371,7 @@ function newLabel(parent)
 {
         var lbl = new Label( parent );
         lbl.text = "";
-        lbl.textAlignment = TextAlign_Right|TextAlign_VertCenter;
+        lbl.textAlignment = TextAlignment.Right|TextAlignment.VertCenter;
         return lbl;
 }
 
@@ -390,11 +390,11 @@ function AstroMetricsDialog() {
 
     this.subtitleLabel = new Label(this);
     this.subtitleLabel.text = "Update limit value or double click on the plot to set limit.";
-    this.subtitleLabel.textAlignment = TextAlign_Center;
+    this.subtitleLabel.textAlignment = TextAlignment.Center;
     this.subtitleLabel.styleSheet = "font-size: 9pt; color: #888888; font-style: italic;";
     
     this.totalLabel = newLabel(this);
-    this.totalLabel.textAlignment = TextAlign_Center;
+    this.totalLabel.textAlignment = TextAlignment.Center;
     this.totalLabel.styleSheet = "font-size: 9pt; color: #888888; font-style: italic;";
 
     // Sizer for the total accepted frames
@@ -549,7 +549,7 @@ function AstroMetricsDialog() {
     this.okButton.onClick = function() {
         // Confirm before exiting the dialog to avoid accidental exit with enter key
          if ((new MessageBox("Do you really want to close " + WINDOW_TITLE + " and apply limits?",
-               WINDOW_TITLE, StdIcon_Warning, StdButton_Yes, StdButton_No)).execute() == StdButton_Yes) 
+               WINDOW_TITLE, StdIcon.Warning, StdButton_Yes, StdButton_No)).execute() == StdButton_Yes) 
         {
             this.dialog.ok();
          }

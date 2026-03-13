@@ -89,10 +89,10 @@ function createColorRangeMask(image, colorRange) {
    let height = image.height;
    
    // Convert to HSV for easier color range selection
-   let img = new Image(width, height, 3, ColorSpace_RGB);
+   let img = new Image(width, height, 3, ColorSpace.RGB);
    img.apply(image);
    
-   let mask = new Image(width, height, 1, ColorSpace_Gray);
+   let mask = new Image(width, height, 1, ColorSpace.Gray);
    mask.fill(0);
    
    // Get RGB samples
@@ -404,7 +404,7 @@ function SelectiveColorEngine() {
 SelectiveColorEngine.prototype.apply = function(view) {
    console.noteln("Applying Selective Color...");
    
-   view.beginProcess(UndoFlag_NoSwapFile);
+   view.beginProcess(UndoFlag.NoSwapFile);
    
    let image = view.image;
    
@@ -502,7 +502,7 @@ function createSelectiveColorSizer(parent, selectiveColorEngine) {
     // Color range selector
     this.colorLabel = new Label(parent);
     this.colorLabel.text = "Colors:";
-    this.colorLabel.textAlignment = TextAlign_Right | TextAlign_VertCenter;
+    this.colorLabel.textAlignment = TextAlignment.Right | TextAlignment.VertCenter;
     this.colorLabel.minWidth = labelWidth1;
     
     this.colorCombo = new ComboBox(parent);
@@ -524,7 +524,7 @@ function createSelectiveColorSizer(parent, selectiveColorEngine) {
     // Method selector
     this.methodLabel = new Label(parent);
     this.methodLabel.text = "Method:";
-    this.methodLabel.textAlignment = TextAlign_Right | TextAlign_VertCenter;
+    this.methodLabel.textAlignment = TextAlignment.Right | TextAlignment.VertCenter;
     this.methodLabel.minWidth = labelWidth1;
     
     this.methodCombo = new ComboBox(parent);
@@ -555,7 +555,7 @@ function createSelectiveColorSizer(parent, selectiveColorEngine) {
     this.createSlider = function(label, channel, negColor, posColor) {
         let label_control = new Label(parent);
         label_control.text = label + ":";
-        label_control.textAlignment = TextAlign_Right | TextAlign_VertCenter;
+        label_control.textAlignment = TextAlignment.Right | TextAlignment.VertCenter;
         label_control.minWidth = labelWidth1;
         
         // Negative color hint (left side)

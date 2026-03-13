@@ -70,8 +70,8 @@ function AutoIntegrateGradientCorrectionDialog() {
     this.global = new AutoIntegrateGlobal();
 
     this.global.debug = debug;
-    for (let i = 0; i < jsArguments.length; i++) {
-        if (jsArguments[i] == "do_not_read_settings") {
+    for (let i = 0; i < Runtime.jsArguments.length; i++) {
+        if (Runtime.jsArguments[i] == "do_not_read_settings") {
             console.writeln("do_not_read_settings");
             this.global.do_not_read_settings = true;
         }
@@ -213,7 +213,7 @@ function AutoIntegrateGradientCorrectionDialog() {
 
    this.statusLabel = new Label(this);
    this.statusLabel.text = "";
-   this.statusLabel.textAlignment = TextAlign_Center;
+   this.statusLabel.textAlignment = TextAlignment.Center;
    this.statusLabel.styleSheet = "color: #AAAAAA;";
 
    // -------------------------------------------------------------------------
@@ -222,12 +222,12 @@ function AutoIntegrateGradientCorrectionDialog() {
 
    this.titleLabel = new Label(this);
    this.titleLabel.text = this.TITLE + " v" + this.VERSION;
-   this.titleLabel.textAlignment = TextAlign_Center;
+   this.titleLabel.textAlignment = TextAlignment.Center;
    this.titleLabel.styleSheet = "font-size: 14pt; font-weight: bold; color: #4488FF;";
 
    this.subtitleLabel = new Label(this);
    this.subtitleLabel.text = "Select image and apply gradient correction";
-   this.subtitleLabel.textAlignment = TextAlign_Center;
+   this.subtitleLabel.textAlignment = TextAlignment.Center;
    this.subtitleLabel.styleSheet = "font-size: 9pt; color: #888888; font-style: italic;";
 
     this.enhancements_gui = new AutoIntegrateEnhancementsGUI(this, self.guitools, self.util, self.global, self.engine, preview_functions);

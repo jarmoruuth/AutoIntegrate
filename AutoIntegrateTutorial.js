@@ -35,7 +35,7 @@ function AutoIntegrateCreditsDialog(global) {
             "  color: #2C3E50; " +
             "  padding: 15px; " +
             "}";
-        this.headerLabel.textAlignment = TextAlign_Center;
+        this.headerLabel.textAlignment = TextAlignment.Center;
         
         this.versionLabel = new Label(this);
         this.versionLabel.text = this.global.autointegrate_version;
@@ -45,7 +45,7 @@ function AutoIntegrateCreditsDialog(global) {
             "  color: #7F8C8D; " +
             "  padding: 5px; " +
             "}";
-        this.versionLabel.textAlignment = TextAlign_Center;
+        this.versionLabel.textAlignment = TextAlignment.Center;
         
         // Credits text
         this.creditsText = new TextBox(this);
@@ -131,7 +131,7 @@ function AutoIntegrateWelcomeDialog(global) {
             "    stop:0 #E8F4F8, stop:1 #D5E8F0); " +
             "  border-radius: 5px; " +
             "}";
-        this.headerLabel.textAlignment = TextAlign_Center;
+        this.headerLabel.textAlignment = TextAlignment.Center;
         
         // Welcome message
         this.welcomeText = new TextBox(this);
@@ -270,7 +270,7 @@ function AutoIntegrateWelcomeDialog(global) {
         
         this.showOnStartupLabel = new Label(this);
         this.showOnStartupLabel.text = "Show this welcome screen on startup";
-        this.showOnStartupLabel.cursor = new Cursor(StdCursor_PointingHand);
+        this.showOnStartupLabel.cursor = new Cursor(StdCursor.PointingHand);
         this.showOnStartupLabel.onMousePress = function() {
             welcomeDialog.showOnStartupCheckBox.checked = !welcomeDialog.showOnStartupCheckBox.checked;
         };
@@ -327,7 +327,7 @@ AutoIntegrateWelcomeDialog.prototype = new Dialog;
 
 AutoIntegrateWelcomeDialog.prototype.saveShowOnStartup = function() {
         if (!this.global.do_not_write_settings) {
-            Settings.write(SETTINGSKEY + '/' + "ShowWelcomeOnStartup", DataType_Boolean, this.showOnStartupCheckBox.checked);
+            Settings.write(SETTINGSKEY + '/' + "ShowWelcomeOnStartup", DataType.Boolean, this.showOnStartupCheckBox.checked);
         }
 };
 
@@ -409,7 +409,7 @@ function AutoIntegrateTutorialManagerDialog(parentDialog, global) {
             
             this.markCompletedLabel = new Label(this);
             this.markCompletedLabel.text = "Mark selected as completed";
-            this.markCompletedLabel.cursor = new Cursor(StdCursor_PointingHand);
+            this.markCompletedLabel.cursor = new Cursor(StdCursor.PointingHand);
             this.markCompletedLabel.onMousePress = function() {
                   manager.markCompletedCheckBox.checked = !manager.markCompletedCheckBox.checked;
                   if (manager.markCompletedCheckBox.checked) {
@@ -551,7 +551,7 @@ AutoIntegrateTutorialManagerDialog.prototype.isTutorialCompleted = function(tuto
       }
       var key = "Tutorial_" + tutorialId + "_Completed";
       if (global.debug) console.writeln("Read setting: " + key);
-      return Settings.read(SETTINGSKEY + '/' + key, DataType_Boolean);
+      return Settings.read(SETTINGSKEY + '/' + key, DataType.Boolean);
 };
 
 // Mark tutorial as completed
@@ -593,7 +593,7 @@ AutoIntegrateTutorialManagerDialog.prototype.launchSelectedTutorial = function()
             var msg = new MessageBox(
                   "Please select a tutorial from the list.",
                   "No Tutorial Selected",
-                  StdIcon_Information,
+                  StdIcon.Information,
                   StdButton_Ok
             );
             msg.execute();
@@ -637,7 +637,7 @@ function AutoIntegrateTutorialSystem(dialog, global, util) {
       // Overlay to dim the background
       this.overlay = new Control(dialog);
       this.overlay.visible = false;
-      this.overlay.cursor = new Cursor(StdCursor_Arrow);
+      this.overlay.cursor = new Cursor(StdCursor.Arrow);
       this.overlay.styleSheet = "QWidget { background-color: rgba(0, 0, 0, 128); }";
 
       // Tutorial tooltip
@@ -772,13 +772,13 @@ AutoIntegrateTutorialSystem.prototype.showSelectedSections = function() {
                   for (var j = 0; j < sectionBarsToShow.length; j++) {
                         if (sectionBarsToShow[j] === this.global.sectionBars[i].aiName) {
                               this.global.sectionBars[i].aiControl.show();
-                              processEvents();  // Force UI update
+                              CoreApplication.processEvents();  // Force UI update
                         }
                   }
             }
       }
       this.dialog.adjustToContents();
-      processEvents();  // Force UI update
+      CoreApplication.processEvents();  // Force UI update
 };
 
 // Show specific step
@@ -795,7 +795,7 @@ AutoIntegrateTutorialSystem.prototype.showStep = function(stepIndex) {
       if (step.switchToTab !== undefined && step.switchToTab !== null) {
             // console.writeln("Tutorial: Switching to tab index " + step.switchToTab);
             this.dialog.mainTabBox.currentPageIndex = step.switchToTab;
-            processEvents();  // Force UI update
+            CoreApplication.processEvents();  // Force UI update
       }
 
       // Update tooltip content
@@ -810,7 +810,7 @@ AutoIntegrateTutorialSystem.prototype.showStep = function(stepIndex) {
       // Adjust tooltip size to content (height will adjust, width is fixed)
       this.tooltipControl.ensureLayoutUpdated();
       this.tooltipControl.adjustToContents();
-      processEvents();
+      CoreApplication.processEvents();
 
       // Update button states
       this.prevButton.enabled = stepIndex > 0;
@@ -854,7 +854,7 @@ AutoIntegrateTutorialSystem.prototype.showStep = function(stepIndex) {
             step.target.bringToFront();
       }
 
-      processEvents();
+      CoreApplication.processEvents();
 };
 
 // Highlight an element
@@ -996,13 +996,13 @@ AutoIntegrateTutorialSystem.prototype.endTutorial = function() {
     // Mark tutorial as completed
     if (this.currentTutorialId &&  !this.global.do_not_write_settings) {
         var key = "AutoIntegrate_Tutorial_" + this.currentTutorialId + "_Completed";
-        Settings.write(SETTINGSKEY + '/' + key, DataType_Boolean, true);
+        Settings.write(SETTINGSKEY + '/' + key, DataType.Boolean, true);
         Console.noteln("Tutorial completed: " + this.currentTutorialId);
     }
     
     this.dialog.ensureLayoutUpdated();
     this.dialog.adjustToContents();
-    processEvents();
+    CoreApplication.processEvents();
 };
 
 // Check if tutorial should be shown
@@ -1010,7 +1010,7 @@ AutoIntegrateTutorialSystem.prototype.shouldShowTutorial = function() {
       if (this.global.do_not_read_settings) {
             return true;
       } else {
-            var shown = this.util.readAndMigrateSetting("TutorialShown", "AutoIntegrate_TutorialShown", DataType_Boolean, 0);
+            var shown = this.util.readAndMigrateSetting("TutorialShown", "AutoIntegrate_TutorialShown", DataType.Boolean, 0);
             return !shown;
       }
 };

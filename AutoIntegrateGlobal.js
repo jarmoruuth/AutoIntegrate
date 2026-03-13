@@ -19,22 +19,6 @@ by Pleiades Astrophoto and its contributors (https://pixinsight.com/).
 #ifndef AUTOINTEGRATEGLOBAL_JS
 #define AUTOINTEGRATEGLOBAL_JS
 
-#include <pjsr/ColorSpace.jsh>
-#include <pjsr/Color.jsh>
-#include <pjsr/FrameStyle.jsh>
-#include <pjsr/Sizer.jsh>
-#include <pjsr/SampleType.jsh>
-#include <pjsr/StdButton.jsh>
-#include <pjsr/StdIcon.jsh>
-#include <pjsr/TextAlign.jsh>
-#include <pjsr/NumericControl.jsh>
-#include <pjsr/UndoFlag.jsh>
-#include <pjsr/SectionBar.jsh>
-#include <pjsr/ImageOp.jsh>
-#include <pjsr/DataType.jsh>
-#include <pjsr/StdCursor.jsh>
-
-
 #define SETTINGSKEY "AutoIntegrate"
 
 /*
@@ -49,22 +33,19 @@ by Pleiades Astrophoto and its contributors (https://pixinsight.com/).
 // separately (false).
 #define DEFAULT_AUTOSTRETCH_CLINK   true
 
-function AutoIntegrateGlobal()
+class AutoIntegrateGlobal extends Object
 {
-
-this.__base__ = Object;
-this.__base__();
-
-var self = this;
+    constructor() {
+        super();
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-this.autointegrate_version = "AutoIntegrate v1.85 test1";   // Version, also updated into updates.xri
-this.autointegrate_info = "Calibration updates, fixes";     // For updates.xri
+this.autointegrate_version = "AutoIntegrate v1.85 test2";   // Version, also updated into updates.xri
+this.autointegrate_info = "V8 JavaScript engine";           // For updates.xri
 
 this.autointegrate_version_info = [
       "Changes since the previous version:",
-      "- Small updates.",
+      "- V8 JavaScript engine",
 ];
 
 /* Interface version changes:
@@ -204,34 +185,6 @@ this.narrowbandAutoMapping = [
 ];
 
 
-// Set parameter value and check possible mappings
-function setParameterValue(param, val) {
-      if (param.name == "Target type") {
-            if (val == "Small bright nebula" || val == "Large nebula") {
-                  param.val = "Nebula";
-                  return;
-            }
-      }
-      param.val = val;
-      if (param.set_callback != undefined) {
-            if (this.debug) console.writeln("setParameterValue callback for " + param.name);
-            param.set_callback(param);
-      } else {
-            if (this.debug) console.writeln("setParameterValue default for " + param.name);
-      }
-};
-
-// Check if parameter value is changed from default
-function isParameterChanged(param) {
-      if (param.is_changed_callback != undefined) {
-            if (this.debug) console.writeln("isParameterChanged callback for " + param.name);
-            return param.is_changed_callback(param);
-      } else {
-            if (this.debug) console.writeln("isParameterChanged default for " + param.name);
-            return param.val != param.def;
-      }
-};
-
 /*
       Parameters that can be adjusted in the GUI
       These can be saved to persistent module settings or 
@@ -322,7 +275,7 @@ this.par = {
       reset_on_setup_load: { val: true, def: true, name : "Reset on setup load", type : 'B' },
       keep_temporary_images: { val: false, def: false, name : "Keep temporary images", type : 'B' },
       keep_processed_images: { val: false, def: false, name : "Keep processed images", type : 'B' },
-      debug: { val: false, def: false, name : "Debug", type : 'B' },
+      debug: { val: true, def: true, name : "Debug", type : 'B' },
       flowchart_debug: { val: false, def: false, name : "Flowchart debug", type : 'B' },
       print_process_values: { val: false, def: false, name : "Print process values", type : 'B' },
       monochrome_image: { val: false, def: false, name : "Monochrome", type : 'B' },
@@ -483,7 +436,7 @@ this.par = {
       mgc_scale_factor: { val: 1.0, def: 1.0, name : "MGC scale factor", type : 'R' },
       mgc_structure_separation: { val: 3, def: 3, name : "MGC structure separation", type : 'I' },
       
-      ABE_degree: { val: 4, def: 4, name : "ABE function degree", type : 'I' },
+      ABE_degree: { val: 4, def: 4, name : "ABE degree", type : 'I' },
       ABE_correction: { val: 'Subtraction', def: 'Subtraction', name : "ABE correction", type : 'S' },
       ABE_normalize: { val: false, def: false, name : "ABE normalize", type : 'B' },
 
@@ -510,7 +463,7 @@ this.par = {
       crop_use_rejection_low: { val: true, def: true, name : "Crop use rejection low", type : 'B' },
       crop_rejection_low_limit: { val: 0.2, def: 0.2, name : "Crop rejection low limit", type : 'R' },
       crop_check_limit: { val: 5, def: 5, name : "Crop check limit", type : 'R' },
-      image_stretching: { val: self.image_stretching_values[0], def: self.image_stretching_values[0], name : "Image stretching", type : 'S' },
+      image_stretching: { val: this.image_stretching_values[0], def: this.image_stretching_values[0], name : "Image stretching", type : 'S' },
       stars_stretching: { val: 'Arcsinh Stretch', def: 'Arcsinh Stretch', name : "Stars stretching", type : 'S' },
       stars_combine: { val: 'Screen', def: 'Screen', name : "Stars combine", type : 'S' },
       STF_linking: { val: 'Auto', def: 'Auto', name : "RGB channel linking", type : 'S' },
@@ -1027,7 +980,56 @@ this.final_windows = [
 
 this.test_image_ids = [];      // Test images
 
-function getDirectoryInfo(simple_text) {
+this.ai_use_persistent_module_settings = true;  // read some defaults from persistent module settings
+this.testmode = false;                          // true if we are running in test mode
+this.testmode_log = "";                         // output for test mode, if any, to testmode.log file
+
+if (this.autointegrate_version.indexOf("test") > 0) {
+      this.autointegrateinfo_link = "https://ruuth.xyz/test/AutoIntegrateInfo.html";
+} else {
+      this.autointegrateinfo_link = "https://ruuth.xyz/AutoIntegrateInfo.html";
+}
+
+this.rootingArr = [];            // for rooting objects
+this.debug = true;              // true to enable debug output to console and additional debug checks
+
+/* Functions
+this.getDirectoryInfo = getDirectoryInfo;
+this.setParameterValue = setParameterValue;
+this.isParameterChanged = isParameterChanged;
+this.reportUnusedParameters = reportUnusedParameters;
+ */
+    } // constructor
+
+// Set parameter value and check possible mappings
+setParameterValue(param, val) {
+      if (param.name == "Target type") {
+            if (val == "Small bright nebula" || val == "Large nebula") {
+                  param.val = "Nebula";
+                  return;
+            }
+      }
+      param.val = val;
+      if (param.set_callback != undefined) {
+            if (this.debug) console.writeln("setParameterValue callback for " + param.name);
+            param.set_callback(param);
+      } else {
+            if (this.debug) console.writeln("setParameterValue default for " + param.name);
+      }
+};
+
+// Check if parameter value is changed from default
+isParameterChanged(param) {
+      if (param.is_changed_callback != undefined) {
+            if (this.debug) console.writeln("isParameterChanged callback for " + param.name);
+            return param.is_changed_callback(param);
+      } else {
+            if (this.debug) console.writeln("isParameterChanged default for " + param.name);
+            return param.val != param.def;
+      }
+};
+
+getDirectoryInfo(simple_text) {
       var header = "<p>AutoIntegrate output files go to the following subdirectories:</p>";
       var info = [
             "AutoProcessed contains processed final images. Also integrated images and log output is here.",
@@ -1043,7 +1045,7 @@ function getDirectoryInfo(simple_text) {
 }
 
 // Go through all parameters and report unused ones
-function reportUnusedParameters()
+reportUnusedParameters()
 {
       if (!this.debug) {
             return;
@@ -1058,26 +1060,6 @@ function reportUnusedParameters()
       }
 }
 
-this.ai_use_persistent_module_settings = true;  // read some defaults from persistent module settings
-this.testmode = false;                          // true if we are running in test mode
-this.testmode_log = "";                         // output for test mode, if any, to testmode.log file
-
-if (this.autointegrate_version.indexOf("test") > 0) {
-      this.autointegrateinfo_link = "https://ruuth.xyz/test/AutoIntegrateInfo.html";
-} else {
-      this.autointegrateinfo_link = "https://ruuth.xyz/AutoIntegrateInfo.html";
-}
-
-this.rootingArr = [];            // for rooting objects
-this.debug = false;              // true to enable debug output to console and additional debug checks
-
-this.getDirectoryInfo = getDirectoryInfo;
-this.setParameterValue = setParameterValue;
-this.isParameterChanged = isParameterChanged;
-this.reportUnusedParameters = reportUnusedParameters;
-
 }   /* AutoIntegrateGlobal*/
-
-AutoIntegrateGlobal.prototype = new Object;
 
 #endif // AUTOINTEGRATEGLOBAL_JS

@@ -218,7 +218,7 @@ function flowchartDrawText(graphics, x, y, node)
       if (drawbox) {
             graphics.drawRect(x0, y0, x1, y1);
       }
-      graphics.drawTextRect(x0, y0, x1, y1, node_get_txt(node), TextAlign_Center | TextAlign_VertCenter);
+      graphics.drawTextRect(x0, y0, x1, y1, node_get_txt(node), TextAlignment.Center | TextAlignment.VertCenter);
       graphics.pen = new Pen(flowchartLineColor(), 1);
 }
 

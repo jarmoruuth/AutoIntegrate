@@ -38,11 +38,11 @@ function ExclusionAreaDialog() {
    this.helpLabel = new Label(this);
    // this.helpLabel.text = "Click on the image to define polygon vertices. Double-click to close polygon.";
    this.helpLabel.text = "Click on the image to define polygon vertices.";
-   this.helpLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
+   this.helpLabel.textAlignment = TextAlignment.Left|TextAlignment.VertCenter;
    
    this.targetImage_Label = new Label(this);
    this.targetImage_Label.text = "Target image:";
-   this.targetImage_Label.textAlignment = TextAlign_Left|TextAlign_VertCenter;
+   this.targetImage_Label.textAlignment = TextAlignment.Left|TextAlignment.VertCenter;
    this.targetImage_Label.minWidth = labelWidth;
    
    this.targetImage_Info = new Label(this);
@@ -60,7 +60,7 @@ function ExclusionAreaDialog() {
    this.startDrawing_Button.icon = this.scaledResource(":/icons/window-new.png");
    this.startDrawing_Button.onClick = function() {
       if (!targetView) {
-         (new MessageBox("No active image. Please open an image first.", title, StdIcon_Error)).execute();
+         (new MessageBox("No active image. Please open an image first.", title, StdIcon.Error)).execute();
          return;
       }
       
@@ -103,7 +103,7 @@ function ExclusionAreaDialog() {
    
    this.exclusionCount_Label = new Label(this);
    this.exclusionCount_Label.text = "Exclusion areas: " + exclusionAreaPolygons.length;
-   this.exclusionCount_Label.textAlignment = TextAlign_Left|TextAlign_VertCenter;
+   this.exclusionCount_Label.textAlignment = TextAlignment.Left|TextAlignment.VertCenter;
    
    this.preview_Control = new Control(this);
    
@@ -128,7 +128,7 @@ function ExclusionAreaDialog() {
    this.clearAll_Button.onClick = function() {
       if (exclusionAreaPolygons.length > 0) {
          if ((new MessageBox("Do you really want to delete all exclusion areas?",
-               title, StdIcon_Warning, StdButton_Yes, StdButton_No)).execute() == StdButton_Yes) {
+               title, StdIcon.Warning, StdButton_Yes, StdButton_No)).execute() == StdButton_Yes) {
             exclusionAreaPolygons = [];
             updateExclusionCount();
             updatePreview();
@@ -394,9 +394,9 @@ function exportExclusionMask(targetWindow, exclusionAreaPolygons) {
    maskView.image.fill(0);
    
    // Draw exclusion polygons as white (1)
-   // We could use the VectorGraphics class here, but for simplicity,
+   // We could use the Graphics class here, but for simplicity,
    // we'll just use the isPointInPolygon function to set each pixel
-   maskView.beginProcess(UndoFlag_NoSwapFile);
+   maskView.beginProcess(UndoFlag.NoSwapFile);
    
    for (var y = 0; y < height; y++) {
       for (var x = 0; x < width; x++) {

@@ -548,19 +548,19 @@ function savePersistentSettings(from_exit)
             console.noteln("Do not save interface settings to persistent module settings.");
       } else {
             console.noteln("Save persistent settings");
-            Settings.write (SETTINGSKEY + "/prefixName", DataType_String, ppar.win_prefix);
-            Settings.write (SETTINGSKEY + "/prefixArray", DataType_String, JSON.stringify(ppar.prefixArray));
+            Settings.write (SETTINGSKEY + "/prefixName", DataType.String, ppar.win_prefix);
+            Settings.write (SETTINGSKEY + "/prefixArray", DataType.String, JSON.stringify(ppar.prefixArray));
             if (par.use_manual_icon_column.val) {
-                  Settings.write (SETTINGSKEY + "/global.columnCount", DataType_Int32, ppar.userColumnCount);
+                  Settings.write (SETTINGSKEY + "/global.columnCount", DataType.Int32, ppar.userColumnCount);
             }
-            Settings.write (SETTINGSKEY + "/previewSettings", DataType_String, JSON.stringify(ppar.preview));
-            Settings.write (SETTINGSKEY + "/useSingleColumn", DataType_Boolean, ppar.use_single_column);
-            Settings.write (SETTINGSKEY + "/useMoreTabs", DataType_Boolean, ppar.use_more_tabs);
-            Settings.write (SETTINGSKEY + "/filesInTab", DataType_Boolean, ppar.files_in_tab);
-            Settings.write (SETTINGSKEY + "/showStartupImage", DataType_Boolean, ppar.show_startup_image);
-            Settings.write (SETTINGSKEY + "/startupImageName", DataType_String, ppar.startup_image_name);
-            Settings.write (SETTINGSKEY + "/savedVersion", DataType_String, global.autointegrate_version);
-            Settings.write (SETTINGSKEY + "/savedInterfaceVersion", DataType_Int32, global.interface_version);
+            Settings.write (SETTINGSKEY + "/previewSettings", DataType.String, JSON.stringify(ppar.preview));
+            Settings.write (SETTINGSKEY + "/useSingleColumn", DataType.Boolean, ppar.use_single_column);
+            Settings.write (SETTINGSKEY + "/useMoreTabs", DataType.Boolean, ppar.use_more_tabs);
+            Settings.write (SETTINGSKEY + "/filesInTab", DataType.Boolean, ppar.files_in_tab);
+            Settings.write (SETTINGSKEY + "/showStartupImage", DataType.Boolean, ppar.show_startup_image);
+            Settings.write (SETTINGSKEY + "/startupImageName", DataType.String, ppar.startup_image_name);
+            Settings.write (SETTINGSKEY + "/savedVersion", DataType.String, global.autointegrate_version);
+            Settings.write (SETTINGSKEY + "/savedInterfaceVersion", DataType.Int32, global.interface_version);
       }
       if (!from_exit) {
             setWindowPrefixHelpTip(ppar.win_prefix);
@@ -622,7 +622,7 @@ function Autorun(parent)
                   return false;
             }
             var txt = "Batch processing " + batch_files.length + " panels. Do you want to proceed?";
-            var response = new MessageBox(txt, "AutoIntegrate", StdIcon_Question, StdButton_Yes, StdButton_No ).execute();
+            var response = new MessageBox(txt, "AutoIntegrate", StdIcon.Question, StdButton_Yes, StdButton_No ).execute();
             if (response != StdButton_Yes) {
                   console.writeln("Batch processing not started.");
                   return false;
@@ -795,7 +795,7 @@ function lightsOptions(parent)
       var debayerLabel = new Label( parent );
       global.rootingArr.push(debayerLabel);
       debayerLabel.text = "Debayer";
-      debayerLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
+      debayerLabel.textAlignment = TextAlignment.Left|TextAlignment.VertCenter;
       debayerLabel.toolTip = "<p>Select bayer pattern for debayering color/OSC/RAW/DSLR files.</p>" +
                       "<p>Auto option tries to recognize debayer pattern from image metadata.</p>" +
                       "<p>If images are already debayered choose none which does not do debayering.</p>";
@@ -806,7 +806,7 @@ function lightsOptions(parent)
       var extractChannelsLabel = new Label( parent );
       global.rootingArr.push(extractChannelsLabel);
       extractChannelsLabel.text = "Extract channels";
-      extractChannelsLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
+      extractChannelsLabel.textAlignment = TextAlignment.Left|TextAlignment.VertCenter;
       extractChannelsLabel.toolTip = 
             "<p>Extract channels from color/OSC/RAW/DSLR files.</p>" +
             "<p>Channel extraction is done right after debayering. After channels are extracted " + 
@@ -1170,7 +1170,7 @@ function getHistogramInfo(imgWin, log_x_scale = false)
       if (par.debug.val) console.writeln("getHistogramInfo: width " +  width + " height " + height);
 
       var bitmap = new Bitmap(width, height);
-      var graphics = new VectorGraphics(bitmap);
+      var graphics = new Graphics(bitmap);      // VectorGraphics
 
       setHistogramBitmapBackground(graphics);
 
@@ -1548,7 +1548,7 @@ function createCombinedMosaicPreviewWin(imgWinArr)
       }
       graphics.end();
       
-      combinedWindow.mainView.beginProcess(UndoFlag_NoSwapFile);
+      combinedWindow.mainView.beginProcess(UndoFlag.NoSwapFile);
       combinedWindow.mainView.image.blend(bitmap);
       combinedWindow.mainView.endProcess();
 
@@ -1572,7 +1572,7 @@ function addOutputDir(parent)
       var lbl = new Label( parent );
       global.rootingArr.push(lbl);
       lbl.text = "Output directory";
-      lbl.textAlignment = TextAlign_Left|TextAlign_VertCenter;
+      lbl.textAlignment = TextAlignment.Left|TextAlignment.VertCenter;
       lbl.toolTip = "<p>Give output root directory.</p>" +
                     "<p>If no directory is given then the path to the " + 
                     "first light file is used as the output root directory." + 
@@ -1644,7 +1644,7 @@ function addWinPrefix(parent)
       var lbl = new Label( parent );
       global.rootingArr.push(lbl);
       lbl.text = "| Window Prefix";
-      lbl.textAlignment = TextAlign_Left|TextAlign_VertCenter;
+      lbl.textAlignment = TextAlignment.Left|TextAlignment.VertCenter;
       lbl.toolTip = "<p>Give window prefix identifier.</p>" +
                     "<p>If specified, all AutoIntegrate windows will be " +
                     "prepended with the prefix and an underscore.</p>" +
@@ -1678,7 +1678,7 @@ function addWinPrefix(parent)
       windowPrefixHelpTips.toolTip = "<p>Current Window Prefixes:</p>";
       windowPrefixHelpTips.onClick = function()
       {
-            new MessageBox(windowPrefixHelpTips.toolTip, "Current Window Prefixes", StdIcon_Information ).execute();
+            new MessageBox(windowPrefixHelpTips.toolTip, "Current Window Prefixes", StdIcon.Information ).execute();
       }
 
       var winprefix_Sizer = new HorizontalSizer;
@@ -2333,7 +2333,7 @@ function metricsVisualizerFilters(parent)
 function okToRunSubframeSelector()
 {
       var messagebox = new MessageBox("There are no measurements available. Do you want to run SubframeSelector now?",
-                                          "AutoIntegrate", StdIcon_Warning, StdButton_Yes, StdButton_No);
+                                          "AutoIntegrate", StdIcon.Warning, StdButton_Yes, StdButton_No);
       if (messagebox.execute() != StdButton_Yes) {
             console.writeln("Cancelled.");
             return false;
@@ -2345,7 +2345,7 @@ function okToMeasureAllFiles(num_files, num_measurements)
 {
       console.writeln("okToMeasureAllFiles, num_files: " + num_files + ", num_measurements: " + num_measurements);
       var messagebox = new MessageBox("There are " + num_files + " files and " + num_measurements + " measurements available. Do you want to measure files again?", 
-                                          "AutoIntegrate", StdIcon_Warning, StdButton_Yes, StdButton_No);
+                                          "AutoIntegrate", StdIcon.Warning, StdButton_Yes, StdButton_No);
       if (messagebox.execute() == StdButton_Yes) {
             console.writeln("Yes.");
             return true;
@@ -2917,7 +2917,7 @@ function addTargetType(parent)
       var lbl = new Label( parent );
       global.rootingArr.push(lbl);
       lbl.text = "Target type";
-      lbl.textAlignment = TextAlign_Left|TextAlign_VertCenter;
+      lbl.textAlignment = TextAlignment.Left|TextAlignment.VertCenter;
       lbl.toolTip = "<p>Give target type.</p>" +
                     "<p>If target type is given then image stretching settings are selected automatically.</p>" +
                     "<p>If no target type is given then current settings are used. They should work reasonably fine in many cases.</p>" +
@@ -3033,7 +3033,7 @@ function addExpertMode(parent)
       parent.simpleRadio = new RadioButton(parent);
       parent.simpleRadio.text = "Simple";
       parent.simpleRadio.toolTip = toolTip;
-      parent.simpleRadio.textAlignment = TextAlign_VertCenter;
+      parent.simpleRadio.textAlignment = TextAlignment.VertCenter;
       parent.simpleRadio.checked = !global.expert_mode;
       parent.simpleRadio.onCheck = function(checked) {
             if (checked) {
@@ -3065,7 +3065,7 @@ function addExpertMode(parent)
       // Add a label as "title"
       parent.modeTitle = new Label(parent);
       parent.modeTitle.text = "Mode";
-      parent.modeTitle.textAlignment = TextAlign_Left|TextAlign_VertCenter;
+      parent.modeTitle.textAlignment = TextAlignment.Left|TextAlignment.VertCenter;
       parent.modeTitle.toolTip = toolTip;
 
       parent.modeFrame.sizer.add(parent.modeTitle);
@@ -3506,7 +3506,7 @@ function saveParametersToPersistentModuleSettings()
 
       // Ask for confirmation before saving default values because it can overwrite previously saved values.
       var mb = new MessageBox("<p>Are you sure you want to save current parameter values to persistent module settings?</p>" +
-                              "<p>This will overwrite any previously saved values.</p>", "Save default values", StdIcon_Question, StdButton_Yes, StdButton_No);
+                              "<p>This will overwrite any previously saved values.</p>", "Save default values", StdIcon.Question, StdButton_Yes, StdButton_No);
       if (mb.execute() != StdButton_Yes) {
             console.noteln("User canceled saving settings");
             return;
@@ -3776,7 +3776,7 @@ function newCollapeSectionsButton(parent)
             for (var i = 0; i < global.sectionBars.length; i++) {
                   global.sectionBars[i].aiControl.hide();
                   if (!global.do_not_write_settings) {
-                        Settings.write(SETTINGSKEY + '/' + global.sectionBars[i].aiName, DataType_Boolean, global.sectionBars[i].aiControl.visible);
+                        Settings.write(SETTINGSKEY + '/' + global.sectionBars[i].aiName, DataType.Boolean, global.sectionBars[i].aiControl.visible);
                   }
                   parent.ensureLayoutUpdated();
                   parent.adjustToContents();
@@ -4014,7 +4014,7 @@ function newPageButtonsSizer(parent, jsonSizer, actionSizer)
             global.rootingArr.push(blinkLabel);
             blinkLabel.text = "Blink";
             blinkLabel.toolTip = "<p>Blink zoom control.</p><p>You can blink images by clicking them in the image list.</p>";
-            blinkLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
+            blinkLabel.textAlignment = TextAlignment.Left|TextAlignment.VertCenter;
 
             var blinkFitButton = new ToolButton( parent );
             global.rootingArr.push(blinkFitButton);
@@ -4057,7 +4057,7 @@ function newPageButtonsSizer(parent, jsonSizer, actionSizer)
       global.rootingArr.push(currentPageLabel);
       currentPageLabel.text = "Current page";
       currentPageLabel.toolTip = "<p>Operations on the current page.</p>";
-      currentPageLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
+      currentPageLabel.textAlignment = TextAlignment.Left|TextAlignment.VertCenter;
 
       var currentPageCheckButton = new ToolButton( parent );
       global.rootingArr.push(currentPageCheckButton);
@@ -4330,7 +4330,7 @@ function newPreviewObj(parent)
       if (0) {
             var newPreviewInfoLabel = new Label( parent );
             newPreviewInfoLabel.text = "<b>Preview</b> No preview";
-            newPreviewInfoLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
+            newPreviewInfoLabel.textAlignment = TextAlignment.Left|TextAlignment.VertCenter;
             newPreviewInfoLabel.useRichText = true;
       } else {
             var newPreviewInfoLabel = null;
@@ -4338,7 +4338,7 @@ function newPreviewObj(parent)
 
       var newStatusInfoLabel = new Label( parent );
       newStatusInfoLabel.text = "";
-      newStatusInfoLabel.textAlignment = TextAlign_VertCenter;
+      newStatusInfoLabel.textAlignment = TextAlignment.VertCenter;
 
       var previewSizer = new VerticalSizer;
       previewSizer.margin = 6;
@@ -4369,12 +4369,12 @@ function newHistogramControl(parent)
       histogramViewControl.scaledMinHeight = height;
 
       var bitmap = new Bitmap(width, height);
-      var graphics = new VectorGraphics(bitmap);
+      var graphics = new Graphics(bitmap);      // VectorGraphics
       setHistogramBitmapBackground(graphics);
       graphics.end();
       histogramViewControl.aiInfo = { histogramBitmap: bitmap, scaledValues: null, cumulativeValues: null, percentageValues: null, log_x_scale: false };
       histogramViewControl.onPaint = function(x0, y0, x1, y1) {
-            var graphics = new VectorGraphics(this);
+            var graphics = new Graphics(this);  // VectorGraphics
             graphics.antialiasing = true;
             graphics.drawBitmap(0, 0, this.aiInfo.histogramBitmap);
             graphics.end();
@@ -5364,7 +5364,7 @@ function AutoIntegrateDialog()
       var cometAlignHelpTips = this.cometAlignHelpTips;
       this.cometAlignHelpTips.onClick = function()
       {
-            new MessageBox(comet_alignment_toolTip, "Comet alignment", StdIcon_Information ).execute();
+            new MessageBox(comet_alignment_toolTip, "Comet alignment", StdIcon.Information ).execute();
       }
 
       this.cometAlignmentGroupBoxSizer = new HorizontalSizer;
@@ -5382,13 +5382,13 @@ function AutoIntegrateDialog()
       // Saturation selection
       this.linearSaturationLabel = new Label( this );
       this.linearSaturationLabel.text = "Linear saturation increase";
-      this.linearSaturationLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
+      this.linearSaturationLabel.textAlignment = TextAlignment.Left|TextAlignment.VertCenter;
       this.linearSaturationLabel.toolTip = "<p>Saturation increase in linear state using a mask.</p>";
       this.linearSaturationSpinBox = guitools.newSpinBox(this, par.linear_increase_saturation, 0, 10, this.linearSaturationLabel.toolTip);
 
       this.nonLinearSaturationLabel = new Label( this );
       this.nonLinearSaturationLabel.text = "Non-linear saturation increase";
-      this.nonLinearSaturationLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
+      this.nonLinearSaturationLabel.textAlignment = TextAlignment.Left|TextAlignment.VertCenter;
       this.nonLinearSaturationLabel.toolTip = "<p>Saturation increase in non-linear state using a mask.</p>";
       this.nonLinearSaturationSpinBox = guitools.newSpinBox(this, par.non_linear_increase_saturation, 0, 10, this.nonLinearSaturationLabel.toolTip);
 
@@ -5413,14 +5413,14 @@ function AutoIntegrateDialog()
       this.noiseReductionStrengthLabel = new Label( this );
       this.noiseReductionStrengthLabel.text = "Noise reduction";
       this.noiseReductionStrengthLabel.toolTip = "<p>Noise reduction strength for color channel (R,G,B,H,S,O) or color images.</p>" + noiseReductionStregthToolTip;
-      this.noiseReductionStrengthLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
+      this.noiseReductionStrengthLabel.textAlignment = TextAlignment.Left|TextAlignment.VertCenter;
    
       this.noiseReductionStrengthComboBox = guitools.newComboBoxStrvalsToInt(this, par.noise_reduction_strength, noise_reduction_strength_values, this.noiseReductionStrengthLabel.toolTip);
 
       this.luminanceNoiseReductionStrengthLabel = new Label( this );
       this.luminanceNoiseReductionStrengthLabel.text = "Luminance noise reduction";
       this.luminanceNoiseReductionStrengthLabel.toolTip = "<p>Noise reduction strength for luminance image.</p>" + noiseReductionStregthToolTip;
-      this.luminanceNoiseReductionStrengthLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
+      this.luminanceNoiseReductionStrengthLabel.textAlignment = TextAlignment.Left|TextAlignment.VertCenter;
    
       this.luminanceNoiseReductionStrengthComboBox = guitools.newComboBoxStrvalsToInt(this, par.luminance_noise_reduction_strength, noise_reduction_strength_values, this.luminanceNoiseReductionStrengthLabel.toolTip);
 
@@ -5704,7 +5704,7 @@ function AutoIntegrateDialog()
             "<p>With Color option binning is done only for color channel files.<p>" +
             "<p>With L and Color option binning is done for both luminance and color channel files.<p>" +
             "<p>Binning uses IntegerResample process and should help to reduce noise at the cost of decreased resolution.<p>";
-      this.binningLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
+      this.binningLabel.textAlignment = TextAlignment.Left|TextAlignment.VertCenter;
    
       // Binning
       //
@@ -6011,7 +6011,7 @@ function AutoIntegrateDialog()
       this.weightLabel = new Label( this );
       this.weightLabel.text = "Weight calculation";
       this.weightLabel.toolTip = weightHelpToolTips;
-      this.weightLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
+      this.weightLabel.textAlignment = TextAlignment.Left|TextAlignment.VertCenter;
       this.weightComboBox = guitools.newComboBox(this, par.use_weight, use_weight_values, weightHelpToolTips);
 
       var weightLimitToolTip = "<p>Limit value for SSWEIGHT. If value for SSWEIGHT is below the limit " +
@@ -6074,7 +6074,7 @@ function AutoIntegrateDialog()
 
       this.outlierMethodLabel = new Label( this );
       this.outlierMethodLabel.text = "Outlier method";
-      this.outlierMethodLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
+      this.outlierMethodLabel.textAlignment = TextAlignment.Left|TextAlignment.VertCenter;
       this.outlierMethodLabel.toolTip = 
             "<p>Different methods are available for detecting outliers.<p>" +
             "<p>Two sigma filters out outliers that are two sigmas away from mean value.</p>" +
@@ -6096,7 +6096,7 @@ function AutoIntegrateDialog()
             "<p>All other options will filter out outliers based on individual values.</p>";
       this.outlierLabel = new Label( this );
       this.outlierLabel.text = "Outlier filtering";
-      this.outlierLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
+      this.outlierLabel.textAlignment = TextAlignment.Left|TextAlignment.VertCenter;
       this.outlierLabel.toolTip = outlier_filtering_tooltip;
       this.outlier_ssweight_CheckBox = guitools.newCheckBox(this, "SSWEIGHT", par.outliers_ssweight, outlier_filtering_tooltip, setFilteringChanged);
       this.outlier_fwhm_CheckBox = guitools.newCheckBox(this, "FWHM", par.outliers_fwhm, outlier_filtering_tooltip, setFilteringChanged);
@@ -6341,7 +6341,7 @@ function AutoIntegrateDialog()
       this.ImageIntegrationCombinationLabel = new Label( this );
       this.ImageIntegrationCombinationLabel.text = "Combination";
       this.ImageIntegrationCombinationLabel.toolTip = "<p>Pixel combination operation</p>";
-      this.ImageIntegrationCombinationLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
+      this.ImageIntegrationCombinationLabel.textAlignment = TextAlignment.Left|TextAlignment.VertCenter;
       this.ImageIntegrationCombinationComboBox = guitools.newComboBox(this, par.integration_combination, imageintegration_combination_values, this.ImageIntegrationCombinationLabel.toolTip);
 
       this.ImageIntegrationCombinationSizer = new HorizontalSizer;
@@ -6352,7 +6352,7 @@ function AutoIntegrateDialog()
       this.ImageIntegrationNormalizationLabel = new Label( this );
       this.ImageIntegrationNormalizationLabel.text = "Normalization";
       this.ImageIntegrationNormalizationLabel.toolTip = "<p>Rejection normalization. This is value is ignored if local normalization is used.</p>";
-      this.ImageIntegrationNormalizationLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
+      this.ImageIntegrationNormalizationLabel.textAlignment = TextAlignment.Left|TextAlignment.VertCenter;
       this.ImageIntegrationNormalizationComboBox = guitools.newComboBox(this, par.imageintegration_normalization, imageintegration_normalization_values, this.ImageIntegrationNormalizationLabel.toolTip);
    
       this.ImageIntegrationNormalizationSizer = new HorizontalSizer;
@@ -6394,7 +6394,7 @@ function AutoIntegrateDialog()
       this.ImageIntegrationRejectionLabel = new Label( this );
       this.ImageIntegrationRejectionLabel.text = "Rejection";
       this.ImageIntegrationRejectionLabel.toolTip = ImageIntegrationHelpToolTips;
-      this.ImageIntegrationRejectionLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
+      this.ImageIntegrationRejectionLabel.textAlignment = TextAlignment.Left|TextAlignment.VertCenter;
    
       this.ImageIntegrationRejectionComboBox = guitools.newComboBox(this, par.use_clipping, use_clipping_values, ImageIntegrationHelpToolTips);
    
@@ -6573,7 +6573,7 @@ function AutoIntegrateDialog()
 
       this.narrowbandLinearFit_Label = new Label( this );
       this.narrowbandLinearFit_Label.text = "Linear fit";
-      this.narrowbandLinearFit_Label.textAlignment = TextAlign_Right|TextAlign_VertCenter;
+      this.narrowbandLinearFit_Label.textAlignment = TextAlignment.Right|TextAlignment.VertCenter;
       this.narrowbandLinearFit_Label.toolTip = 
             "<p>Linear fit setting before running PixelMath to combine narrowband channel.</p>" +
             "<p>Auto does not use linear if Auto STF or Histogram stretch is used for stretching. Otherwise it uses Min.<br>" +
@@ -6622,14 +6622,14 @@ function AutoIntegrateDialog()
 
       this.narrowbandCustomPalette_L_Label = new Label( this );
       this.narrowbandCustomPalette_L_Label.text = "L";
-      this.narrowbandCustomPalette_L_Label.textAlignment = TextAlign_Right|TextAlign_VertCenter;
+      this.narrowbandCustomPalette_L_Label.textAlignment = TextAlignment.Right|TextAlignment.VertCenter;
       this.narrowbandCustomPalette_L_Label.toolTip = this.narrowbandLuminancePalette_ComboBox.toolTip;
 
       this.narrowbandCustomPalette_L_ComboBox = guitools.newComboBoxpalette(this, par.custom_L_mapping, [par.custom_L_mapping.val, "max(L, H)"], this.narrowbandLuminancePalette_ComboBox.toolTip);
 
       this.NbLuminanceLabel = new Label( this );
       this.NbLuminanceLabel.text = "Luminance mapping";
-      this.NbLuminanceLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
+      this.NbLuminanceLabel.textAlignment = TextAlignment.Left|TextAlignment.VertCenter;
       this.NbLuminanceLabel.toolTip = this.narrowbandLuminancePalette_ComboBox.toolTip;
       this.NbLuminanceSizer = new HorizontalSizer;
       // this.NbLuminanceSizer.margin = 2;
@@ -7264,7 +7264,7 @@ function AutoIntegrateDialog()
             this.showFlowchartHelpTips.toolTip = showFlowchartToolTip;
             this.showFlowchartHelpTips.onClick = function()
             {
-                  new MessageBox(showFlowchartToolTip, "Show Flowchart", StdIcon_Information ).execute();
+                  new MessageBox(showFlowchartToolTip, "Show Flowchart", StdIcon.Information ).execute();
             }
       }
 
@@ -7305,7 +7305,7 @@ function AutoIntegrateDialog()
       if (par.use_manual_icon_column.val) {
             this.columnCountControlLabel = new Label( this );
             this.columnCountControlLabel.text = "Icon Column ";
-            this.columnCountControlLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
+            this.columnCountControlLabel.textAlignment = TextAlignment.Left|TextAlignment.VertCenter;
             this.columnCountControlLabel.toolTip = "<p>Set Icon Column for next run.</p> " + 
                                                 "<p>This keeps window icons from piling up on top of one another, " +
                                                 "as you change prefixes and run again.</p>" +
@@ -7659,7 +7659,7 @@ function AutoIntegrateDialog()
       {
             // Ask for confirmation before setting default values because it can not be undone.
             var mb = new MessageBox("<p>Are you sure you want to set default values for all parameters?</p>" +
-                                    "<p>This can not be undone.</p>", "Set default values", StdIcon_Question, StdButton_Yes, StdButton_No);
+                                    "<p>This can not be undone.</p>", "Set default values", StdIcon.Question, StdButton_Yes, StdButton_No);
             if (mb.execute() != StdButton_Yes) {
                   return;
             }
@@ -7696,7 +7696,7 @@ function AutoIntegrateDialog()
 
       this.imageInfoLabel = new Label( this );
       this.imageInfoLabel.text = "";
-      this.imageInfoLabel.textAlignment = TextAlign_VertCenter;
+      this.imageInfoLabel.textAlignment = TextAlignment.VertCenter;
       imageInfoLabel = this.imageInfoLabel;
 
       this.info1_Sizer = new HorizontalSizer;
@@ -7709,7 +7709,7 @@ function AutoIntegrateDialog()
       if (!global.use_preview) {
             this.statusInfoLabel = new Label( this );
             this.statusInfoLabel.text = "";
-            this.statusInfoLabel.textAlignment = TextAlign_VertCenter;
+            this.statusInfoLabel.textAlignment = TextAlignment.VertCenter;
             global.statusInfoLabel = this.statusInfoLabel;
 
             this.info2_Sizer = new HorizontalSizer;
@@ -8181,7 +8181,7 @@ AutoIntegrateDialog.prototype.shouldShowWelcome = function(global) {
             return true;
       }
 
-      var showOnStartup = util.readAndMigrateSetting("ShowWelcomeOnStartup", "AutoIntegrate_ShowWelcomeOnStartup", DataType_Boolean, 0);
+      var showOnStartup = util.readAndMigrateSetting("ShowWelcomeOnStartup", "AutoIntegrate_ShowWelcomeOnStartup", DataType.Boolean, 0);
       return showOnStartup;
 };
 
@@ -8189,7 +8189,7 @@ AutoIntegrateDialog.prototype.isExpertMode = function() {
       if (this.global.do_not_read_settings) {
             return false;
       } else {
-            var setting = Settings.read(SETTINGSKEY + "/ExpertMode", DataType_Boolean);
+            var setting = Settings.read(SETTINGSKEY + "/ExpertMode", DataType.Boolean);
             if (!Settings.lastReadOK) {
                   // Setting not found, assume that AutoIntegrate has been used 
                   // already so expert mode is likely desired.
@@ -8203,7 +8203,7 @@ AutoIntegrateDialog.prototype.isExpertMode = function() {
 
 AutoIntegrateDialog.prototype.saveExpertMode = function() {
       if (!this.global.do_not_write_settings) {
-            Settings.write(SETTINGSKEY + "/ExpertMode", DataType_Boolean, this.global.expert_mode);
+            Settings.write(SETTINGSKEY + "/ExpertMode", DataType.Boolean, this.global.expert_mode);
       }
 };
 
@@ -8211,7 +8211,7 @@ AutoIntegrateDialog.prototype.isFirstRun = function() {
       if (this.global.do_not_read_settings) {
             return true;
       } else {
-            var hasRun = util.readAndMigrateSetting("HasRun", "AutoIntegrate_HasRun", DataType_Boolean, 0);
+            var hasRun = util.readAndMigrateSetting("HasRun", "AutoIntegrate_HasRun", DataType.Boolean, 0);
             return !hasRun;
       }
 };
@@ -8219,7 +8219,7 @@ AutoIntegrateDialog.prototype.isFirstRun = function() {
 // Mark that AutoIntegrate has been run
 AutoIntegrateDialog.prototype.markAsRun = function() {
       if (!this.global.do_not_write_settings) {
-            Settings.write(SETTINGSKEY + "/HasRun", DataType_Boolean, true);
+            Settings.write(SETTINGSKEY + "/HasRun", DataType.Boolean, true);
       }
 };
 
