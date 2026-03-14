@@ -596,7 +596,7 @@ newSectionBarAdd(parent, groupbox, control, title, name, level = 1)
       var sb = new SectionBar(parent, title);
       sb.setSection(control);
       sb.onToggleSection = function(bar, beginToggle) {
-            if (!this.global.do_not_write_settings) {
+            if (!parent.global.do_not_write_settings) {
                   Settings.write(SETTINGSKEY + "/" + name, DataType.Boolean, control.visible);
             }
             parent.ensureLayoutUpdated();
@@ -635,7 +635,7 @@ newSectionBarAddArray(parent, groupbox, title, name, objarray, level = 1)
       // hide this section by default
       ProcessingControl.visible = false;
 
-      this.global.rootingArr.push(ProcessingControl);
+      parent.global.rootingArr.push(ProcessingControl);
 
       var sb = this.newSectionBarAdd(parent, groupbox, ProcessingControl, title, name, level);
 

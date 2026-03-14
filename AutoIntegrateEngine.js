@@ -864,7 +864,7 @@ extractHSchannels(sourceWindow)
 {
       var P = new ChannelExtraction;
       P.colorSpace = ChannelExtraction.HSI;
-      P.this.channels = [ // enabled, id
+      P.channels = [ // enabled, id
             [true,  ""],       // H
             [false, ""],       // S
             [false, ""]        // I
@@ -880,7 +880,7 @@ extractHSchannels(sourceWindow)
 
       var P = new ChannelExtraction;
       P.colorSpace = ChannelExtraction.HSI;
-      P.this.channels = [ // enabled, id
+      P.channels = [ // enabled, id
             [false, ""],       // H
             [true,  ""],       // S
             [false, ""]        // I
@@ -901,7 +901,7 @@ extractIchannel(sourceWindow)
 {
       var P = new ChannelExtraction;
       P.colorSpace = ChannelExtraction.HSI;
-      P.this.channels = [ // enabled, id
+      P.channels = [ // enabled, id
             [false, ""],       // H
             [false, ""],       // S
             [true,  ""]        // I
@@ -920,10 +920,11 @@ extractIchannel(sourceWindow)
 
 extractLchannel(sourceWindow, from_lights)
 {
+      if (this.global.debug) console.writeln("extractLchannel");
       var node = null;
       var P = new ChannelExtraction;
       P.colorSpace = ChannelExtraction.CIELab;
-      P.this.channels = [ // enabled, id
+      P.channels = [ // enabled, id
             [true, ""],       // L
             [false, ""],      // a
             [false, ""]       // b
@@ -980,6 +981,10 @@ enhancementsNormalizeImage(imgWin)
 
       if (this.global.get_flowchart_data) {
             return;
+      }
+
+      if (!imgWin.mainView.image.isColor) {
+            this.util.throwFatalError("Normalization can only be applied to color images.");
       }
 
       /* Normalize black point and brightness on all this.channels based on a reference channel.
@@ -11921,7 +11926,7 @@ runLRGBCombination(RGB_id, L_id)
       }
 
       var P = new LRGBCombination;
-      P.this.channels = [ // enabled, id, k
+      P.channels = [ // enabled, id, k
             [false, "", 1.00000],
             [false, "", 1.00000],
             [false, "", 1.00000],
@@ -13988,7 +13993,7 @@ combineRGBimageEx(target_name, images)
 
       var P = new ChannelCombination;
       P.colorSpace = ChannelCombination.RGB;
-      P.this.channels = [ // enabled, id
+      P.channels = [ // enabled, id
             [true, images[0]],
             [true, images[1]],
             [true, images[2]]
@@ -14079,21 +14084,21 @@ extractRGBchannel(RGB_id, channel, from_lights)
       P.sampleFormat = ChannelExtraction.SameAsSource;
       switch (channel) {
             case 'R':
-                  P.this.channels = [ // enabled, id
+                  P.channels = [ // enabled, id
                         [true, ""],       // R
                         [false, ""],      // G
                         [false, ""]       // B
                   ];
                   break;
             case 'G':
-                  P.this.channels = [ // enabled, id
+                  P.channels = [ // enabled, id
                         [false, ""],      // R
                         [true, ""],       // G
                         [false, ""]       // B
                   ];
                   break;
             case 'B':
-                  P.this.channels = [ // enabled, id
+                  P.channels = [ // enabled, id
                         [false, ""],      // R
                         [false, ""],      // G
                         [true, ""]        // B
@@ -14461,7 +14466,7 @@ create_HRR(nb_channel_id, rgb_channel_id)
 {
       var P = new ChannelCombination;
       P.colorSpace = ChannelCombination.RGB;
-      P.this.channels = [ // enabled, id
+      P.channels = [ // enabled, id
             [true, nb_channel_id],
             [true, rgb_channel_id],
             [true, rgb_channel_id]
@@ -14673,7 +14678,7 @@ RGBHa_ContinuumSubtract(nb_channel_id, rgb_channel_id, rgb_is_linear, testmode)
       console.writeln("RGBHa_ContinuumSubtract, continuum subtraction using PixelMath");
       var enhanced_channel_id = this.ppar.win_prefix + "Integration_H_NB_enhanced";
 
-      create_continuum_subtracted_image(hrr_win);
+      this.create_continuum_subtracted_image(hrr_win);
 
       /* Convert to grayscale.
        */
@@ -14691,7 +14696,7 @@ RGBHa_ContinuumSubtract(nb_channel_id, rgb_channel_id, rgb_is_linear, testmode)
             if (rgb_is_linear) {
                   // Stretch image to make it non-linear
                   console.writeln("RGBHa_ContinuumSubtract, linked AutoSTF on " + enhanced_channel_id);
-                  HRR_stretch(enhanced_channel_win, this.par.STF_targetBackground.val);
+                  this.HRR_stretch(enhanced_channel_win, this.par.STF_targetBackground.val);
                   rgb_channel_nonlinear = "Auto STF";
                   rgb_is_linear = false;
                   this.util.setFITSKeyword(enhanced_channel_win, "AutoIntegrateNonLinear", rgb_channel_nonlinear, "");
@@ -14701,12 +14706,12 @@ RGBHa_ContinuumSubtract(nb_channel_id, rgb_channel_id, rgb_is_linear, testmode)
             /* Normalize image.
              */
             console.writeln("RGBHa_ContinuumSubtract, normalize image using PixelMath");
-            normalize_image(enhanced_channel_win);
+            this.normalize_image(enhanced_channel_win);
 
             // It is totally unclear to me why this needs to be done twice to get proper results???
             // When running on desktop it works with only one run.
             this.util.add_test_image(enhanced_channel_id, "Integration_H_NB_enhanced_normalized_1st", testmode);
-            normalize_image(enhanced_channel_win);
+            this.normalize_image(enhanced_channel_win);
 
             this.util.add_test_image(enhanced_channel_id, "Integration_H_NB_enhanced_normalized", testmode);
 
@@ -14722,7 +14727,7 @@ RGBHa_ContinuumSubtract(nb_channel_id, rgb_channel_id, rgb_is_linear, testmode)
              */
             if (this.par.RGBHa_boost.val > 0) {
                   console.writeln("RGBHa_ContinuumSubtract, boost image using value " + this.par.RGBHa_boost.val);
-                  boost_Ha(enhanced_channel_win, this.par.RGBHa_boost.val);
+                  this.boost_Ha(enhanced_channel_win, this.par.RGBHa_boost.val);
 
                   this.util.add_test_image(enhanced_channel_id, "Integration_H_NB_enhanced_boostHa", testmode);
             }
@@ -14901,13 +14906,13 @@ RGBHa_mapping(RGB_id)
                   break;
 
             case 'Max':
-                  console.writeln("RGBHa_mapping, RGBHa_max_Ha");
-                  RGBHa_max_Ha(RGB_id, nb_channel_id);
+                  console.writeln("RGBHa_mapping, this.RGBHa_max_Ha");
+                  this.RGBHa_max_Ha(RGB_id, nb_channel_id);
                   break;
 
             case 'Screen':
-                  console.writeln("RGBHa_mapping, RGBHa_screen_Ha");
-                  RGBHa_screen_Ha(RGB_id, nb_channel_id);
+                  console.writeln("RGBHa_mapping, this.RGBHa_screen_Ha");
+                  this.RGBHa_screen_Ha(RGB_id, nb_channel_id);
                   break;
 
             case 'Med subtract add':
@@ -15807,7 +15812,7 @@ enhancementsHDRMultiscaleTransform(imgWin, maskWin)
 
                   var P = new ChannelCombination;
                   P.colorSpace = ChannelCombination.HSI;
-                  P.this.channels = [ // enabled, id
+                  P.channels = [ // enabled, id
                         [true, hsChannels[0].mainView.id],
                         [true, hsChannels[1].mainView.id],
                         [true, iChannel.mainView.id]
@@ -17225,9 +17230,9 @@ enhancementsProcessing(parent, id, apply_directly)
                   this.enhancementsNarrowbandMappingRGB(enhancementsWin, this.par.enhancements_narrowband_mapping_source_palette.val, this.par.enhancements_narrowband_mapping_target_palette.val);
                   this.enhancementsOptionCompleted(this.par.run_enhancements_narrowband_mapping);
             }
-            if (self.standalone_narrowband_mappings != null) {
-                  this.runEnhancementsNarrowbandMappingChannels(enhancementsWin, self.standalone_narrowband_mappings.target_palette, self.standalone_narrowband_mappings.mappings);
-                  self.standalone_narrowband_mappings = null;
+            if (this.standalone_narrowband_mappings != null) {
+                  this.runEnhancementsNarrowbandMappingChannels(enhancementsWin, this.standalone_narrowband_mappings.target_palette, this.standalone_narrowband_mappings.mappings);
+                  this.standalone_narrowband_mappings = null;
             }
             if (this.par.run_orangeblue_colors.val) {
                   this.enhancementsOrangeBlueColors(enhancementsWin);

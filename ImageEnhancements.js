@@ -2,6 +2,7 @@
 // ImageEnhancements — Standalone version of AutoIntegrate image enhancements
 // ****************************************************************************
 
+#engine v8
 #feature-id    AutoIntegrate  > Image Enhancements
 #feature-info  Image Enhancements using AutoIntegrate tools.
 
@@ -26,26 +27,25 @@
 #ifndef AUTOINTEGRATEDUMMYFLOWCHART
 #define AUTOINTEGRATEDUMMYFLOWCHART
 
-function AutoIntegrateDummyFlowchart()
+class AutoIntegrateDummyFlowchart extends Object
 {
-    this.__base__ = Object;
-    this.__base__();
- 
-    this.flowchartOperation = function () {};
-    this.flowchartOperationEnd = function () {};
-    this.flowchartParentBegin = function () {};
-    this.flowchartParentEnd = function () {};
-    this.flowchartChildBegin = function () {};
-    this.flowchartChildEnd = function () {};
-    this.flowchartMaskBegin = function () {};
-    this.flowchartMaskEnd = function () {};
-    this.flowchartInit = function () {};
-    this.flowchartDone = function () {};
-    this.flowchartReset = function () {};
-    this.flowchartPrint = function () {};
-}
+    constructor() {
+        super();
+    }
 
-AutoIntegrateDummyFlowchart.prototype = new Object;
+    flowchartOperation() {};
+    flowchartOperationEnd() {};
+    flowchartParentBegin() {};
+    flowchartParentEnd() {};
+    flowchartChildBegin() {};
+    flowchartChildEnd() {};
+    flowchartMaskBegin() {};
+    flowchartMaskEnd() {};
+    flowchartInit() {};
+    flowchartDone() {};
+    flowchartReset() {};
+    flowchartPrint() {};
+}
 
 #endif /* AUTOINTEGRATEDUMMYFLOWCHART */
 
@@ -53,13 +53,10 @@ AutoIntegrateDummyFlowchart.prototype = new Object;
 //  DIALOG WITH PREVIEW
 // =============================================================================
 
-function AutoIntegrateImageEnhancementsDialog() {
-    this.__base__ = Dialog;
-    this.__base__();
+class AutoIntegrateImageEnhancementsDialog extends Dialog {
+    constructor() {
+        super();
 
-    var self = this;
-
-    var debug = false;
 
     this.TITLE = "Image Enhancements";
     this.VERSION = "1.00";
@@ -67,27 +64,24 @@ function AutoIntegrateImageEnhancementsDialog() {
     this.windowTitle = this.TITLE + " v" + this.VERSION;
     // this.minWidth = 1000;
 
-    var global = new AutoIntegrateGlobal();
-    this.global = global;
+    this.global = new AutoIntegrateGlobal();
 
-    global.debug = debug;
     for (let i = 0; i < Runtime.jsArguments.length; i++) {
         if (Runtime.jsArguments[i] == "do_not_read_settings") {
             console.writeln("do_not_read_settings");
-            global.do_not_read_settings = true;
+            this.global.do_not_read_settings = true;
         }
     }
 
-    var util = new AutoIntegrateUtil(global);
-    this.util = util;
+    this.util = new AutoIntegrateUtil(this.global);
 
-    var flowchart = new AutoIntegrateDummyFlowchart();
-    var engine = new AutoIntegrateEngine(global, util, flowchart);
-    var guitools = new AutoIntegrateGUITools(this, global, util, engine);
+    this.flowchart = new AutoIntegrateDummyFlowchart();
+    this.engine = new AutoIntegrateEngine(this.global, this.util, this.flowchart);
+    this.guitools = new AutoIntegrateGUITools(this, this.global, this.util, this.engine);
 
     // Read parameter default settings from persistent module settings.
     // These can be saved using the AutoIntegrate script.
-    util.initStandalone();
+    this.util.initStandalone();
 
    // -------------------------------------------------------------------------
    // Status
@@ -98,61 +92,67 @@ function AutoIntegrateImageEnhancementsDialog() {
    this.statusLabel.textAlignment = TextAlignment.Center;
    this.statusLabel.styleSheet = "color: #AAAAAA;";
 
+   this.initGUI();
+
+} // AutoIntegrateImageEnhancementsDialog constructor
+
    // -------------------------------------------------------------------------
    // Preview functions
    // -------------------------------------------------------------------------
 
-    function setPreviewIdReset(id, keep_zoom, histogramInfo)
+    setPreviewIdReset(id, keep_zoom, histogramInfo)
     {
-        if (debug) console.writeln("AutoIntegrateImageEnhancementsDialog::updatePreviewIdReset: id = " + id);
+        if (this.global.debug) console.writeln("AutoIntegrateImageEnhancementsDialog::updatePreviewIdReset: id = " + id);
         var win = ImageWindow.windowById(id);
-        self.previewControl.SetImage(win.mainView.image, win.mainView.id + " [Preview]");
+        this.previewControl.SetImage(win.mainView.image, win.mainView.id + " [Preview]");
     }
 
-    function updatePreviewIdReset(id, keep_zoom, histogramInfo)
+    updatePreviewIdReset(id, keep_zoom, histogramInfo)
     {
-        if (debug) console.writeln("AutoIntegrateImageEnhancementsDialog::updatePreviewIdReset: id = " + id);
-        updatePreviewWin(ImageWindow.windowById(id));
+        if (this.global.debug) console.writeln("AutoIntegrateImageEnhancementsDialog::updatePreviewIdReset: id = " + id);
+        this.updatePreviewWin(ImageWindow.windowById(id));
     }
 
-    function updatePreviewNoImage()
+    updatePreviewNoImage()
     {
-        if (debug) console.writeln("AutoIntegrateImageEnhancementsDialog::updatePreviewNoImage");
-        self.statusLabel.text = "No image available for preview.";
+        if (this.global.debug) console.writeln("AutoIntegrateImageEnhancementsDialog::updatePreviewNoImage");
+        this.statusLabel.text = "No image available for preview.";
     }
 
-    function updatePreviewTxt(txt)
+    updatePreviewTxt(txt)
     {
-        if (debug) console.writeln("AutoIntegrateImageEnhancementsDialog::updatePreviewTxt: " + txt);
+        if (this.global.debug) console.writeln("AutoIntegrateImageEnhancementsDialog::updatePreviewTxt: " + txt);
     }
 
-    function updatePreviewWin(imgWin)
+    updatePreviewWin(imgWin)
     {
-        if (debug) console.writeln("AutoIntegrateImageEnhancementsDialog::updatePreviewWin: imgWin = " + imgWin);
-        self.previewControl.UpdateImage(imgWin.mainView.image);
+        if (this.global.debug) console.writeln("AutoIntegrateImageEnhancementsDialog::updatePreviewWin: imgWin = " + imgWin);
+        this.previewControl.UpdateImage(imgWin.mainView.image);
     }
 
-    function updatePreviewWinTxt(imgWin, txt)
+    updatePreviewWinTxt(imgWin, txt)
     {
-        if (debug) console.writeln("AutoIntegrateImageEnhancementsDialog::updatePreviewWinTxt: imgWin = " + imgWin);
-        updatePreviewWin(imgWin);
+        if (this.global.debug) console.writeln("AutoIntegrateImageEnhancementsDialog::updatePreviewWinTxt: imgWin = " + imgWin);
+        this.updatePreviewWin(imgWin);
     }
+
+    initGUI() {
 
     var preview_functions = {
-        setPreviewIdReset: setPreviewIdReset,
-        updatePreviewIdReset: updatePreviewIdReset,
-        updatePreviewTxt: updatePreviewTxt,
-        updatePreviewNoImage: updatePreviewNoImage,
+        setPreviewIdReset: (id, keep_zoom, histogramInfo) => this.setPreviewIdReset(id, keep_zoom, histogramInfo),
+        updatePreviewIdReset: (id, keep_zoom, histogramInfo) => this.updatePreviewIdReset(id, keep_zoom, histogramInfo),
+        updatePreviewTxt: (txt) => this.updatePreviewTxt(txt),
+        updatePreviewNoImage: () => this.updatePreviewNoImage(),
         createCombinedMosaicPreviewWin: null,
-        updatePreviewWin: updatePreviewWin,
-        updatePreviewWinTxt: updatePreviewWinTxt,
+        updatePreviewWin: (imgWin) => this.updatePreviewWin(imgWin),
+        updatePreviewWinTxt: (imgWin, txt) => this.updatePreviewWinTxt(imgWin, txt),
    };
 
    // -------------------------------------------------------------------------
    // Left Side: Preview Control
    // -------------------------------------------------------------------------
 
-   this.previewControl = new AutoIntegratePreviewControl(this, "enhancements_preview", engine, util, global, 600, 600, false);
+   this.previewControl = new AutoIntegratePreviewControl(this, "enhancements_preview", this.engine, this.util, this.global, 600, 600, false);
 
    this.leftSizer = new VerticalSizer;
    this.leftSizer.spacing = 4;
@@ -171,15 +171,15 @@ function AutoIntegrateImageEnhancementsDialog() {
    this.subtitleLabel.textAlignment = TextAlignment.Center;
    this.subtitleLabel.styleSheet = "font-size: 9pt; color: #888888; font-style: italic;";
 
-   this.enhancements_gui = new AutoIntegrateEnhancementsGUI(this, guitools, util, global, engine, preview_functions);
+   this.enhancements_gui = new AutoIntegrateEnhancementsGUI(this, this.guitools, this.util, this.global, this.engine, preview_functions);
    this.enhancements_gui.setPreviewControl(this.previewControl);
 
     this.enhancementsGUIControls = this.enhancements_gui.createEnhancementsGUIControls(this);
 
-    this.GraXpertPathSizerSectionLabel = guitools.newSectionLabel(this, "GraXpert path");
-    this.GraXpertPathSizer = guitools.createGraXpertPathSizer(this);
+    this.GraXpertPathSizerSectionLabel = this.guitools.newSectionLabel(this, "GraXpert path");
+    this.GraXpertPathSizer = this.guitools.createGraXpertPathSizer(this);
 
-    this.toolsControl = guitools.createImageToolsControl(this);
+    this.toolsControl = this.guitools.createImageToolsControl(this);
     this.toolsControl.sizer.add( this.GraXpertPathSizerSectionLabel );
     this.toolsControl.sizer.add( this.GraXpertPathSizer );
     this.toolsControl.visible = false;
@@ -188,23 +188,23 @@ function AutoIntegrateImageEnhancementsDialog() {
    // Load and save JSON controls
    // -------------------------------------------------------------------------
 
-   var obj = guitools.newJsonSizerObj(this, null, "ImageEnhancementsSettings.json");
+   var obj = this.guitools.newJsonSizerObj(this, null, "ImageEnhancementsSettings.json");
    this.loadSaveSizer = obj.sizer;
 
    // -------------------------------------------------------------------------
    // Enhancements Group Box
    // -------------------------------------------------------------------------
 
-    if (global.debug) console.writeln("AutoIntegrateImageEnhancementsDialog:: creating enhancementsGroupBox");
+    if (this.global.debug) console.writeln("AutoIntegrateImageEnhancementsDialog:: creating enhancementsGroupBox");
 
-    this.enhancementsGroupBox = guitools.newGroupBoxSizer(this);
-    guitools.newSectionBarAdd(this, this.enhancementsGroupBox, this.enhancementsGUIControls.targetImageControl, "Target image for enhancements", "EnhancementsTarget");
-    guitools.newSectionBarAdd(this, this.enhancementsGroupBox, this.enhancementsGUIControls.optionsControl, "Misc options", "EnhancementsOptions");
-    guitools.newSectionBarAdd(this, this.enhancementsGroupBox, this.enhancementsGUIControls.narrowbandControl, "Narrowband enhancements", "Enhancements2");
-    guitools.newSectionBarAdd(this, this.enhancementsGroupBox, this.enhancementsGUIControls.selectiveColorControl, "Selective Color", "Enhancements3");
-    guitools.newSectionBarAdd(this, this.enhancementsGroupBox, this.enhancementsGUIControls.genericControl, "Generic enhancements", "Enhancements1");
-    guitools.newSectionBarAdd(this, this.enhancementsGroupBox, this.enhancementsGUIControls.starsControl, "Stars enhancements", "EnhancementsStars");
-    guitools.newSectionBarAdd(this, this.enhancementsGroupBox, this.toolsControl, "Tools", "EnhancementsTools");
+    this.enhancementsGroupBox = this.guitools.newGroupBoxSizer(this);
+    this.guitools.newSectionBarAdd(this, this.enhancementsGroupBox, this.enhancementsGUIControls.targetImageControl, "Target image for enhancements", "EnhancementsTarget");
+    this.guitools.newSectionBarAdd(this, this.enhancementsGroupBox, this.enhancementsGUIControls.optionsControl, "Misc options", "EnhancementsOptions");
+    this.guitools.newSectionBarAdd(this, this.enhancementsGroupBox, this.enhancementsGUIControls.narrowbandControl, "Narrowband enhancements", "Enhancements2");
+    this.guitools.newSectionBarAdd(this, this.enhancementsGroupBox, this.enhancementsGUIControls.selectiveColorControl, "Selective Color", "Enhancements3");
+    this.guitools.newSectionBarAdd(this, this.enhancementsGroupBox, this.enhancementsGUIControls.genericControl, "Generic enhancements", "Enhancements1");
+    this.guitools.newSectionBarAdd(this, this.enhancementsGroupBox, this.enhancementsGUIControls.starsControl, "Stars enhancements", "EnhancementsStars");
+    this.guitools.newSectionBarAdd(this, this.enhancementsGroupBox, this.toolsControl, "Tools", "EnhancementsTools");
     this.enhancementsGroupBox.sizer.addStretch();
 
    // -------------------------------------------------------------------------
@@ -215,14 +215,15 @@ function AutoIntegrateImageEnhancementsDialog() {
     this.resetButton.text = "Reset";
     this.resetButton.toolTip = "Reset all parameters to defaults.";
     this.resetButton.onClick = function() {
-            util.setParameterDefaults();
+            this.util.setParameterDefaults();
     };
 
     this.closeButton = new PushButton(this);
     this.closeButton.text = "Close";
     this.closeButton.icon = this.scaledResource(":/icons/close.png");
     this.closeButton.onClick = function() {
-        self.ok();
+        console.writeln("Closing dialog");
+        this.dialog.ok();
     };
 
     this.buttonsSizer = new HorizontalSizer;
@@ -253,10 +254,10 @@ function AutoIntegrateImageEnhancementsDialog() {
    this.sizer.spacing = 8;
    this.sizer.add(this.leftSizer);
    this.sizer.add(this.rightSizer);
+
+} // AutoIntegrateImageEnhancementsDialog initGUI
+
 }
-
-AutoIntegrateImageEnhancementsDialog.prototype = new Dialog;
-
 // =============================================================================
 //  MAIN ENTRY POINT
 // =============================================================================
