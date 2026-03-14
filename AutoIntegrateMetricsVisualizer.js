@@ -586,7 +586,7 @@ function AstroMetricsDialog() {
 AstroMetricsDialog.prototype = new Dialog;
 
 // Function to update data and refresh dialog
-AstroMetricsDialog.prototype.updateData = function() {
+AstroMetricsDialog.updateData = function() {
 
     // console.writeln("Updating data");
 
@@ -599,7 +599,7 @@ AstroMetricsDialog.prototype.updateData = function() {
     this.data4Plot.repaint();
 };
 
-AstroMetricsDialog.prototype.updateFilteredOut = function() {
+AstroMetricsDialog.updateFilteredOut = function() {
     // console.writeln("Initializing filtering...");
 
     metricsFilteredOut = [];

@@ -325,7 +325,7 @@ function AutoIntegrateWelcomeDialog(global) {
 
 AutoIntegrateWelcomeDialog.prototype = new Dialog;
 
-AutoIntegrateWelcomeDialog.prototype.saveShowOnStartup = function() {
+AutoIntegrateWelcomeDialog.saveShowOnStartup = function() {
         if (!this.global.do_not_write_settings) {
             Settings.write(SETTINGSKEY + '/' + "ShowWelcomeOnStartup", DataType.Boolean, this.showOnStartupCheckBox.checked);
         }
@@ -448,7 +448,7 @@ function AutoIntegrateTutorialManagerDialog(parentDialog, global) {
 AutoIntegrateTutorialManagerDialog.prototype = new Dialog;
 
 // Define available tutorials
-AutoIntegrateTutorialManagerDialog.prototype.getTutorials = function() {
+AutoIntegrateTutorialManagerDialog.getTutorials = function() {
       var tutorials = [
         {
             id: "getting-started",
@@ -491,7 +491,7 @@ AutoIntegrateTutorialManagerDialog.prototype.getTutorials = function() {
 };
 
 // Populate the tutorial list
-AutoIntegrateTutorialManagerDialog.prototype.populateTutorials = function() {
+AutoIntegrateTutorialManagerDialog.populateTutorials = function() {
       this.tutorialList.clear();
       
       var tutorials = this.getTutorials();
@@ -545,7 +545,7 @@ AutoIntegrateTutorialManagerDialog.prototype.populateTutorials = function() {
 };
 
 // Check if tutorial is completed
-AutoIntegrateTutorialManagerDialog.prototype.isTutorialCompleted = function(tutorialId) {
+AutoIntegrateTutorialManagerDialog.isTutorialCompleted = function(tutorialId) {
       if (this.useAdvancedOptions === false || !global.do_not_read_settings) {
             return false;
       }
@@ -555,7 +555,7 @@ AutoIntegrateTutorialManagerDialog.prototype.isTutorialCompleted = function(tuto
 };
 
 // Mark tutorial as completed
-AutoIntegrateTutorialManagerDialog.prototype.markTutorialCompleted = function(tutorialId) {
+AutoIntegrateTutorialManagerDialog.markTutorialCompleted = function(tutorialId) {
       if (this.useAdvancedOptions === false || !global.do_not_write_settings) {
             return;
       }
@@ -564,7 +564,7 @@ AutoIntegrateTutorialManagerDialog.prototype.markTutorialCompleted = function(tu
 };
 
 // Mark selected tutorial as completed
-AutoIntegrateTutorialManagerDialog.prototype.markSelectedAsCompleted = function() {
+AutoIntegrateTutorialManagerDialog.markSelectedAsCompleted = function() {
       var node = this.tutorialList.currentNode;
       if (!node) {
             return;
@@ -577,7 +577,7 @@ AutoIntegrateTutorialManagerDialog.prototype.markSelectedAsCompleted = function(
 };
 
 // Reset all tutorials
-AutoIntegrateTutorialManagerDialog.prototype.resetAllTutorials = function() {
+AutoIntegrateTutorialManagerDialog.resetAllTutorials = function() {
       var tutorials = this.getTutorials();
       for (var i = 0; i < tutorials.length; i++) {
             var key = "Tutorial_" + tutorials[i].id + "_Completed";
@@ -587,7 +587,7 @@ AutoIntegrateTutorialManagerDialog.prototype.resetAllTutorials = function() {
 };
 
 // Launch selected tutorial
-AutoIntegrateTutorialManagerDialog.prototype.launchSelectedTutorial = function() {
+AutoIntegrateTutorialManagerDialog.launchSelectedTutorial = function() {
       var node = this.tutorialList.currentNode;
       if (!node) {
             var msg = new MessageBox(
@@ -743,12 +743,12 @@ function AutoIntegrateTutorialSystem(dialog, global, util) {
 }
 
 // Define tutorial steps
-AutoIntegrateTutorialSystem.prototype.defineSteps = function(steps) {
+AutoIntegrateTutorialSystem.defineSteps = function(steps) {
       this.steps = steps;
 };
 
 // Start tutorial
-AutoIntegrateTutorialSystem.prototype.start = function() {
+AutoIntegrateTutorialSystem.start = function() {
       this.isActive = true;
       this.currentStep = 0;
       // this.hideSections(); Maybe better to leave as is
@@ -756,13 +756,13 @@ AutoIntegrateTutorialSystem.prototype.start = function() {
       this.showStep(0);
 };
 
-AutoIntegrateTutorialSystem.prototype.hideSections = function() {
+AutoIntegrateTutorialSystem.hideSections = function() {
       for (var i = 0; i < this.global.sectionBars.length; i++) {
             this.global.sectionBars[i].aiControl.hide();
       }
 };
 
-AutoIntegrateTutorialSystem.prototype.showSelectedSections = function() {
+AutoIntegrateTutorialSystem.showSelectedSections = function() {
       for (var step = 0; step < this.steps.length; step++) {
             if (this.steps[step].sectionBars === undefined || this.steps[step].sectionBars === null) {
                   continue;
@@ -782,7 +782,7 @@ AutoIntegrateTutorialSystem.prototype.showSelectedSections = function() {
 };
 
 // Show specific step
-AutoIntegrateTutorialSystem.prototype.showStep = function(stepIndex) {
+AutoIntegrateTutorialSystem.showStep = function(stepIndex) {
       if (stepIndex < 0 || stepIndex >= this.steps.length) {
             this.endTutorial();
             return;
@@ -858,7 +858,7 @@ AutoIntegrateTutorialSystem.prototype.showStep = function(stepIndex) {
 };
 
 // Highlight an element
-AutoIntegrateTutorialSystem.prototype.highlightElement = function(element) {
+AutoIntegrateTutorialSystem.highlightElement = function(element) {
       if (!element) {
             this.highlightFrame.visible = false;
             return;
@@ -882,7 +882,7 @@ AutoIntegrateTutorialSystem.prototype.highlightElement = function(element) {
 };
 
 // Position tooltip relative to target
-AutoIntegrateTutorialSystem.prototype.positionTooltip = function(target, position) {
+AutoIntegrateTutorialSystem.positionTooltip = function(target, position) {
       position = position || "center";
       
       // Get actual tooltip size after content is set
@@ -968,7 +968,7 @@ AutoIntegrateTutorialSystem.prototype.positionTooltip = function(target, positio
 };
 
 // Navigate to next step
-AutoIntegrateTutorialSystem.prototype.nextStep = function() {
+AutoIntegrateTutorialSystem.nextStep = function() {
       this.blinkTimer.stop();
       if (this.currentStep < this.steps.length - 1) {
             this.showStep(this.currentStep + 1);
@@ -978,7 +978,7 @@ AutoIntegrateTutorialSystem.prototype.nextStep = function() {
 };
 
 // Navigate to previous step
-AutoIntegrateTutorialSystem.prototype.previousStep = function() {
+AutoIntegrateTutorialSystem.previousStep = function() {
       this.blinkTimer.stop();
       if (this.currentStep > 0) {
             this.showStep(this.currentStep - 1);
@@ -986,7 +986,7 @@ AutoIntegrateTutorialSystem.prototype.previousStep = function() {
 };
 
 // End tutorial
-AutoIntegrateTutorialSystem.prototype.endTutorial = function() {
+AutoIntegrateTutorialSystem.endTutorial = function() {
     this.isActive = false;
     this.blinkTimer.stop();
     this.overlay.visible = false;
@@ -1006,7 +1006,7 @@ AutoIntegrateTutorialSystem.prototype.endTutorial = function() {
 };
 
 // Check if tutorial should be shown
-AutoIntegrateTutorialSystem.prototype.shouldShowTutorial = function() {
+AutoIntegrateTutorialSystem.shouldShowTutorial = function() {
       if (this.global.do_not_read_settings) {
             return true;
       } else {

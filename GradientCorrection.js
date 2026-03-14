@@ -2,6 +2,7 @@
 // GradientCorrection — Standalone version of AutoIntegrate gradient correction
 // ****************************************************************************
 
+#engine v8
 #feature-id    AutoIntegrate  > Gradient Correction
 #feature-info  Gradient Correction using AutoIntegrate tools.
 
@@ -26,26 +27,25 @@
 #ifndef AUTOINTEGRATEDUMMYFLOWCHART
 #define AUTOINTEGRATEDUMMYFLOWCHART
 
-function AutoIntegrateDummyFlowchart()
+class AutoIntegrateDummyFlowchart extends Object
 {
-    this.__base__ = Object;
-    this.__base__();
- 
-    this.flowchartOperation = function () {};
-    this.flowchartOperationEnd = function () {};
-    this.flowchartParentBegin = function () {};
-    this.flowchartParentEnd = function () {};
-    this.flowchartChildBegin = function () {};
-    this.flowchartChildEnd = function () {};
-    this.flowchartMaskBegin = function () {};
-    this.flowchartMaskEnd = function () {};
-    this.flowchartInit = function () {};
-    this.flowchartDone = function () {};
-    this.flowchartReset = function () {};
-    this.flowchartPrint = function () {};
-}
+    constructor() {
+        super();
+    }
 
-AutoIntegrateDummyFlowchart.prototype = new Object;
+    flowchartOperation() {};
+    flowchartOperationEnd() {};
+    flowchartParentBegin() {};
+    flowchartParentEnd() {};
+    flowchartChildBegin() {};
+    flowchartChildEnd() {};
+    flowchartMaskBegin() {};
+    flowchartMaskEnd() {};
+    flowchartInit() {};
+    flowchartDone() {};
+    flowchartReset() {};
+    flowchartPrint() {};
+}
 
 #endif /* AUTOINTEGRATEDUMMYFLOWCHART */
 
@@ -53,13 +53,9 @@ AutoIntegrateDummyFlowchart.prototype = new Object;
 //  DIALOG WITH PREVIEW
 // =============================================================================
 
-function AutoIntegrateGradientCorrectionDialog() {
-    this.__base__ = Dialog;
-    this.__base__();
-
-    var self = this;
-
-    var debug = false;
+class AutoIntegrateGradientCorrectionDialog extends Dialog {
+    constructor() {
+        super();
 
     this.TITLE = "Gradient Correction";
     this.VERSION = "1.00";
@@ -69,7 +65,6 @@ function AutoIntegrateGradientCorrectionDialog() {
 
     this.global = new AutoIntegrateGlobal();
 
-    this.global.debug = debug;
     for (let i = 0; i < Runtime.jsArguments.length; i++) {
         if (Runtime.jsArguments[i] == "do_not_read_settings") {
             console.writeln("do_not_read_settings");
@@ -95,90 +90,96 @@ function AutoIntegrateGradientCorrectionDialog() {
     this.autoSTF = true;
     this.previewTxt = "[Preview Image]";
 
+    this.initGUI();
+
+} // End of constructor
+
    // -------------------------------------------------------------------------
    // Preview functions
    // -------------------------------------------------------------------------
 
-    function setPreviewImage()
+    setPreviewImage()
     {
-        if (debug) console.writeln("AutoIntegrateGradientCorrectionDialog::setPreviewImage");
-        if (self.autoSTF) {
-            self.previewControl.SetImage(self.autoSTFPreviewImage, self.previewTxt);
+        if (this.global.debug) console.writeln("AutoIntegrateGradientCorrectionDialog::setPreviewImage");
+        if (this.autoSTF) {
+            this.previewControl.SetImage(this.autoSTFPreviewImage, this.previewTxt);
         } else {
-            self.previewControl.SetImage(self.previewImage, self.previewTxt);
+            this.previewControl.SetImage(this.previewImage, this.previewTxt);
         }
     }
 
-    function updatePreviewImage()
+    updatePreviewImage()
     {
-        if (debug) console.writeln("AutoIntegrateGradientCorrectionDialog::updatePreviewImage");
-        if (self.autoSTF) {
-            self.previewControl.UpdateImage(self.autoSTFPreviewImage);
+        if (this.global.debug) console.writeln("AutoIntegrateGradientCorrectionDialog::updatePreviewImage");
+        if (this.autoSTF) {
+            this.previewControl.UpdateImage(this.autoSTFPreviewImage);
         } else {
-            self.previewControl.UpdateImage(self.previewImage);
+            this.previewControl.UpdateImage(this.previewImage);
         }
     }
 
-    function newPreviewImage(imgWin, txt = null)
+    newPreviewImage(imgWin, txt = null)
     {
         if (txt == null) {
             txt = imgWin.mainView.id + " [Preview]";
         }
-        self.previewTxt = txt;
-        self.previewImage = imgWin.mainView.image;
+        this.previewTxt = txt;
+        this.previewImage = imgWin.mainView.image;
         // make a stretched copy of the image for AutoSTF preview
-        var tempWindow = self.util.copyWindowEx(imgWin, "tmp_preview_window", true);
-        self.engine.autoStretch(tempWindow);
-        self.autoSTFPreviewImage = new Image(tempWindow.mainView.image);
+        var tempWindow = this.util.copyWindowEx(imgWin, "tmp_preview_window", true);
+        this.engine.autoStretch(tempWindow);
+        this.autoSTFPreviewImage = new Image(tempWindow.mainView.image);
         tempWindow.forceClose();
     }
 
-    function setPreviewIdReset(id, keep_zoom, histogramInfo)
+    setPreviewIdReset(id, keep_zoom, histogramInfo)
     {
-        if (debug) console.writeln("AutoIntegrateGradientCorrectionDialog::setPreviewIdReset: id = " + id);
+        if (this.global.debug) console.writeln("AutoIntegrateGradientCorrectionDialog::setPreviewIdReset: id = " + id);
         var win = ImageWindow.windowById(id);
-        newPreviewImage(win, win.mainView.id + " [Preview]");
-        setPreviewImage();
+        this.newPreviewImage(win, win.mainView.id + " [Preview]");
+        this.setPreviewImage();
     }
 
-    function updatePreviewIdReset(id, keep_zoom, histogramInfo)
+    updatePreviewIdReset(id, keep_zoom, histogramInfo)
     {
-        if (debug) console.writeln("AutoIntegrateGradientCorrectionDialog::updatePreviewIdReset: id = " + id);
-        updatePreviewWinTxt(ImageWindow.windowById(id));
+        if (this.global.debug) console.writeln("AutoIntegrateGradientCorrectionDialog::updatePreviewIdReset: id = " + id);
+        this.updatePreviewWinTxt(ImageWindow.windowById(id));
     }
 
-    function updatePreviewNoImage()
+    updatePreviewNoImage()
     {
-        if (debug) console.writeln("AutoIntegrateGradientCorrectionDialog::updatePreviewNoImage");
-        self.statusLabel.text = "No image available for preview.";
+        if (this.global.debug) console.writeln("AutoIntegrateGradientCorrectionDialog::updatePreviewNoImage");
+        this.statusLabel.text = "No image available for preview.";
     }
 
-    function updatePreviewTxt(txt)
+    updatePreviewTxt(txt)
     {
-        if (debug) console.writeln("AutoIntegrateGradientCorrectionDialog::updatePreviewTxt: " + txt);
+        if (this.global.debug) console.writeln("AutoIntegrateGradientCorrectionDialog::updatePreviewTxt: " + txt);
     }
 
-    function updatePreviewWin(imgWin)
+    updatePreviewWin(imgWin)
     {
-        if (debug) console.writeln("AutoIntegrateGradientCorrectionDialog::updatePreviewWin: imgWin = " + imgWin);
-        updatePreviewWinTxt(imgWin);
+        if (this.global.debug) console.writeln("AutoIntegrateGradientCorrectionDialog::updatePreviewWin: imgWin = " + imgWin);
+        this.updatePreviewWinTxt(imgWin);
     }
 
-    function updatePreviewWinTxt(imgWin, txt = null)
+    updatePreviewWinTxt(imgWin, txt = null)
     {
-        if (debug) console.writeln("AutoIntegrateGradientCorrectionDialog::updatePreviewWinTxt: imgWin = " + imgWin);
-        newPreviewImage(imgWin, txt);
-        updatePreviewImage();
+        if (this.global.debug) console.writeln("AutoIntegrateGradientCorrectionDialog::updatePreviewWinTxt: imgWin = " + imgWin);
+        this.newPreviewImage(imgWin, txt);
+        this.updatePreviewImage();
     }
+
+    initGUI() {
 
     var preview_functions = {
-        setPreviewIdReset: setPreviewIdReset,
-        updatePreviewIdReset: updatePreviewIdReset,
-        updatePreviewTxt: updatePreviewTxt,
-        updatePreviewNoImage: updatePreviewNoImage,
+        setPreviewIdReset: (id, keep_zoom, histogramInfo) => this.setPreviewIdReset(id, keep_zoom, histogramInfo),
+        updatePreviewIdReset: (id, keep_zoom, histogramInfo) => this.updatePreviewIdReset(id, keep_zoom, histogramInfo),
+        updatePreviewTxt: (txt) => this.updatePreviewTxt(txt),
+        updatePreviewNoImage: () => this.updatePreviewNoImage(),
         createCombinedMosaicPreviewWin: null,
-        updatePreviewWin: updatePreviewWin,
-        updatePreviewWinTxt: updatePreviewWinTxt,
+        updatePreviewWin: (imgWin) => this.updatePreviewWin(imgWin),
+        updatePreviewWinTxt: (imgWin, txt) => this.updatePreviewWinTxt(imgWin, txt),
    };
 
    // -------------------------------------------------------------------------
@@ -190,9 +191,9 @@ function AutoIntegrateGradientCorrectionDialog() {
     this.autoSTFCheckBox.toolTip = "Automatically apply Screen Transfer Function (STF) to preview image.";
     this.autoSTFCheckBox.checked = true;
     this.autoSTFCheckBox.onCheck = function(checked) {
-        self.autoSTF = checked;
+        this.autoSTF = checked;
         // Update preview
-        setPreviewImage();
+        this.setPreviewImage();
     };
 
     this.previewButtonsSizer = new HorizontalSizer;
@@ -200,7 +201,7 @@ function AutoIntegrateGradientCorrectionDialog() {
     this.previewButtonsSizer.addStretch();
     this.previewButtonsSizer.add(this.autoSTFCheckBox);
 
-   this.previewControl = new AutoIntegratePreviewControl(this, "gradient_correction_preview", self.engine, self.util, self.global, 600, 600, false);
+   this.previewControl = new AutoIntegratePreviewControl(this, "gradient_correction_preview", this.engine, this.util, this.global, 600, 600, false);
 
    this.leftSizer = new VerticalSizer;
    this.leftSizer.spacing = 4;
@@ -230,13 +231,13 @@ function AutoIntegrateGradientCorrectionDialog() {
    this.subtitleLabel.textAlignment = TextAlignment.Center;
    this.subtitleLabel.styleSheet = "font-size: 9pt; color: #888888; font-style: italic;";
 
-    this.enhancements_gui = new AutoIntegrateEnhancementsGUI(this, self.guitools, self.util, self.global, self.engine, preview_functions);
+    this.enhancements_gui = new AutoIntegrateEnhancementsGUI(this, this.guitools, this.util, this.global, this.engine, preview_functions);
 
    // -------------------------------------------------------------------------
    // Gradient correction method
    // -------------------------------------------------------------------------
 
-    this.gradientCorrectionChoiceSizer = self.guitools.createGradientCorrectionChoiceSizer(this, "Gradient correction method:");
+    this.gradientCorrectionChoiceSizer = this.guitools.createGradientCorrectionChoiceSizer(this, "Gradient correction method:");
     this.gradientCorrectionChoiceGroupBox = new GroupBox(this);
     this.gradientCorrectionChoiceGroupBox.title = "Gradient correction method";
     this.gradientCorrectionChoiceGroupBox.sizer = this.gradientCorrectionChoiceSizer;
@@ -246,14 +247,14 @@ function AutoIntegrateGradientCorrectionDialog() {
    // -------------------------------------------------------------------------
 
     this.enhancements_gui.target_image_selected_callback = function(target_image_id) {
-        if (debug) console.writeln("AutoIntegrateGradientCorrectionDialog:: target_image_selected_callback: target_image_id = " + target_image_id);
-        self.guitools.exclusionAreasTargetImageName = target_image_id;
+        if (this.global.debug) console.writeln("AutoIntegrateGradientCorrectionDialog:: target_image_selected_callback: target_image_id = " + target_image_id);
+        this.guitools.exclusionAreasTargetImageName = target_image_id;
     }
     this.targetImageSizer = this.enhancements_gui.createTargetImageSizer(this);
     this.enhancements_gui.apply_completed_callback = function(apply_ok) {
         // We do gradient correction here so we set the value to true
         // With reset option it may have been reset to false (default)
-        self.global.par.enhancements_GC.val = true;
+        this.global.par.enhancements_GC.val = true;
     };
     this.targetImageGroupBox = new GroupBox(this);
     this.targetImageGroupBox.title = "Target image";
@@ -263,8 +264,8 @@ function AutoIntegrateGradientCorrectionDialog() {
    // Gradient correction Settings
    // -------------------------------------------------------------------------
 
-    this.createGradientCorrectionSizer = self.guitools.createGradientCorrectionSizer(this);
-    this.createGraXpertGradientCorrectionSection = self.guitools.createGraXpertGradientCorrectionSizer(this);
+    this.createGradientCorrectionSizer = this.guitools.createGradientCorrectionSizer(this);
+    this.createGraXpertGradientCorrectionSection = this.guitools.createGraXpertGradientCorrectionSizer(this);
 
     this.gradientCorrectionSettingsControl = new Control( this );
     this.gradientCorrectionSettingsControl.sizer = new VerticalSizer;
@@ -280,16 +281,16 @@ function AutoIntegrateGradientCorrectionDialog() {
    // Load and save JSON controls
    // -------------------------------------------------------------------------
 
-   var obj = self.guitools.newJsonSizerObj(this, null, "GradientCorrectionSettings.json");
+   var obj = this.guitools.newJsonSizerObj(this, null, "GradientCorrectionSettings.json");
    this.loadSaveSizer = obj.sizer;
 
    // -------------------------------------------------------------------------
    // Stretching Group Box
    // -------------------------------------------------------------------------
 
-    if (self.global.debug) console.writeln("AutoIntegrateGradientCorrectionDialog:: creating gradientCorrectionGroupBox");
+    if (this.global.debug) console.writeln("AutoIntegrateGradientCorrectionDialog:: creating gradientCorrectionGroupBox");
 
-    this.gradientCorrectionGroupBox = self.guitools.newGroupBoxSizer(this);
+    this.gradientCorrectionGroupBox = this.guitools.newGroupBoxSizer(this);
     this.gradientCorrectionGroupBox.title = "Settings";
     this.gradientCorrectionGroupBox.sizer.add(this.gradientCorrectionSettingsControl);
     this.gradientCorrectionGroupBox.sizer.addStretch();
@@ -302,14 +303,15 @@ function AutoIntegrateGradientCorrectionDialog() {
    this.resetButton.text = "Reset";
    this.resetButton.toolTip = "Reset all parameters to defaults.";
    this.resetButton.onClick = function() {
-        self.util.setParameterDefaults();
+        this.util.setParameterDefaults();
    };
 
    this.closeButton = new PushButton(this);
     this.closeButton.text = "Close";
     this.closeButton.icon = this.scaledResource(":/icons/close.png");
     this.closeButton.onClick = function() {
-        self.ok();
+        console.writeln("Closing dialog");
+        this.dialog.ok();
     };
 
     this.buttonsSizer = new HorizontalSizer;
@@ -342,9 +344,10 @@ function AutoIntegrateGradientCorrectionDialog() {
    this.sizer.spacing = 8;
    this.sizer.add(this.leftSizer);
    this.sizer.add(this.rightSizer);
-}
 
-AutoIntegrateGradientCorrectionDialog.prototype = new Dialog;
+} // End of initGUI()
+
+}
 
 // =============================================================================
 //  MAIN ENTRY POINT

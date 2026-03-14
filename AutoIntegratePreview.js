@@ -190,8 +190,8 @@ class AutoIntegratePreviewControl extends Frame
             P.newImageWidth = 0;
             P.newImageHeight = 0;
             P.newImageAlpha = false;
-            P.newImageColorSpace = PixelMath.prototype.SameAsTarget;
-            P.newImageSampleFormat = PixelMath.prototype.SameAsTarget;
+            P.newImageColorSpace = PixelMath.SameAsTarget;
+            P.newImageSampleFormat = PixelMath.SameAsTarget;
             /*
              * Read-only properties
              *
@@ -675,8 +675,6 @@ class AutoIntegratePreviewControl extends Frame
              var p =  this.transform(x, y, preview);
              return p;
        }
-
-
 }
 
 #endif // AUTOINTEGRATEPREVIEW_JS

@@ -771,9 +771,9 @@ this.console_hidden = false;  // true if console is hidden
 this.debayerPattern_values = [ "Auto", "RGGB", "BGGR", "GBRG", 
                                "GRBG", "GRGB", "GBGR", "RGBG", 
                                "BGRG", "None" ];
-this.debayerPattern_enums = [ Debayer.prototype.Auto, Debayer.prototype.RGGB, Debayer.prototype.BGGR, Debayer.prototype.GBRG,
-                              Debayer.prototype.GRBG, Debayer.prototype.GRGB, Debayer.prototype.GBGR, Debayer.prototype.RGBG,
-                              Debayer.prototype.BGRG, Debayer.prototype.Auto ];
+this.debayerPattern_enums = [ Debayer.Auto, Debayer.RGGB, Debayer.BGGR, Debayer.GBRG,
+                              Debayer.GRBG, Debayer.GRGB, Debayer.GBGR, Debayer.RGBG,
+                              Debayer.BGRG, Debayer.Auto ];
 
 this.saved_measurements = null;
 this.saved_measurements_sorted = null;

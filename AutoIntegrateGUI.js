@@ -8169,7 +8169,7 @@ this.AutoIntegrateDialog = AutoIntegrateDialog;
 
 
 // Check if welcome dialog should be shown
-AutoIntegrateDialog.prototype.shouldShowWelcome = function(global) {
+AutoIntegrateDialog.shouldShowWelcome = function(global) {
       if (!global.interactiveMode) {
             return false;
       }
@@ -8185,7 +8185,7 @@ AutoIntegrateDialog.prototype.shouldShowWelcome = function(global) {
       return showOnStartup;
 };
 
-AutoIntegrateDialog.prototype.isExpertMode = function() {
+AutoIntegrateDialog.isExpertMode = function() {
       if (this.global.do_not_read_settings) {
             return false;
       } else {
@@ -8201,13 +8201,13 @@ AutoIntegrateDialog.prototype.isExpertMode = function() {
       }
 };
 
-AutoIntegrateDialog.prototype.saveExpertMode = function() {
+AutoIntegrateDialog.saveExpertMode = function() {
       if (!this.global.do_not_write_settings) {
             Settings.write(SETTINGSKEY + "/ExpertMode", DataType.Boolean, this.global.expert_mode);
       }
 };
 
-AutoIntegrateDialog.prototype.isFirstRun = function() {
+AutoIntegrateDialog.isFirstRun = function() {
       if (this.global.do_not_read_settings) {
             return true;
       } else {
@@ -8217,14 +8217,14 @@ AutoIntegrateDialog.prototype.isFirstRun = function() {
 };
 
 // Mark that AutoIntegrate has been run
-AutoIntegrateDialog.prototype.markAsRun = function() {
+AutoIntegrateDialog.markAsRun = function() {
       if (!this.global.do_not_write_settings) {
             Settings.write(SETTINGSKEY + "/HasRun", DataType.Boolean, true);
       }
 };
 
 // Show welcome dialog
-AutoIntegrateDialog.prototype.showWelcomeDialog = function(global) {
+AutoIntegrateDialog.showWelcomeDialog = function(global) {
       var welcome = new AutoIntegrateWelcomeDialog(global);
       var result = welcome.execute();
       
@@ -8251,14 +8251,14 @@ AutoIntegrateDialog.prototype.showWelcomeDialog = function(global) {
 // ============================================================================
 
 // Show tutorial manager
-AutoIntegrateDialog.prototype.showTutorialManager = function() {
+AutoIntegrateDialog.showTutorialManager = function() {
     
       var manager = new AutoIntegrateTutorialManagerDialog(this, global);
       manager.execute();
 };
 
 // Setup all tutorials
-AutoIntegrateDialog.prototype.setupAllTutorials = function() {
+AutoIntegrateDialog.setupAllTutorials = function() {
       if (global.expert_mode) {
             this.tutorials = {
                   "getting-started": this.getGettingStartedSteps(),
@@ -8289,7 +8289,7 @@ AutoIntegrateDialog.prototype.setupAllTutorials = function() {
 };
 
 // Start tutorial by ID
-AutoIntegrateDialog.prototype.startTutorialById = function(tutorialId) {
+AutoIntegrateDialog.startTutorialById = function(tutorialId) {
       var steps = this.tutorials[tutorialId];
       
       if (!steps) {
@@ -8305,7 +8305,7 @@ AutoIntegrateDialog.prototype.startTutorialById = function(tutorialId) {
 // ============================================================================
 // Tutorial Step Definitions
 // ============================================================================
-AutoIntegrateDialog.prototype.getGettingStartedSteps = function() {
+AutoIntegrateDialog.getGettingStartedSteps = function() {
     return [
         {
             title: "Welcome to AutoIntegrate!",
@@ -8414,7 +8414,7 @@ AutoIntegrateDialog.prototype.getGettingStartedSteps = function() {
     ];
 };
 
-AutoIntegrateDialog.prototype.getFileManagementSteps = function() {
+AutoIntegrateDialog.getFileManagementSteps = function() {
     return [
         {
             title: "File Management Tutorial",
@@ -8479,7 +8479,7 @@ AutoIntegrateDialog.prototype.getFileManagementSteps = function() {
     ];
 };
 
-AutoIntegrateDialog.prototype.getProcessingSettingsSteps = function() {
+AutoIntegrateDialog.getProcessingSettingsSteps = function() {
     return [
         {
             title: "Processing Settings",
@@ -8566,7 +8566,7 @@ AutoIntegrateDialog.prototype.getProcessingSettingsSteps = function() {
     ];
 };
 
-AutoIntegrateDialog.prototype.getCometProcessingSteps = function() {
+AutoIntegrateDialog.getCometProcessingSteps = function() {
     return [
         {
             title: "Comet processing",

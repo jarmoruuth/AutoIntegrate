@@ -56,7 +56,7 @@ function SelectiveColorData() {
    this.currentRange = ColorRange.REDS;
 }
 
-SelectiveColorData.prototype.clone = function() {
+SelectiveColorData.clone = function() {
    let copy = new SelectiveColorData();
    copy.mode = this.mode;
    copy.currentRange = this.currentRange;
@@ -220,7 +220,7 @@ function createColorRangeMask(image, colorRange) {
    
    // Apply additional blur to smooth the mask even more
    let P = new Convolution;
-   P.mode = Convolution.prototype.Parametric;
+   P.mode = Convolution.Parametric;
    P.sigma = 1.0;
    P.shape = 2.0;
    P.aspectRatio = 1.0;
@@ -401,7 +401,7 @@ function SelectiveColorEngine() {
     }
 }
 
-SelectiveColorEngine.prototype.apply = function(view) {
+SelectiveColorEngine.apply = function(view) {
    console.noteln("Applying Selective Color...");
    
    view.beginProcess(UndoFlag.NoSwapFile);
