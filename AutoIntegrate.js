@@ -250,10 +250,7 @@ Linear Defect Detection:
 
 */
 
-#ifndef TEST_AUTO_INTEGRATE
-"use strict;"
-#endif
-
+#engine v8
 #feature-id   AutoIntegrate : AutoIntegrate > AutoIntegrate
 
 #feature-info A script for running basic image processing workflow
@@ -269,10 +266,9 @@ Linear Defect Detection:
 #include "AutoIntegrateGUI.js"
 #include "AutoIntegrateFlowchart.js"
 
-function AutoIntegrate() {
-
-this.__base__ = Object;
-this.__base__();
+class AutoIntegrate extends Object {
+      constructor() {
+            super();
 
 var global = new AutoIntegrateGlobal();
 var util = new AutoIntegrateUtil(global);
@@ -286,6 +282,8 @@ flowchart.setGUI(gui);
 
 var par = global.par;
 var ppar = global.ppar;
+
+} // constructor
 
 /***************************************************************************
  * 
@@ -473,9 +471,9 @@ function readParametersFromProcessIcon()
       console.writeln("readParametersFromProcessIcon");
       for (let x in par) {
             var param = par[x];
-            var val = readOneParameterFromProcessIcon(param.name, param.type);
+            var val = this.readOneParameterFromProcessIcon(param.name, param.type);
             if (val == null && param.oldname != undefined) {
-                  val = readOneParameterFromProcessIcon(param.oldname, param.type);
+                  val = this.readOneParameterFromProcessIcon(param.oldname, param.type);
             }
             if (val != null) {
                   global.setParameterValue(param, val);
@@ -510,7 +508,7 @@ this.test_initialize = function()
 {
       console.writeln("test_initialize");
 
-      init_pixinsight_version();
+      this.init_pixinsight_version();
 
       global.interactiveMode = false;
       global.do_not_write_settings = true;
@@ -679,7 +677,7 @@ this.autointegrate_main = function(runsetuppath = null)
                   // read default parameters from saved settings/process icon
                   console.noteln("Read process icon settings");
                   try {
-                        readParametersFromProcessIcon();
+                        this.readParametersFromProcessIcon();
                   } catch(err) {
                         console.criticalln("Error reading parameters from process icon: " + err);
                         errors = true;
@@ -692,14 +690,14 @@ this.autointegrate_main = function(runsetuppath = null)
             
             if (global.ai_use_persistent_module_settings) {
                   // 3. Read persistent module settings that are temporary work values
-                  readPersistentSettings();
+                  this.readPersistentSettings();
             } else {
                   console.noteln("Skip reading persistent settings");
             }
 
             util.fixAllWindowArrays(ppar.win_prefix);
 
-            init_pixinsight_version();
+            this.init_pixinsight_version();
 
             console.criticalln("   _____          __         .___        __                              __           ");
             console.criticalln("  \/  _     __ ___\/  |_  ____ |   | _____\/  |_  ____   ________________ _\/  |_  ____   ");
@@ -770,9 +768,7 @@ this.autointegrate_main = function(runsetuppath = null)
       }
 }
 
-} // AutoIntegrate wrapper end
-
-AutoIntegrate.prototype = new Object;
+} // AutoIntegrate class end
 
 // Disable execution of main if the script is included as part of a test
 #ifndef TEST_AUTO_INTEGRATE
@@ -786,6 +782,6 @@ function main()
       autointegrate = null;
 }
 
-main();
+this.main();
 
 #endif // TEST_AUTO_INTEGRATE

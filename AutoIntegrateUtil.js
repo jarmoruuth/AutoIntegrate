@@ -1212,7 +1212,7 @@ restoreMasterDir()
 
 readAndMigrateSetting(newname, oldname, type, old_interface_version)
 {
-      if (this.global.this.ppar.savedInterfaceVersion <= old_interface_version) {
+      if (this.global.ppar.savedInterfaceVersion <= old_interface_version) {
             // Migrate from old interface version setting
             var val = Settings.read(oldname, type);
             if (Settings.lastReadOK && !this.global.do_not_write_settings) {

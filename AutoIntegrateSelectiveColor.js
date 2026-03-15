@@ -8,11 +8,14 @@
 #ifndef AUTOINTEGRATESELECTIVECOLOR_JS
 #define AUTOINTEGRATESELECTIVECOLOR_JS
 
-function AutoIntegrateSelectiveColor(guitools, util, global, preview)
+class AutoIntegrateSelectiveColor extends Object
 {
-
-this.__base__ = Object;
-this.__base__();
+    constructor(guitools, util, global, preview) {
+        super();
+        this.guitools = guitools;
+        this.util = util;
+        this.global = global;
+        this.preview = preview;
 
 var self = this;
 
@@ -44,6 +47,8 @@ let AdjustmentMode = {
 
 var selective_color_preset_values = [ 'None', 'Gold and Blue' ];
 
+} // constructor end
+
 function SelectiveColorData() {
    // Store adjustments for each color range
    // Each range has CMYK adjustments: [C, M, Y, K]
@@ -57,7 +62,7 @@ function SelectiveColorData() {
 }
 
 SelectiveColorData.clone = function() {
-   let copy = new SelectiveColorData();
+   let copy = new this.SelectiveColorData();
    copy.mode = this.mode;
    copy.currentRange = this.currentRange;
    for (let i = 0; i < ColorRangeNames.length; i++) {
@@ -137,42 +142,42 @@ function createColorRangeMask(image, colorRange) {
       switch (colorRange) {
          case ColorRange.REDS:
             // Reds: centered at 0/360 degrees
-            weight = smoothHueWeight(h, 0, 30, 30);
+            weight = this.smoothHueWeight(h, 0, 30, 30);
             weight *= Math.min(s * 1.5, 1);
             weight *= (v > 0.1 ? 1 : v / 0.1);
             break;
             
          case ColorRange.YELLOWS:
             // Yellows: centered at 60 degrees
-            weight = smoothHueWeight(h, 60, 30, 30);
+            weight = this.smoothHueWeight(h, 60, 30, 30);
             weight *= Math.min(s * 1.5, 1);
             weight *= (v > 0.1 ? 1 : v / 0.1);
             break;
             
          case ColorRange.GREENS:
             // Greens: centered at 135 degrees
-            weight = smoothHueWeight(h, 135, 60, 30);
+            weight = this.smoothHueWeight(h, 135, 60, 30);
             weight *= Math.min(s * 1.5, 1);
             weight *= (v > 0.1 ? 1 : v / 0.1);
             break;
             
          case ColorRange.CYANS:
             // Cyans: centered at 180 degrees
-            weight = smoothHueWeight(h, 180, 30, 30);
+            weight = this.smoothHueWeight(h, 180, 30, 30);
             weight *= Math.min(s * 1.5, 1);
             weight *= (v > 0.1 ? 1 : v / 0.1);
             break;
             
          case ColorRange.BLUES:
             // Blues: centered at 255 degrees
-            weight = smoothHueWeight(h, 255, 60, 30);
+            weight = this.smoothHueWeight(h, 255, 60, 30);
             weight *= Math.min(s * 1.5, 1);
             weight *= (v > 0.1 ? 1 : v / 0.1);
             break;
             
          case ColorRange.MAGENTAS:
             // Magentas: centered at 315 degrees
-            weight = smoothHueWeight(h, 315, 60, 30);
+            weight = this.smoothHueWeight(h, 315, 60, 30);
             weight *= Math.min(s * 1.5, 1);
             weight *= (v > 0.1 ? 1 : v / 0.1);
             break;
@@ -248,7 +253,7 @@ function applySelectiveColorAdjustment(image, colorRange, cmykAdjust, mode) {
    if (cmykAdjust[0] == 0 && cmykAdjust[1] == 0 && cmykAdjust[2] == 0 && cmykAdjust[3] == 0)
       return; // No adjustment needed
    
-   let mask = createColorRangeMask(image, colorRange);
+   let mask = this.createColorRangeMask(image, colorRange);
    
    // Get RGB channels
    let width = image.width;
@@ -374,10 +379,10 @@ function SelectiveColorEngine() {
         this.data = par.enhancements_selective_color_data.val;
     } else {
         if (global.debug) console.writeln("Creating new Selective Color data");
-        this.data = new SelectiveColorData();
+        this.data = new this.SelectiveColorData();
         par.enhancements_selective_color_data.val = this.data;
     }
-    par.enhancements_selective_color_data.def = new SelectiveColorData();
+    par.enhancements_selective_color_data.def = new this.SelectiveColorData();
     par.enhancements_selective_color_data.is_changed_callback = function(param) {
         // Compare current data with default
         let def = param.def;
@@ -417,7 +422,7 @@ SelectiveColorEngine.apply = function(view) {
                         " Y=" + adj[2] + " K=" + adj[3]);
          // Divide adjustment by 3 to make them comparable to Photoshop and to avoid overcorrection
          adj = [ adj[0] / 3, adj[1] / 3, adj[2] / 3, adj[3] / 3 ];
-         applySelectiveColorAdjustment(image, range, adj, this.data.mode);
+         this.applySelectiveColorAdjustment(image, range, adj, this.data.mode);
       }
    }
    
@@ -637,7 +642,7 @@ function createSelectiveColorSizer(parent, selectiveColorEngine) {
     this.previewButton = new PushButton(parent);
     this.previewButton.text = "Preview";
     this.previewButton.onClick = function() {
-        selectiveColorPreview();
+        this.selectiveColorPreview();
     };
     
     this.buttonsSizer = new HorizontalSizer;
@@ -676,7 +681,7 @@ function createSelectiveColorSizer(parent, selectiveColorEngine) {
 }
 
 function createSelectiveColorEngine() {
-    return new SelectiveColorEngine();
+    return new this.SelectiveColorEngine();
 }
 
 function setPreset(name) {
@@ -689,7 +694,5 @@ this.createSelectiveColorSizer = createSelectiveColorSizer;
 this.setPreset = setPreset;     // For testing purposes
 
 }  /* AutoIntegrateSelectiveColor */
-
-AutoIntegrateSelectiveColor.prototype = new Object;
 
 #endif // AUTOINTEGRATESELECTIVECOLOR_JS

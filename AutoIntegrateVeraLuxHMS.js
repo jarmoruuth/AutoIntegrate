@@ -944,7 +944,7 @@ getHelpText() {
 
 /* Exported API 
 this.executeVeraLux = executeVeraLux;
-this.this.parameters = this.parameters;
+this.parameters = this.parameters;
 this.getSensorProfileNames = getSensorProfileNames;
 this.getSensorProfiles = getSensorProfiles;
 this.getHelpText = getHelpText;

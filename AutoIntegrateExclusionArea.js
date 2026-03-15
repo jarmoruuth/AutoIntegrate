@@ -9,28 +9,10 @@
 #ifndef AUTOINTEGRATEEXCLUSIONAREA_JS
 #define AUTOINTEGRATEEXCLUSIONAREA_JS
 
-function AutoIntegrateExclusionArea(util)
-{
-
-this.__base__ = Object;
-this.__base__();
-
-var dialog;
-
-// Global variables
-var exclusionAreaPolygons = []; // Array of arrays, each containing points for a polygon
-var activePolygon = []; // Current polygon being drawn
-var isDrawing = false;
-var targetView = null;
-var targetWindow = null;
-var previewControl = null;
-var title = "AutoIntegrate Exclusion Area";
-var scale = 1.0;
-
 // Main function - creates the script dialog
-function ExclusionAreaDialog() {
-   this.__base__ = Dialog;
-   this.__base__();
+class AutoIntegrateExclusionAreaDialog extends Dialog {
+   constructor() {
+      super();
 
    var labelWidth = this.font.width("Exclusion areas: 000") + 4;
    
@@ -49,7 +31,7 @@ function ExclusionAreaDialog() {
   
    if (targetView && targetWindow) {
       this.targetImage_Info.text = targetWindow.mainView.id;
-      setPreviewForView();
+      this.setPreviewForView();
    } else {
       this.targetImage_Info.text = "No active image";
    }
@@ -69,7 +51,7 @@ function ExclusionAreaDialog() {
       isDrawing = true;
       
       // Enable real-time preview to show drawing
-      installPolygonHandler();
+      this.installPolygonHandler();
       
       startDrawing_Button.enabled = false;
       finishDrawing_Button.enabled = true;
@@ -82,7 +64,7 @@ function ExclusionAreaDialog() {
    this.finishDrawing_Button.icon = this.scaledResource(":/icons/ok.png");
    this.finishDrawing_Button.enabled = false;
    this.finishDrawing_Button.onClick = function() {
-      finishPolygon();
+      this.finishPolygon();
    };
    
    this.cancelDrawing_Button = new PushButton(this);
@@ -93,8 +75,8 @@ function ExclusionAreaDialog() {
    this.cancelDrawing_Button.onClick = function() {
       activePolygon = [];
       isDrawing = false;
-      uninstallPolygonHandler();
-      updatePreview();
+      this.uninstallPolygonHandler();
+      this.updatePreview();
       
       this.dialog.startDrawing_Button.enabled = true;
       this.dialog.finishDrawing_Button.enabled = false;
@@ -118,7 +100,7 @@ function ExclusionAreaDialog() {
    this.preview_Control.backgroundcolor = 0xFF000000;
    this.preview_Control.toolTip = "Preview of exclusion areas";
    this.preview_Control.onPaint = function() {
-      drawPreview(this);
+      this.drawPreview(this);
    };
    previewControl = this.preview_Control;
    
@@ -130,8 +112,8 @@ function ExclusionAreaDialog() {
          if ((new MessageBox("Do you really want to delete all exclusion areas?",
                title, StdIcon.Warning, StdButton_Yes, StdButton_No)).execute() == StdButton_Yes) {
             exclusionAreaPolygons = [];
-            updateExclusionCount();
-            updatePreview();
+            this.updateExclusionCount();
+            this.updatePreview();
          }
       }
    };
@@ -195,10 +177,29 @@ function ExclusionAreaDialog() {
    this.windowTitle = title;
    this.ensureLayoutUpdated();
    this.adjustToContents();
-}
+} // constructor
+} // AutoIntegrateExclusionAreaDialog class end
 
-// Inherit all properties and methods from the Dialog object
-ExclusionAreaDialog.prototype = new Dialog;
+class AutoIntegrateExclusionArea extends Object
+{
+    constructor(util) {
+        super();
+        this.util = util;
+
+var dialog;
+
+// Global variables
+var exclusionAreaPolygons = []; // Array of arrays, each containing points for a polygon
+var activePolygon = []; // Current polygon being drawn
+var isDrawing = false;
+var targetView = null;
+var targetWindow = null;
+var previewControl = null;
+var title = "AutoIntegrate Exclusion Area";
+var scale = 1.0;
+
+} // constructor
+
 
 // Helper function to draw the preview
 function drawPreview(control) {
@@ -271,7 +272,7 @@ function installPolygonHandler() {
          // Double click closes the polygon
          var now = Date.now();
          if (targetWindow.lastClickTime && now - targetWindow.lastClickTime < 300 && activePolygon.length > 2) {
-            finishPolygon();
+            this.finishPolygon();
             return true;
          }
          targetWindow.lastClickTime = now;
@@ -285,7 +286,7 @@ function installPolygonHandler() {
       }      
       // Add point to active polygon
       activePolygon.push({ x: x, y: y });
-      updatePreview();
+      this.updatePreview();
       
       return true;
    };
@@ -318,14 +319,14 @@ function finishPolygon() {
       // console.writeln("Closing polygon: " + activePolygon[0].x + ", " + activePolygon[0].y);
       // Add a copy of the active polygon to our exclusion areas
       exclusionAreaPolygons.push(activePolygon.slice());
-      updateExclusionCount();
+      this.updateExclusionCount();
    }
    
    // Reset for next polygon
    activePolygon = [];
    isDrawing = false;
-   uninstallPolygonHandler();
-   updatePreview();
+   this.uninstallPolygonHandler();
+   this.updatePreview();
    
    dialog.startDrawing_Button.enabled = true;
    dialog.finishDrawing_Button.enabled = false;
@@ -371,7 +372,7 @@ function setPreviewForView() {
       dialog.adjustToContents();
    }
    
-   updatePreview();
+   this.updatePreview();
 }
 
 // Export mask image to be used with other processes
@@ -448,13 +449,13 @@ function main(activeWindow, currentExclusionAreas) {
    targetView = targetWindow.currentView;
 
    // Get the image scale and save it to use for scaling exclusion areas
-   getScale(targetView);
+   this.getScale(targetView);
 
    // Scale saved exclusions area points to current image size
-   exclusionAreaPolygons = scaleExclusionAreasToImage(currentExclusionAreas, targetWindow);
+   exclusionAreaPolygons = this.scaleExclusionAreasToImage(currentExclusionAreas, targetWindow);
 
    // Create and execute dialog
-   dialog = new ExclusionAreaDialog();
+   dialog = new this.AutoIntegrateExclusionAreaDialog();
    return dialog.execute();
 }
 
@@ -463,7 +464,5 @@ this.exportExclusionMask = exportExclusionMask;
 this.getExclusionAreas = getExclusionAreas;
 
 }  /* AutoIntegrateExclusionArea */
-
-AutoIntegrateExclusionArea.prototype = new Object;
 
 #endif  /* AUTOINTEGRATEEXCLUSIONAREA_JS */

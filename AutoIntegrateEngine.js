@@ -4731,7 +4731,7 @@ findLRGBchannels(parent, alignedFiles, filename_postfix)
       this.is_narrowband_files = filter_info.narrowband;
       this.is_rgb_files = filter_info.rgb;
       this.process_narrowband = this.is_narrowband_files;
-      this.ssweight_set = filter_info.this.ssweight_set;
+      this.ssweight_set = filter_info.ssweight_set;
 
       // Check for synthetic images
       if (allfilesarr[this.channels.C].files.length == 0) {
@@ -9060,7 +9060,7 @@ stretchFunctionIterations(GC_win, iscolor, image_stretching, stretch_target_val,
             console.writeln("Channel: B");
             var B_win = this.stretchHistogramTransformIterationsChannel(this.util.findWindow(this.B_id), image_stretching, stretch_target_val, 0, degree, true);
 
-           this.this.runPixelMathRGBMapping(null, GC_win, this.R_id, this.G_id, this.B_id);
+           this.runPixelMathRGBMapping(null, GC_win, this.R_id, this.G_id, this.B_id);
 
             this.util.closeOneWindowById(this.R_id);
             this.util.closeOneWindowById(this.G_id);
@@ -18893,7 +18893,7 @@ get_local_copies_of_parameters()
  *          this.global.flatdarkFileNames
  *                Optional array if flat dark file names for calibrate.
  * 
- *          this.global.this.par.*
+ *          this.global.par.*
  *                Processing parameters.
  * 
  * Return value:
@@ -19873,7 +19873,5 @@ this.testRGBHaMapping = testRGBHaMapping;
  */
 
 }  /* AutoIntegrateEngine*/
-
-AutoIntegrateEngine.prototype = new Object;
 
 #endif  /* AUTOINTEGRATEENGINE_JS */

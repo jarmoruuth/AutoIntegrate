@@ -2,6 +2,7 @@
 // NarrowbandCombinations — Standalone version of AutoIntegrate narrowband combinations
 // ****************************************************************************
 
+#engine v8
 #feature-id    AutoIntegrate  > Narrowband Combinations
 #feature-info  Narrowband Combinations using AutoIntegrate tools.
 
@@ -19,32 +20,31 @@
 #include "AutoIntegratePreview.js"
 
 // =============================================================================
-//  Dummy flowchart routines
+//  Dummy this.flowchart routines
 // =============================================================================
 
 #ifndef AUTOINTEGRATEDUMMYFLOWCHART
 #define AUTOINTEGRATEDUMMYFLOWCHART
 
-function AutoIntegrateDummyFlowchart()
+class AutoIntegrateDummyFlowchart extends Object
 {
-    this.__base__ = Object;
-    this.__base__();
- 
-    this.flowchartOperation = function () {};
-    this.flowchartOperationEnd = function () {};
-    this.flowchartParentBegin = function () {};
-    this.flowchartParentEnd = function () {};
-    this.flowchartChildBegin = function () {};
-    this.flowchartChildEnd = function () {};
-    this.flowchartMaskBegin = function () {};
-    this.flowchartMaskEnd = function () {};
-    this.flowchartInit = function () {};
-    this.flowchartDone = function () {};
-    this.flowchartReset = function () {};
-    this.flowchartPrint = function () {};
-}
+    constructor() {
+        super();
+    }
 
-AutoIntegrateDummyFlowchart.prototype = new Object;
+    flowchartOperation() {};
+    flowchartOperationEnd() {};
+    flowchartParentBegin() {};
+    flowchartParentEnd() {};
+    flowchartChildBegin() {};
+    flowchartChildEnd() {};
+    flowchartMaskBegin() {};
+    flowchartMaskEnd() {};
+    flowchartInit() {};
+    flowchartDone() {};
+    flowchartReset() {};
+    flowchartPrint() {};
+}
 
 #endif /* AUTOINTEGRATEDUMMYFLOWCHART */
 
@@ -52,13 +52,9 @@ AutoIntegrateDummyFlowchart.prototype = new Object;
 //  DIALOG WITH PREVIEW
 // =============================================================================
 
-function AutoIntegrateNarrowbandCombinationsDialog() {
-    this.__base__ = Dialog;
-    this.__base__();
-
-    var self = this;
-
-    var debug = false;
+class AutoIntegrateNarrowbandCombinationsDialog extends Dialog {
+    constructor() {
+        super();
 
     this.TITLE = "Narrowband Combinations";
     this.VERSION = "1.00";
@@ -66,10 +62,8 @@ function AutoIntegrateNarrowbandCombinationsDialog() {
     this.windowTitle = this.TITLE + " v" + this.VERSION;
     // this.minWidth = 1000;
 
-    var global = new AutoIntegrateGlobal();
+    this.global = new AutoIntegrateGlobal();
 
-    this.global = global;
-    this.debug = debug;
     for (let i = 0; i < Runtime.jsArguments.length; i++) {
         if (Runtime.jsArguments[i] == "do_not_read_settings") {
             console.writeln("do_not_read_settings");
@@ -77,16 +71,14 @@ function AutoIntegrateNarrowbandCombinationsDialog() {
         }
     }
 
-    var util = new AutoIntegrateUtil(global);
-    this.util = util;
-
-    var flowchart = new AutoIntegrateDummyFlowchart();
-    var engine = new AutoIntegrateEngine(global, util, flowchart);
-    var guitools = new AutoIntegrateGUITools(this, global, util, engine);
+    this.util = new AutoIntegrateUtil(this.global);
+    this.flowchart = new AutoIntegrateDummyFlowchart();
+    this.engine = new AutoIntegrateEngine(this.global, this.util, this.flowchart);
+    this.guitools = new AutoIntegrateGUITools(this, this.global, this.util, this.engine);
 
     // Read parameter default settings from persistent module settings.
     // These can be saved using the AutoIntegrate script.
-    util.initStandalone();
+    this.util.initStandalone();
 
     // Store original image for reset functionality
     this.previewImage = null;
@@ -95,21 +87,26 @@ function AutoIntegrateNarrowbandCombinationsDialog() {
 
     this.selectedMappings = null;
 
+    this.initGUI();
+    this.initGUI2();
+
+} // End of constructor
+
    // -------------------------------------------------------------------------
    // Preview functions
    // -------------------------------------------------------------------------
 
-    function setPreviewImage(image)
+    setPreviewImage(image)
     {
-        if (debug) console.writeln("AutoIntegrateNarrowbandCombinationsDialog::setPreviewImage");
-        self.previewControl.SetImage(image, "[Preview]");
+        if (this.global.debug) console.writeln("AutoIntegrateNarrowbandCombinationsDialog::setPreviewImage");
+        this.previewControl.SetImage(image, "[Preview]");
     }
 
     // -------------------------------------------------------------------------
     // Image Selections
     // -------------------------------------------------------------------------
 
-    this.getOpenWindows = function() {
+    getOpenWindows() {
         var windows = [];
         var allWindows = ImageWindow.windows;
         for (var i = 0; i < allWindows.length; i++) {
@@ -118,9 +115,9 @@ function AutoIntegrateNarrowbandCombinationsDialog() {
             }
         }
         return windows;
-    };
+    }
 
-    this.getComboBoxList = function(windows) {
+    getComboBoxList(windows) {
         var list = [];
         if (windows.length === 0) {
             list.push("<No images>");
@@ -131,14 +128,16 @@ function AutoIntegrateNarrowbandCombinationsDialog() {
             list.push(windows[i].mainView.id);
         }
         return list;
-    };
+    }
 
-    this.updateImageList = function(imageComboBox, combobox_list) {
+    updateImageList(imageComboBox, combobox_list) {
         imageComboBox.clear();
         for (var i = 0; i < combobox_list.length; i++) {
             imageComboBox.addItem(combobox_list[i]);
         }
-    };
+    }
+
+    initGUI() {
 
     this.windows = this.getOpenWindows();
     this.combobox_list = this.getComboBoxList(this.windows);
@@ -156,7 +155,7 @@ function AutoIntegrateNarrowbandCombinationsDialog() {
         var channelSizer = new HorizontalSizer;
         channelSizer.spacing = 4;
         channelSizer.margin = 6;
-        channelSizer.add(guitools.newLabel(this, channelName + ": ", channelComboBox.toolTip));
+        channelSizer.add(this.guitools.newLabel(this, channelName + ": ", channelComboBox.toolTip));
         channelSizer.add(channelComboBox);
         channelSizer.addStretch();
         this.HSOSizer.add(channelSizer);
@@ -170,11 +169,11 @@ function AutoIntegrateNarrowbandCombinationsDialog() {
         let channelName = channelNames[i];
         let channelComboBox = new ComboBox(this);
         channelComboBox.toolTip = "Select image for " + channelName + " channel.";
-        this.updateImageList(channelComboBox, self.combobox_list);
+        this.updateImageList(channelComboBox, this.combobox_list);
         var channelSizer = new HorizontalSizer;
         channelSizer.spacing = 4;
         channelSizer.margin = 6;
-        channelSizer.add(guitools.newLabel(self, channelName + ": ", channelComboBox.toolTip));
+        channelSizer.add(this.guitools.newLabel(this, channelName + ": ", channelComboBox.toolTip));
         channelSizer.add(channelComboBox);
         channelSizer.addStretch();
         this.RGBSizer.add(channelSizer);
@@ -191,52 +190,54 @@ function AutoIntegrateNarrowbandCombinationsDialog() {
     this.channelsGroupBox.title = "Select images for Channels";
     this.channelsGroupBox.sizer = this.channelsSizer;
 
+} // End of initGUI
+
     // -------------------------------------------------------------------------
     // Processing
     // -------------------------------------------------------------------------
 
     // Create [ 'channel', 'image id' ] mappings from selected images into an array
     // Skip images with <Select image> or <No images>
-    function generateMappingsFromSelection() {
-        var selectedMappings = [];
+    generateMappingsFromSelection() {
+        var this.selectedMappings = [];
         var channelKeys = ['H', 'S', 'O', 'R', 'G', 'B'];
-        for (var i = 0; i < self.channelComboBoxes.length; i++) {
-            var comboBox = self.channelComboBoxes[i];
-            var imageName = self.combobox_list[comboBox.currentItem];
+        for (var i = 0; i < this.channelComboBoxes.length; i++) {
+            var comboBox = this.channelComboBoxes[i];
+            var imageName = this.combobox_list[comboBox.currentItem];
             if (imageName !== "<Select image>" && imageName !== "<No images>") {
-                selectedMappings.push( [ channelKeys[i], imageName ] );
+                this.selectedMappings.push( [ channelKeys[i], imageName ] );
             }
         }
-        console.writeln("Selected mappings: " + JSON.stringify(selectedMappings));
-        return selectedMappings;
+        console.writeln("Selected mappings: " + JSON.stringify(this.selectedMappings));
+        return this.selectedMappings;
     }
 
-    this.applyPreview = function() {
-        if (self.testMappings) {
-            self.selectedMappings = self.testMappings;
-            console.writeln("Using test mappings: " + JSON.stringify(self.selectedMappings));
+    applyPreview() {
+        if (this.testMappings) {
+            this.selectedMappings = this.testMappings;
+            console.writeln("Using test mappings: " + JSON.stringify(this.selectedMappings));
         } else {
-            self.selectedMappings = generateMappingsFromSelection();
-            console.writeln("Using user selected mappings: " + JSON.stringify(self.selectedMappings));
+            this.selectedMappings = this.generateMappingsFromSelection();
+            console.writeln("Using user selected mappings: " + JSON.stringify(this.selectedMappings));
         }
-        if (!self.selectedMappings || self.selectedMappings.length === 0) {
+        if (!this.selectedMappings || this.selectedMappings.length === 0) {
             this.statusLabel.text = "No image loaded for preview.";
             return;
         }
 
         var narrowband_mappings = {
             target_palette: {
-                name: global.par.narrowband_mapping.val,
-                R: global.par.custom_R_mapping.val,
-                G: global.par.custom_G_mapping.val,
-                B: global.par.custom_B_mapping.val
+                name: this.global.par.narrowband_mapping.val,
+                R: this.global.par.custom_R_mapping.val,
+                G: this.global.par.custom_G_mapping.val,
+                B: this.global.par.custom_B_mapping.val
             },
-            mappings: self.selectedMappings
+            mappings: this.selectedMappings
         };
 
         console.writeln("Narrowband mappings, " + JSON.stringify(narrowband_mappings));
 
-        engine.standalone_narrowband_mappings = narrowband_mappings;
+        this.engine.standalone_narrowband_mappings = narrowband_mappings;
 
         console.show();
         console.writeln("Applying narrowband mapping to preview...");
@@ -247,9 +248,9 @@ function AutoIntegrateNarrowbandCombinationsDialog() {
 
         try {
             // Pick the first channel images as a model for preview size
-            var firstImageId = self.selectedMappings[0][1];
+            var firstImageId = this.selectedMappings[0][1];
             console.writeln("Using first image for preview size: " + firstImageId);
-            var firstImgWin = util.findWindow(firstImageId);
+            var firstImgWin = this.util.findWindow(firstImageId);
 
             // Create a temporary color image for processing
             var tempWindow = new ImageWindow(
@@ -263,22 +264,22 @@ function AutoIntegrateNarrowbandCombinationsDialog() {
             );
 
             // Process the temp view
-            engine.enhancementsProcessingEngine(self, tempWindow.mainView.id, true);
+            this.engine.enhancementsProcessingEngine(this, tempWindow.mainView.id, true);
 
             // Copy result back to preview image
-            self.previewImage = new Image(tempWindow.mainView.image);
+            this.previewImage = new Image(tempWindow.mainView.image);
 
             // make a stretched copy of the image
-            engine.autoStretch(tempWindow);
-            self.autoSTFPreviewImage = new Image(tempWindow.mainView.image);
+            this.engine.autoStretch(tempWindow);
+            this.autoSTFPreviewImage = new Image(tempWindow.mainView.image);
 
             tempWindow.forceClose();
 
             // Update preview
-            if (self.autoSTF) {
-                setPreviewImage(self.autoSTFPreviewImage);
+            if (this.autoSTF) {
+                this.setPreviewImage(this.autoSTFPreviewImage);
             } else {
-                setPreviewImage(self.previewImage);
+                this.setPreviewImage(this.previewImage);
             }
 
             this.statusLabel.text = "Preview updated successfully.";
@@ -292,8 +293,8 @@ function AutoIntegrateNarrowbandCombinationsDialog() {
         this.previewButton.enabled = true;
     };
 
-    this.processFinal = function() {
-        if (!self.previewImage) {
+    processFinal() {
+        if (!this.previewImage) {
             this.statusLabel.text = "No processed image.";
             return;
         }
@@ -308,23 +309,23 @@ function AutoIntegrateNarrowbandCombinationsDialog() {
             // Create new window with processed result
             // Use the selected narrowband mapping name as window title
             // Some mappings start with a number so in that case add _ at the start
-            var windowId = util.mapBadChars(global.par.narrowband_mapping.val);
+            var windowId = this.util.mapBadChars(this.global.par.narrowband_mapping.val);
             if (/^\d/.test(windowId)) {
                 windowId = "_" + windowId;
             }
             console.writeln("Creating final image window "+ windowId);
             var targetWindow = new ImageWindow(
-                                    self.previewImage.width,
-                                    self.previewImage.height,
-                                    self.previewImage.numberOfChannels,
+                                    this.previewImage.width,
+                                    this.previewImage.height,
+                                    this.previewImage.numberOfChannels,
                                     32,
                                     true,
-                                    self.previewImage.colorSpace != ColorSpace.Gray,
+                                    this.previewImage.colorSpace != ColorSpace.Gray,
                                     windowId);
 
             console.writeln("Assigning processed image to final window...");
             targetWindow.mainView.beginProcess(UndoFlag.NoSwapFile);
-            targetWindow.mainView.image.assign(self.previewImage);
+            targetWindow.mainView.image.assign(this.previewImage);
             targetWindow.mainView.endProcess();
 
             targetWindow.show();
@@ -340,6 +341,8 @@ function AutoIntegrateNarrowbandCombinationsDialog() {
         this.processButton.enabled = true;
     };
 
+    initGUI2() {
+
     // -------------------------------------------------------------------------
     // Left Side: Preview Control
     // -------------------------------------------------------------------------
@@ -349,12 +352,12 @@ function AutoIntegrateNarrowbandCombinationsDialog() {
     this.autoSTFCheckBox.toolTip = "Automatically apply Screen Transfer Function (STF) to preview image.";
     this.autoSTFCheckBox.checked = true;
     this.autoSTFCheckBox.onCheck = function(checked) {
-        self.autoSTF = checked;
+        this.autoSTF = checked;
         // Update preview
-        if (self.autoSTF) {
-            setPreviewImage(self.autoSTFPreviewImage);
+        if (this.autoSTF) {
+            this.setPreviewImage(this.autoSTFPreviewImage);
         } else {
-            setPreviewImage(self.previewImage);
+            this.setPreviewImage(this.previewImage);
         }
     };
 
@@ -364,7 +367,7 @@ function AutoIntegrateNarrowbandCombinationsDialog() {
     this.previewButton.icon = this.scaledResource(":/icons/play.png");
     this.previewButton.toolTip = "Apply narrowband combination to preview image.";
     this.previewButton.onClick = function() {
-        self.applyPreview();
+        this.applyPreview();
     };
 
     this.previewButtonsSizer = new HorizontalSizer;
@@ -374,7 +377,7 @@ function AutoIntegrateNarrowbandCombinationsDialog() {
     this.previewButtonsSizer.add(this.previewButton, 50);
 
     // Preview control
-    this.previewControl = new AutoIntegratePreviewControl(this, "narrowband_preview", engine, util, global, 600, 600, false);
+    this.previewControl = new AutoIntegratePreviewControl(this, "narrowband_preview", this.engine, this.util, this.global, 600, 600, false);
 
     this.leftSizer = new VerticalSizer;
     this.leftSizer.spacing = 4;
@@ -399,16 +402,16 @@ function AutoIntegrateNarrowbandCombinationsDialog() {
    // Load and save JSON controls
    // -------------------------------------------------------------------------
 
-   var obj = guitools.newJsonSizerObj(this, null, "NarrowbandCombinationsSettings.json");
+   var obj = this.guitools.newJsonSizerObj(this, null, "NarrowbandCombinationsSettings.json");
    this.loadSaveSizer = obj.sizer;
 
    // -------------------------------------------------------------------------
    // Narrowband palette selection
    // -------------------------------------------------------------------------
 
-    if (global.debug) console.writeln("AutoIntegrateNarrowbandCombinationsDialog:: creating narrowbandCustomPaletteGroupBox");
+    if (this.global.debug) console.writeln("AutoIntegrateNarrowbandCombinationsDialog:: creating narrowbandCustomPaletteGroupBox");
 
-    this.narrowbandCustomPaletteSizer = guitools.createNarrowbandCustomPaletteSizer(this);
+    this.narrowbandCustomPaletteSizer = this.guitools.createNarrowbandCustomPaletteSizer(this);
 
     this.narrowbandCustomPaletteGroupBox = new GroupBox(this);
     this.narrowbandCustomPaletteGroupBox.title = "Narrowband Palette";
@@ -431,7 +434,7 @@ function AutoIntegrateNarrowbandCombinationsDialog() {
     this.resetButton.text = "Reset";
     this.resetButton.toolTip = "Reset all parameters to defaults.";
     this.resetButton.onClick = function() {
-            util.setParameterDefaults();
+            this.util.setParameterDefaults();
     };
 
     this.processButton = new PushButton(this);
@@ -439,14 +442,14 @@ function AutoIntegrateNarrowbandCombinationsDialog() {
     this.processButton.icon = this.scaledResource(":/icons/power.png");
     this.processButton.toolTip = "Create final processed image (does not overwrite original).";
     this.processButton.onClick = function() {
-        self.processFinal();
+        this.processFinal();
     };
 
     this.closeButton = new PushButton(this);
     this.closeButton.text = "Close";
     this.closeButton.icon = this.scaledResource(":/icons/close.png");
     this.closeButton.onClick = function() {
-        self.ok();
+        this.ok();
     };
 
     this.buttonsSizer = new HorizontalSizer;
@@ -479,9 +482,9 @@ function AutoIntegrateNarrowbandCombinationsDialog() {
    this.sizer.spacing = 8;
    this.sizer.add(this.leftSizer);
    this.sizer.add(this.rightSizer);
-}
 
-AutoIntegrateNarrowbandCombinationsDialog.prototype = new Dialog;
+} // End of initGUI2
+}
 
 // =============================================================================
 //  MAIN ENTRY POINT

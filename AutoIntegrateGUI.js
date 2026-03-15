@@ -261,7 +261,7 @@ function flowchartUpdated()
             try {
                   var obj = flowchart.flowchartGraph(global.flowchartData, guitools.current_preview.image, guitools.current_preview.txt);
                   if (obj) {
-                        updatePreviewImage(previewControl, obj.image, obj.text, histogramControl, global.enhancements_target_histogram_info, true);
+                        this.updatePreviewImage(previewControl, obj.image, obj.text, histogramControl, global.enhancements_target_histogram_info, true);
                   }
             } catch (ex) {
                   console.writeln("flowchartUpdated: " + ex);
@@ -291,7 +291,7 @@ function generateNewFlowchartData(parent)
       console.writeln("generateNewFlowchartData");
       console.flush();
 
-      getFilesFromTreebox(parent.dialog);
+      this.getFilesFromTreebox(parent.dialog);
 
       if (global.lightFileNames == null) {
             console.criticalln("No files, cannot generate flowchart data");
@@ -306,11 +306,11 @@ function generateNewFlowchartData(parent)
       flowchart.flowchartReset();
 
       console.writeln("generateNewFlowchartData: copy file names");
-      var lightFileNamesCopy = copyFileNames(global.lightFileNames);
-      var darkFileNamesCopy = copyFileNames(global.darkFileNames);
-      var biasFileNamesCopy = copyFileNames(global.biasFileNames);
-      var flatdarkFileNamesCopy = copyFileNames(global.flatdarkFileNames);
-      var flatFileNamesCopy = copyFileNames(global.flatFileNames);
+      var lightFileNamesCopy = this.copyFileNames(global.lightFileNames);
+      var darkFileNamesCopy = this.copyFileNames(global.darkFileNames);
+      var biasFileNamesCopy = this.copyFileNames(global.biasFileNames);
+      var flatdarkFileNamesCopy = this.copyFileNames(global.flatdarkFileNames);
+      var flatFileNamesCopy = this.copyFileNames(global.flatFileNames);
 
       // Use prefix when running flowchart to avoid name conflicts
       var saved_win_prefix = ppar.win_prefix;
@@ -395,7 +395,7 @@ function previewControlCleanup(control)
 
 function previewCleanup(previewObj)
 {
-      previewControlCleanup(previewObj.control);
+      this.previewControlCleanup(previewObj.control);
       previewObj.control = null;
       previewObj.infolabel = null;
       previewObj.statuslabel = null;
@@ -421,10 +421,10 @@ function exitCleanup(dialog)
             blink_window.forceClose();
             blink_window = null;
       }
-      close_undo_images(true);
+      this.close_undo_images(true);
       if (global.use_preview) {
             if (dialog.previewObj != null) {
-                  previewCleanup(dialog.previewObj);
+                  this.previewCleanup(dialog.previewObj);
                   dialog.previewObj = null;
             }
       }
@@ -432,7 +432,7 @@ function exitCleanup(dialog)
             guitools.current_preview.imgWin.forceClose();
             guitools.current_preview.imgWin = null;
       }
-      variableCleanup();
+      this.variableCleanup();
       util.checkEvents();
 }
 
@@ -460,11 +460,11 @@ function setWindowPrefixHelpTip(default_prefix)
 
       windowPrefixComboBox.clear();
       autoContinueWindowPrefixComboBox.clear();
-      var pa = get_win_prefix_combobox_array(default_prefix);
+      var pa = this.get_win_prefix_combobox_array(default_prefix);
       guitools.addArrayToComboBox(windowPrefixComboBox, pa);
       guitools.addArrayToComboBox(autoContinueWindowPrefixComboBox, pa);
-      windowPrefixComboBox.editText = validateWindowPrefix(ppar.win_prefix);
-      windowPrefixComboBox.currentItem = pa.indexOf(validateWindowPrefix(ppar.win_prefix));
+      windowPrefixComboBox.editText = this.validateWindowPrefix(ppar.win_prefix);
+      windowPrefixComboBox.currentItem = pa.indexOf(this.validateWindowPrefix(ppar.win_prefix));
 }
 
 function fix_win_prefix_array()
@@ -486,12 +486,12 @@ function fix_win_prefix_array()
 
 function get_win_prefix_combobox_array(default_prefix)
 {
-      default_prefix = validateWindowPrefix(default_prefix);
+      default_prefix = this.validateWindowPrefix(default_prefix);
       var name_array = [default_prefix];
 
       for (var i = 0; i < ppar.prefixArray.length; i++) {
             if (ppar.prefixArray[i] != null && ppar.prefixArray[i][1] != '-') {
-                  var add_name = validateWindowPrefix(ppar.prefixArray[i][1]);
+                  var add_name = this.validateWindowPrefix(ppar.prefixArray[i][1]);
                   if (add_name != default_prefix) {
                         name_array[name_array.length] = add_name;
                   }
@@ -563,7 +563,7 @@ function savePersistentSettings(from_exit)
             Settings.write (SETTINGSKEY + "/savedInterfaceVersion", DataType.Int32, global.interface_version);
       }
       if (!from_exit) {
-            setWindowPrefixHelpTip(ppar.win_prefix);
+            this.setWindowPrefixHelpTip(ppar.win_prefix);
       }
 }
 
@@ -582,7 +582,7 @@ function Autorun(parent)
       var success = true;
       var first_step = true;
       var savedOutputRootDir = global.outputRootDir;
-      var batch_narrowband_palette_mode = isbatchNarrowbandPaletteMode();
+      var batch_narrowband_palette_mode = this.isbatchNarrowbandPaletteMode();
       var batch_files = [];
       var substack_mode = par.substack_mode.val;
       var substack_files = [];
@@ -642,9 +642,9 @@ function Autorun(parent)
                   }
                   if (global.lightFileNames != null) {
                         parent.dialog.treeBox[global.pages.LIGHTS].clear();
-                        addFilesToTreeBox(parent.dialog, global.pages.LIGHTS, global.lightFileNames);
-                        updateInfoLabel(parent.dialog);
-                        updateExclusionAreaLabel(parent);
+                        this.addFilesToTreeBox(parent.dialog, global.pages.LIGHTS, global.lightFileNames);
+                        this.updateInfoLabel(parent.dialog);
+                        this.updateExclusionAreaLabel(parent);
                   }
             }
             if (substack_mode) {
@@ -695,7 +695,7 @@ function Autorun(parent)
                         } else if (batch_narrowband_palette_mode || par.batch_mode.val) {
                               console.writeln("Do not get flowchart data for batch mode");
                         } else {
-                              let succ = generateNewFlowchartData(parent);
+                              let succ = this.generateNewFlowchartData(parent);
                         }
                   } else {
                         console.writeln("Do not get flowchart data");
@@ -706,7 +706,7 @@ function Autorun(parent)
                         } else {
                             engine.autointegrateProcessingEngine(parent.dialog, false, false, "AutoRun");
                         }
-                        update_enhancements_target_image_window_list(null);
+                        this.update_enhancements_target_image_window_list(null);
                   } 
                   catch(err) {
                         console.criticalln(err);
@@ -790,7 +790,7 @@ function showOrHideFilterSectionBar(pageIndex)
 
 function lightsOptions(parent)
 {
-      var sizer = filesOptionsSizer(parent, "Add light images", parent.filesToolTip[global.pages.LIGHTS]);
+      var sizer = this.filesOptionsSizer(parent, "Add light images", parent.filesToolTip[global.pages.LIGHTS]);
 
       var debayerLabel = new Label( parent );
       global.rootingArr.push(debayerLabel);
@@ -827,7 +827,7 @@ function lightsOptions(parent)
       global.rootingArr.push(add_manually_checkbox);
       add_manually_checkbox.onClick = function(checked) { 
             add_manually_checkbox.aiParam.val = checked; 
-            showOrHideFilterSectionBar(global.pages.LIGHTS);
+            this.showOrHideFilterSectionBar(global.pages.LIGHTS);
       }
       var interated_lights_checkbox = guitools.newCheckBox(parent, "Integrated lights", par.integrated_lights, 
             "<p>If checked consider light files to be integrated files for AutoContinue.</p>" +
@@ -839,7 +839,7 @@ function lightsOptions(parent)
             "Quite a few processing steps are skipped with this option.</p>",
             function(checked) { 
                   monochrome_image_CheckBox.aiParam.val = checked;
-                  updateSectionsInTreeBox(parent.treeBox[global.pages.LIGHTS]);
+                  this.updateSectionsInTreeBox(parent.treeBox[global.pages.LIGHTS]);
       });
       global.rootingArr.push(monochrome_image_CheckBox);
 
@@ -856,7 +856,7 @@ function lightsOptions(parent)
       {
             try {
                   util.addStatusInfo("Sorting and filtering files");
-                  filterTreeBoxFiles(parent.dialog, parent.dialog.tabBox.currentPageIndex);
+                  this.filterTreeBoxFiles(parent.dialog, parent.dialog.tabBox.currentPageIndex);
             } catch (e) {
                   console.criticalln("Sorting and filtering files: " + e);
             } 
@@ -870,7 +870,7 @@ function lightsOptions(parent)
       metricsVisualizerButton.onClick = function()
       {
             try {
-                  metricsVisualizerFilters(parent);
+                  this.metricsVisualizerFilters(parent);
             } catch (e) {
                   console.criticalln("Metrics visualizer: " + e);
             }
@@ -907,7 +907,7 @@ function lightsOptions(parent)
 
 function biasOptions(parent)
 {
-      var sizer = filesOptionsSizer(parent, "Add bias images", parent.filesToolTip[global.pages.BIAS]);
+      var sizer = this.filesOptionsSizer(parent, "Add bias images", parent.filesToolTip[global.pages.BIAS]);
 
       var checkbox = guitools.newCheckBox(parent, "SuperBias", par.create_superbias, 
             "<p>Create SuperBias from bias files.</p>" +
@@ -936,7 +936,7 @@ function biasOptions(parent)
 
 function darksOptions(parent)
 {
-      var sizer = filesOptionsSizer(parent, "Add dark images", parent.filesToolTip[global.pages.DARKS]);
+      var sizer = this.filesOptionsSizer(parent, "Add dark images", parent.filesToolTip[global.pages.DARKS]);
 
       var checkbox = guitools.newCheckBox(parent, "Pre-calibrate", par.pre_calibrate_darks, 
             "<p>If checked darks are pre-calibrated with bias and not during ImageCalibration.</p>" );
@@ -959,7 +959,7 @@ function darksOptions(parent)
 
 function flatsOptions(parent)
 {
-      var sizer = filesOptionsSizer(parent, "Add flat images", parent.filesToolTip[global.pages.FLATS]);
+      var sizer = this.filesOptionsSizer(parent, "Add flat images", parent.filesToolTip[global.pages.FLATS]);
 
       var checkboxMaster = guitools.newCheckBox(parent, "Master files", par.flat_master_files,
             "<p>Files are master files.</p>" +
@@ -978,7 +978,7 @@ function flatsOptions(parent)
       global.rootingArr.push(checkboxManual);
       checkboxManual.onClick = function(checked) {
             checkboxManual.aiParam.val = checked;
-            showOrHideFilterSectionBar(global.pages.FLATS);
+            this.showOrHideFilterSectionBar(global.pages.FLATS);
       }
 
       sizer.add(checkboxMaster);
@@ -992,7 +992,7 @@ function flatsOptions(parent)
 
 function flatdarksOptions(parent)
 {
-      var sizer = filesOptionsSizer(parent, "Add flat dark images", parent.filesToolTip[global.pages.FLAT_DARKS]);
+      var sizer = this.filesOptionsSizer(parent, "Add flat dark images", parent.filesToolTip[global.pages.FLAT_DARKS]);
 
       var checkbox = guitools.newCheckBox(parent, "Master files", par.flat_dark_master_files,
             "<p>Files are master files.</p>" +
@@ -1004,7 +1004,7 @@ function flatdarksOptions(parent)
       global.rootingArr.push(checkboxManual);
       checkboxManual.onClick = function(checked) {
             checkboxManual.aiParam.val = checked;
-            showOrHideFilterSectionBar(global.pages.FLAT_DARKS);
+            this.showOrHideFilterSectionBar(global.pages.FLAT_DARKS);
       }
 
       sizer.add(checkbox);
@@ -1051,7 +1051,7 @@ function getHistogramSize()
 
 function setHistogramBitmapBackground(graphics)
 {
-      var size = getHistogramSize();
+      var size = this.getHistogramSize();
       var width = size.width;
       var height = size.height;
 
@@ -1103,7 +1103,7 @@ function getHistogramInfo(imgWin, log_x_scale = false)
       var maxvalue_pos = 0;
       var maxchannels = histogramMatrix.rows;
 
-      var size = getHistogramSize();
+      var size = this.getHistogramSize();
       var width = size.width;
       var height = size.height;
 
@@ -1113,7 +1113,7 @@ function getHistogramInfo(imgWin, log_x_scale = false)
       log_x_scale = engine.imageIsLinear(imgWin);
 
       if (log_x_scale) {
-            var xscale = calculateReverseLogarithmicXScale(1, histogramMatrix.cols, width);
+            var xscale = this.calculateReverseLogarithmicXScale(1, histogramMatrix.cols, width);
       }
 
       if (global.debug) console.writeln("getHistogramInfo: width " +  width + " maxchannels " + maxchannels +  " histogramMatrix.cols " + histogramMatrix.cols);
@@ -1172,7 +1172,7 @@ function getHistogramInfo(imgWin, log_x_scale = false)
       var bitmap = new Bitmap(width, height);
       var graphics = new Graphics(bitmap);      // VectorGraphics
 
-      setHistogramBitmapBackground(graphics);
+      this.setHistogramBitmapBackground(graphics);
 
       for (var channel = 0; channel < maxchannels; channel++) {
             var x1 = 0;
@@ -1234,8 +1234,8 @@ function updatePreviewWinTxt(imgWin, txt, histogramInfo = null, run_autostf = fa
             } else {
                   if (histogramControl != null) {
                         console.writeln("Get new histogram info");
-                        forceNewHistogram(imgWin);
-                        histogramInfo = getHistogramInfo(imgWin, run_autostf);
+                        this.forceNewHistogram(imgWin);
+                        histogramInfo = this.getHistogramInfo(imgWin, run_autostf);
                   } else {
                         console.writeln("No histogram");
                         histogramInfo = null;
@@ -1280,17 +1280,17 @@ function updatePreviewWinTxt(imgWin, txt, histogramInfo = null, run_autostf = fa
             if (par.debug.val) console.writeln("--- updatePreviewWinTxt:autostf " + (Date.now()-start_time)/1000 + " sec");
             if (par.debug.val) start_time = Date.now();
             if (global.is_processing != global.processing_state.none) {
-                  flowchartUpdated();
+                  this.flowchartUpdated();
             }
             if (!par.show_flowchart.val || global.is_processing != global.processing_state.processing) {
-                  updatePreviewImage(previewControl, imgWin.mainView.image, txt, histogramControl, histogramInfo);
+                  this.updatePreviewImage(previewControl, imgWin.mainView.image, txt, histogramControl, histogramInfo);
             }
             if (par.debug.val) console.writeln("--- updatePreviewWinTxt:updatePreviewImage " + (Date.now()-start_time)/1000 + " sec");
             if (par.debug.val) start_time = Date.now();
             if (copy_win != null) {
                   util.closeOneWindow(copy_win);
             }
-            updatePreviewTxt(txt);
+            this.updatePreviewTxt(txt);
             console.noteln("Preview updated");
             is_some_preview = true;
             current_selected_file_name = null; // reset file name, it is set by caller if needed
@@ -1301,7 +1301,7 @@ function updatePreviewWinTxt(imgWin, txt, histogramInfo = null, run_autostf = fa
 function updatePreviewWin(imgWin)
 {
       if (global.debug) console.writeln("updatePreviewWin");
-      updatePreviewWinTxt(imgWin, imgWin.mainView.id);
+      this.updatePreviewWinTxt(imgWin, imgWin.mainView.id);
 }
 
 function updatePreviewFilenameAndInfo(filename, run_autostf, update_info)
@@ -1320,7 +1320,7 @@ function updatePreviewFilenameAndInfo(filename, run_autostf, update_info)
             return;
       }
 
-      updatePreviewWinTxt(imageWindow, File.extractName(filename) + File.extractExtension(filename), null, run_autostf);
+      this.updatePreviewWinTxt(imageWindow, File.extractName(filename) + File.extractExtension(filename), null, run_autostf);
       if (update_info) {
             util.updateStatusInfoLabel("Size: " + imageWindow.mainView.image.width + "x" + imageWindow.mainView.image.height);
       }
@@ -1330,14 +1330,14 @@ function updatePreviewFilenameAndInfo(filename, run_autostf, update_info)
 
 function updatePreviewFilename(filename, run_autostf = false)
 {
-      updatePreviewFilenameAndInfo(filename, run_autostf, false);
+      this.updatePreviewFilenameAndInfo(filename, run_autostf, false);
 }
 
 function updatePreviewId(id)
 {
       if (global.use_preview) {
             if (global.debug) console.writeln("updatePreviewId ", id);
-            updatePreviewWinTxt(ImageWindow.windowById(id), id);
+            this.updatePreviewWinTxt(ImageWindow.windowById(id), id);
       }
 }
 
@@ -1347,7 +1347,7 @@ function updatePreviewIdReset(id, keep_zoom, histogramInfo)
             if (global.debug) console.writeln("updatePreviewIdReset ", id, " keep_zoom ", keep_zoom);
             preview_keep_zoom = keep_zoom;
             var win = ImageWindow.windowById(id);
-            updatePreviewWinTxt(win, id, histogramInfo);
+            this.updatePreviewWinTxt(win, id, histogramInfo);
             util.updateStatusInfoLabel("Size: " + win.mainView.image.width + "x" + win.mainView.image.height);
             is_some_preview = false;
             global.is_processing = global.processing_state.none;
@@ -1357,7 +1357,7 @@ function updatePreviewIdReset(id, keep_zoom, histogramInfo)
 function setPreviewIdReset(id, keep_zoom, histogramInfo)
 {
       if (global.debug) console.writeln("setPreviewIdReset ", id, " keep_zoom ", keep_zoom);
-      updatePreviewIdReset(id, keep_zoom, histogramInfo);
+      this.updatePreviewIdReset(id, keep_zoom, histogramInfo);
 }
 
 function updatePreviewNoImageInControl(control)
@@ -1485,8 +1485,8 @@ function updatePreviewNoImage()
 {
       if (global.use_preview && previewControl != null) {
             if (par.debug.val || global.debug) console.writeln("updatePreviewNoImage");
-            updatePreviewNoImageInControl(previewControl);
-            updatePreviewTxt("No preview");
+            this.updatePreviewNoImageInControl(previewControl);
+            this.updatePreviewTxt("No preview");
             util.updateStatusInfoLabel("No preview");
       }
 }
@@ -1515,7 +1515,7 @@ function createCombinedMosaicPreviewWin(imgWinArr)
                   for (var i = 0, x = 0; i < imgWinArr.length; i++) {
                         // console.writeln("createCombinedMosaicPreviewWin, i " + i + " x " + x);
                         var imgWin = imgWinArr[i];
-                        var bmp = getWindowBitmap(imgWin).scaledTo(width / 2, height / 2);
+                        var bmp = this.getWindowBitmap(imgWin).scaledTo(width / 2, height / 2);
                         graphics.drawBitmap(x, height / 4, bmp);
                         x = width / 2;
                   }
@@ -1524,7 +1524,7 @@ function createCombinedMosaicPreviewWin(imgWinArr)
                   for (var i = 0, y = 0; i < imgWinArr.length; i++) {
                         // console.writeln("createCombinedMosaicPreviewWin, i " + i + " y " + y);
                         var imgWin = imgWinArr[i];
-                        var bmp = getWindowBitmap(imgWin).scaledTo(width / 2, height / 2);
+                        var bmp = this.getWindowBitmap(imgWin).scaledTo(width / 2, height / 2);
                         graphics.drawBitmap(width / 4, y, bmp);
                         y = height / 2;
                   }
@@ -1534,7 +1534,7 @@ function createCombinedMosaicPreviewWin(imgWinArr)
             for (var i = 0, x = 0, y = 0; i < imgWinArr.length; i++) {
                   // console.writeln("createCombinedMosaicPreviewWin, i " + i + " x " + x + " y " + y);
                   var imgWin = imgWinArr[i];
-                  var bmp = getWindowBitmap(imgWin).scaledTo(width / 2, height / 2);
+                  var bmp = this.getWindowBitmap(imgWin).scaledTo(width / 2, height / 2);
                   graphics.drawBitmap(x, y, bmp);
                   if (x == 0) {
                         x = width / 2;
@@ -1604,7 +1604,7 @@ function addOutputDir(parent)
             }
             gdd.caption = "Select Output Directory";
             if (gdd.execute()) {
-                  updateOutputDirEdit(gdd.directory);
+                  this.updateOutputDirEdit(gdd.directory);
             }
       };
       
@@ -1631,7 +1631,7 @@ function validateWindowPrefix(p)
 // is that function is called for every character.
 function updateWindowPrefix()
 {
-      ppar.win_prefix = validateWindowPrefix(ppar.win_prefix);
+      ppar.win_prefix = this.validateWindowPrefix(ppar.win_prefix);
       if (windowPrefixComboBox != null) {
             windowPrefixComboBox.editText = ppar.win_prefix;
       }
@@ -1660,7 +1660,7 @@ function addWinPrefix(parent)
       windowPrefixComboBox.editEnabled = true;
       windowPrefixComboBox.minItemCharWidth = 10;
       windowPrefixComboBox.toolTip = lbl.toolTip;
-      var pa = get_win_prefix_combobox_array(ppar.win_prefix);
+      var pa = this.get_win_prefix_combobox_array(ppar.win_prefix);
       guitools.addArrayToComboBox(windowPrefixComboBox, pa);
       windowPrefixComboBox.editText = ppar.win_prefix;
       windowPrefixComboBox.onEditTextUpdated = function() {
@@ -1697,7 +1697,7 @@ function addAutoContinueWinPrefix(parent)
       autoContinueWindowPrefixComboBox.editEnabled = true;
       autoContinueWindowPrefixComboBox.minItemCharWidth = 5;
       autoContinueWindowPrefixComboBox.toolTip = "<p>Give window prefix for AutoContinue start images.</p>";
-      var pa = get_win_prefix_combobox_array("");
+      var pa = this.get_win_prefix_combobox_array("");
       guitools.addArrayToComboBox(autoContinueWindowPrefixComboBox, pa);
       autoContinueWindowPrefixComboBox.editText = "";
       autoContinueWindowPrefixComboBox.onEditTextUpdated = function() {
@@ -1746,21 +1746,21 @@ function updateTreeBoxNodeFromFlags(parent, node)
             //console.writeln("updateTreeBoxNodeFromFlags, both best image and reference image");
             node.setIcon(0, parent.scaledResource(":/icons/item-ok.png"));
             node.checked = true;
-            updateTreeBoxNodeToolTip(node);
+            this.updateTreeBoxNodeToolTip(node);
       } else if (node.best_image) {
             //console.writeln("updateTreeBoxNodeFromFlags, best image");
             node.setIcon(0, parent.scaledResource(":/icons/ok-button.png"));
             node.checked = true;
-            updateTreeBoxNodeToolTip(node);
+            this.updateTreeBoxNodeToolTip(node);
       } else if (node.reference_image) {
             //console.writeln("updateTreeBoxNodeFromFlags, reference image");
             node.setIcon(0, parent.scaledResource(":/icons/item.png"));
             node.checked = true;
-            updateTreeBoxNodeToolTip(node);
+            this.updateTreeBoxNodeToolTip(node);
       } else {
             //console.writeln("updateTreeBoxNodeFromFlags, normal image");
             node.setIcon(0, parent.scaledResource(""));
-            updateTreeBoxNodeToolTip(node);
+            this.updateTreeBoxNodeToolTip(node);
       }
 }
 
@@ -1773,17 +1773,17 @@ function setBestImageInTreeBoxNode(parent, node, best_image, filename_postfix)
                   //console.writeln("setBestImageInTreeBoxNode found best image");
                   // Invert the flag, either set or clear it
                   node.best_image = true;
-                  updateTreeBoxNodeFromFlags(parent, node);
+                  this.updateTreeBoxNodeFromFlags(parent, node);
                   global.user_selected_best_image = node.filename;
             } else if (node.best_image) {
                   // Clear old best image flag
                   node.best_image = false;
-                  updateTreeBoxNodeFromFlags(parent, node);
+                  this.updateTreeBoxNodeFromFlags(parent, node);
             }
             return;
       } else {
             for (var i = 0; i < node.numberOfChildren; i++) {
-                  setBestImageInTreeBoxNode(parent, node.child(i), best_image, filename_postfix);
+                  this.setBestImageInTreeBoxNode(parent, node.child(i), best_image, filename_postfix);
             }
       }
 }
@@ -1794,7 +1794,7 @@ function setBestImageInTreeBox(parent, node, best_image, filename_postfix)
       if (node.numberOfChildren == 0) {
             return;
       } else {
-            setBestImageInTreeBoxNode(parent, node, best_image, filename_postfix);
+            this.setBestImageInTreeBoxNode(parent, node, best_image, filename_postfix);
       }
 }
 
@@ -1839,18 +1839,18 @@ function setReferenceImageInTreeBoxNode(parent, node, reference_image, filename_
                   console.writeln("setReferenceImageInTreeBoxNode found reference image, filter " + filter + ", file " + node.filename);
                   // Invert the flag, either set or clear it
                   node.reference_image = true;
-                  updateTreeBoxNodeFromFlags(parent, node);
-                  set_user_selected_reference_image(node.filename, filter);
+                  this.updateTreeBoxNodeFromFlags(parent, node);
+                  this.set_user_selected_reference_image(node.filename, filter);
             } else if (node.reference_image) {
                   // console.writeln("setReferenceImageInTreeBoxNode clear old reference image " + node.filename);
                   // Clear old reference image flag
                   node.reference_image = false;
-                  updateTreeBoxNodeFromFlags(parent, node);
+                  this.updateTreeBoxNodeFromFlags(parent, node);
             }
             return;
       } else {
             for (var i = 0; i < node.numberOfChildren; i++) {
-                  setReferenceImageInTreeBoxNode(parent, node.child(i), reference_image, filename_postfix, filter);
+                  this.setReferenceImageInTreeBoxNode(parent, node.child(i), reference_image, filename_postfix, filter);
             }
       }
 }
@@ -1861,7 +1861,7 @@ function setReferenceImageInTreeBox(parent, node, reference_image, filename_post
       if (node.numberOfChildren == 0) {
             return;
       } else {
-            setReferenceImageInTreeBoxNode(parent, node, reference_image, filename_postfix, filter);
+            this.setReferenceImageInTreeBoxNode(parent, node, reference_image, filename_postfix, filter);
       }
 }
 
@@ -1870,7 +1870,7 @@ function guiSubframeSelectorMeasure(fileNames, weight_filtering, treebox_filteri
       console.writeln("guiSubframeSelectorMeasure: fileNames.length " +  fileNames.length +", saved_measurements.length " + (global.saved_measurements ? global.saved_measurements.length : 0));
       if (global.saved_measurements && fileNames.length != global.saved_measurements.length) {
             console.writeln("guiSubframeSelectorMeasure: fileNames.length != global.saved_measurements.length, need to measure all files");
-            if (okToMeasureAllFiles(fileNames.length, global.saved_measurements.length)) {
+            if (this.okToMeasureAllFiles(fileNames.length, global.saved_measurements.length)) {
                   // User confirmed, clear old measurements
                   console.writeln("guiSubframeSelectorMeasure: clearing old measurements");
                   global.saved_measurements = null;
@@ -1898,7 +1898,7 @@ function findBestImageFromTreeBoxFiles(treebox)
             return false;
       }
 
-      if (global.saved_measurements == null && !okToRunSubframeSelector()) {
+      if (global.saved_measurements == null && !this.okToRunSubframeSelector()) {
             return false;
       }
       util.addStatusInfo("Finding...");
@@ -1906,13 +1906,13 @@ function findBestImageFromTreeBoxFiles(treebox)
       var checked_files = [];
       var unchecked_files = [];
 
-      getTreeBoxFileNamesCheckedIf(treebox, checked_files, true);
-      getTreeBoxFileNamesCheckedIf(treebox, unchecked_files, false);
+      this.getTreeBoxFileNamesCheckedIf(treebox, checked_files, true);
+      this.getTreeBoxFileNamesCheckedIf(treebox, unchecked_files, false);
 
       var all_files = checked_files.concat(unchecked_files);
 
       // get array of [ filename, weight ]
-      var ssWeights = guiSubframeSelectorMeasure(checked_files, false, false, all_files);
+      var ssWeights = this.guiSubframeSelectorMeasure(checked_files, false, false, all_files);
 
       filtering_changed = false;
 
@@ -1946,13 +1946,13 @@ function findBestImageFromTreeBoxFiles(treebox)
                   } else {
                         console.writeln("Filter " + filter + ", " + filePath + ", SSWEIGHT=" + SSWEIGHT);
                   }
-                  setTreeBoxSsweight(treebox, filePath, SSWEIGHT, "");
+                  this.setTreeBoxSsweight(treebox, filePath, SSWEIGHT, "");
             }
             if (bestSSWEIGHTindex == -1) {
                   console.noteln("findBestImageFromTreeBoxFiles, no SSWEIGHT for filter " + filter);
             } else {
                   console.noteln("Filter " + filter + ", " + files[bestSSWEIGHTindex].name + ", best SSWEIGHT=" + bestSSWEIGHTvalue);
-                  set_user_selected_reference_image(files[bestSSWEIGHTindex].name, filter);
+                  this.set_user_selected_reference_image(files[bestSSWEIGHTindex].name, filter);
 
                   if (bestSSWEIGHTvalue > globalBestSSWEIGHTvalue) {
                         globalBestSSWEIGHTvalue = bestSSWEIGHTvalue;
@@ -1988,7 +1988,7 @@ function updateSectionsInTreeBoxNode(node)
                   }
             }
             for (var i = 0; i < node.numberOfChildren; i++) {
-                  updateSectionsInTreeBoxNode(node.child(i));
+                  this.updateSectionsInTreeBoxNode(node.child(i));
             }
       }
 }
@@ -1998,7 +1998,7 @@ function updateSectionsInTreeBox(node)
       if (node.numberOfChildren == 0) {
             return;
       } else {
-            updateSectionsInTreeBoxNode(node);
+            this.updateSectionsInTreeBoxNode(node);
       }
 }
 
@@ -2009,7 +2009,7 @@ function getTreeBoxNodeFileCount(node)
       } else {
             var cnt = 0;
             for (var i = 0; i < node.numberOfChildren; i++) {
-                  cnt = cnt + getTreeBoxNodeFileCount(node.child(i));
+                  cnt = cnt + this.getTreeBoxNodeFileCount(node.child(i));
             }
             return cnt;
       }
@@ -2020,7 +2020,7 @@ function getTreeBoxFileCount(node)
       if (node.numberOfChildren == 0) {
             return 0;
       } else {
-            return getTreeBoxNodeFileCount(node);
+            return this.getTreeBoxNodeFileCount(node);
       }
 }
 
@@ -2030,7 +2030,7 @@ function checkAllTreeBoxNodeFiles(node, checked)
             node.checked = checked;
       } else {
             for (var i = 0; i < node.numberOfChildren; i++) {
-                  checkAllTreeBoxNodeFiles(node.child(i), checked);
+                  this.checkAllTreeBoxNodeFiles(node.child(i), checked);
             }
       }
 }
@@ -2039,7 +2039,7 @@ function checkAllTreeBoxFiles(node, checked)
       if (node.numberOfChildren == 0) {
             return 0;
       } else {
-            return checkAllTreeBoxNodeFiles(node, checked);
+            return this.checkAllTreeBoxNodeFiles(node, checked);
       }
 }
 
@@ -2049,12 +2049,12 @@ function setTreeBoxNodeSsweight(node, filename, ssweight, filename_postfix)
             if (util.compareReferenceFileNames(filename, node.filename, filename_postfix)) {
                   node.ssweight = ssweight;
                   node.measurement_text = engine.measurementTextForFilename(node.filename);
-                  updateTreeBoxNodeToolTip(node);
+                  this.updateTreeBoxNodeToolTip(node);
                   return true;
             }
       } else {
             for (var i = 0; i < node.numberOfChildren; i++) {
-                  if (setTreeBoxNodeSsweight(node.child(i), filename, ssweight, filename_postfix)) {
+                  if (this.setTreeBoxNodeSsweight(node.child(i), filename, ssweight, filename_postfix)) {
                         return true;
                   }
             }
@@ -2067,7 +2067,7 @@ function setTreeBoxSsweight(node, filename, ssweight, filename_postfix)
       if (node.numberOfChildren == 0) {
             return false;
       } else {
-            return setTreeBoxNodeSsweight(node, filename, ssweight, filename_postfix);
+            return this.setTreeBoxNodeSsweight(node, filename, ssweight, filename_postfix);
       }
 }
 
@@ -2079,7 +2079,7 @@ function getTreeBoxNodeFileNamesCheckedIf(node, filenames, checked)
             }
       } else {
             for (var i = 0; i < node.numberOfChildren; i++) {
-                  getTreeBoxNodeFileNamesCheckedIf(node.child(i), filenames, checked);
+                  this.getTreeBoxNodeFileNamesCheckedIf(node.child(i), filenames, checked);
             }
       }
 }
@@ -2087,7 +2087,7 @@ function getTreeBoxNodeFileNamesCheckedIf(node, filenames, checked)
 function getTreeBoxFileNamesCheckedIf(node, filenames, checked)
 {
       if (node.numberOfChildren > 0) {
-            getTreeBoxNodeFileNamesCheckedIf(node, filenames, checked);
+            this.getTreeBoxNodeFileNamesCheckedIf(node, filenames, checked);
       }
 }
 
@@ -2105,7 +2105,7 @@ function getTreeBoxNodeFiles(node, treeboxfiles)
             }
       } else {
             for (var i = 0; i < node.numberOfChildren; i++) {
-                  getTreeBoxNodeFiles(node.child(i), treeboxfiles);
+                  this.getTreeBoxNodeFiles(node.child(i), treeboxfiles);
             }
       }
 }
@@ -2118,7 +2118,7 @@ function getTreeBoxNodeCheckedFileNames(node, filenames)
             }
       } else {
             for (var i = 0; i < node.numberOfChildren; i++) {
-                  getTreeBoxNodeCheckedFileNames(node.child(i), filenames);
+                  this.getTreeBoxNodeCheckedFileNames(node.child(i), filenames);
             }
       }
 }
@@ -2131,7 +2131,7 @@ function findFileFromTreeBoxNode(node, filename)
             }
       } else {
             for (var i = 0; i < node.numberOfChildren; i++) {
-                  if (findFileFromTreeBoxNode(node.child(i), filename)) {
+                  if (this.findFileFromTreeBoxNode(node.child(i), filename)) {
                         return true;
                   }
             }
@@ -2144,7 +2144,7 @@ function findFileFromTreeBox(node, filename)
       if (node.numberOfChildren == 0) {
             return false;
       } else {
-            return findFileFromTreeBoxNode(node, filename);
+            return this.findFileFromTreeBoxNode(node, filename);
       }
 }
 
@@ -2155,7 +2155,7 @@ function setExpandedTreeBoxNode(node, expanded)
                   if (node.collapsable) {
                         node.expanded = expanded;
                   }
-                  setExpandedTreeBoxNode(node.child(i), expanded);
+                  this.setExpandedTreeBoxNode(node.child(i), expanded);
             }
       }
 }
@@ -2179,12 +2179,12 @@ function metricsVisualizerCheck(parent)
             console.writeln("Once measurements are done they can be saved to a Json file using the Setup file save button.");
             console.writeln("Measurements are also saved to the AutosaveSetup.json file after processing. Loading a Json file will also load the measurements.");
 
-            if (!measureTreeBoxFiles(parent, global.pages.LIGHTS)) {
+            if (!this.measureTreeBoxFiles(parent, global.pages.LIGHTS)) {
                   return false;
             }
       } else if (filtering_changed) {
             console.writeln("Metrics visualizer, measurements changed, re-measuring...");
-            if (!measureTreeBoxFiles(parent, global.pages.LIGHTS)) {
+            if (!this.measureTreeBoxFiles(parent, global.pages.LIGHTS)) {
                   console.writeln("Metrics visualizer, re-measuring failed, no measurements to visualize");
                   return false;
             }
@@ -2199,7 +2199,7 @@ function metricsVisualizerSSWEIGHT(parent)
 
       var changes = filtering_changed;
 
-      if (!metricsVisualizerCheck(parent)) {
+      if (!this.metricsVisualizerCheck(parent)) {
             return;
       }
       var data  = [];
@@ -2230,9 +2230,9 @@ function metricsVisualizerSSWEIGHT(parent)
                   par.ssweight_limit.reset();
                   util.updateStatusInfoLabel("Metrics visualizer, update SSWEIGHT limit to " + data[0].limit, true);
                   // Mark all light files as checked
-                  checkAllTreeBoxFiles(parent.dialog.treeBox[global.pages.LIGHTS], true);
+                  this.checkAllTreeBoxFiles(parent.dialog.treeBox[global.pages.LIGHTS], true);
                   // Update all treebox files with new limits
-                  filterTreeBoxFiles(parent.dialog, global.pages.LIGHTS);
+                  this.filterTreeBoxFiles(parent.dialog, global.pages.LIGHTS);
             } else {
                   util.updateStatusInfoLabel("Metrics visualizer, no changes to SSWEIGHT limit", true);
             }
@@ -2247,7 +2247,7 @@ function metricsVisualizerFilters(parent)
 
       var changes = filtering_changed;
 
-      if (!metricsVisualizerCheck(parent)) {
+      if (!this.metricsVisualizerCheck(parent)) {
             return;
       }
 
@@ -2319,9 +2319,9 @@ function metricsVisualizerFilters(parent)
             if (changes) {
                   util.updateStatusInfoLabel("Metrics visualizer, filter limits changed", true);
                   // Mark all light files as checked
-                  checkAllTreeBoxFiles(parent.dialog.treeBox[global.pages.LIGHTS], true);
+                  this.checkAllTreeBoxFiles(parent.dialog.treeBox[global.pages.LIGHTS], true);
                   // Update all treebox files with new limits
-                  filterTreeBoxFiles(parent.dialog, global.pages.LIGHTS);
+                  this.filterTreeBoxFiles(parent.dialog, global.pages.LIGHTS);
             } else {
                   util.updateStatusInfoLabel("Metrics visualizer, no changes to filter limits", true);
             }
@@ -2364,7 +2364,7 @@ function measureTreeBoxFiles(parent, pageIndex)
             return false;
       }
 
-      if (global.saved_measurements == null && !okToRunSubframeSelector()) {
+      if (global.saved_measurements == null && !this.okToRunSubframeSelector()) {
             return false;
       }
       console.noteln("Measuring...");
@@ -2374,12 +2374,12 @@ function measureTreeBoxFiles(parent, pageIndex)
       var checked_files = [];
       var unchecked_files = [];
 
-      getTreeBoxFileNamesCheckedIf(treebox, checked_files, true);
-      getTreeBoxFileNamesCheckedIf(treebox, unchecked_files, false);
+      this.getTreeBoxFileNamesCheckedIf(treebox, checked_files, true);
+      this.getTreeBoxFileNamesCheckedIf(treebox, unchecked_files, false);
 
       var all_files = checked_files.concat(unchecked_files);
 
-      guiSubframeSelectorMeasure(all_files, false, false, all_files);
+      this.guiSubframeSelectorMeasure(all_files, false, false, all_files);
 
       filtering_changed = false;
 
@@ -2393,7 +2393,7 @@ function filterTreeBoxFiles(parent, pageIndex)
       console.show();
 
       if (global.saved_measurements == null) {
-            if (!measureTreeBoxFiles(parent, pageIndex)) {
+            if (!this.measureTreeBoxFiles(parent, pageIndex)) {
                   util.updateStatusInfoLabel("No measurements available, cannot filter files.", true);
                   return;
             }
@@ -2412,20 +2412,20 @@ function filterTreeBoxFiles(parent, pageIndex)
       var checked_files = [];
       var unchecked_files = [];
 
-      getTreeBoxFileNamesCheckedIf(treebox, checked_files, true);
-      getTreeBoxFileNamesCheckedIf(treebox, unchecked_files, false);
+      this.getTreeBoxFileNamesCheckedIf(treebox, checked_files, true);
+      this.getTreeBoxFileNamesCheckedIf(treebox, unchecked_files, false);
 
       var all_files = checked_files.concat(unchecked_files);
 
       // get treeboxfiles which is array of [ filename, checked, weight ]
       // sorted by weight
-      var treeboxfiles = guiSubframeSelectorMeasure(checked_files, true, true, all_files, par.sort_order_type.val);
+      var treeboxfiles = this.guiSubframeSelectorMeasure(checked_files, true, true, all_files, par.sort_order_type.val);
 
       filtering_changed = false;
       util.updateStatusInfoLabel("Filtering done, " + treeboxfiles.length + " files", true);
 
       // mark old unchecked files as unchecked
-      filenamesToTreeboxfiles(treeboxfiles, unchecked_files, false);
+      this.filenamesToTreeboxfiles(treeboxfiles, unchecked_files, false);
 
       console.writeln("filterTreeBoxFiles " + treeboxfiles.length + " files");
 
@@ -2433,7 +2433,7 @@ function filterTreeBoxFiles(parent, pageIndex)
       parent.treeBox[pageIndex].clear();
 
       // add new filtered file list
-      addFilesToTreeBox(parent, pageIndex, treeboxfiles);
+      this.addFilesToTreeBox(parent, pageIndex, treeboxfiles);
 
       console.writeln("filterTreeBoxFiles, this.addFilesToTreeBox done");
 
@@ -2456,7 +2456,7 @@ function getFilesFromTreebox(parent)
                   var filenames = null;
             } else {
                   var filenames = [];
-                  getTreeBoxNodeCheckedFileNames(treeBox, filenames);
+                  this.getTreeBoxNodeCheckedFileNames(treeBox, filenames);
             }
 
             switch (pageIndex) {
@@ -2489,7 +2489,7 @@ function getNewTreeBoxFiles(parent, pageIndex, imageFileNames, skip_old_files = 
       var treeboxfiles = [];
 
       if (treeBox.numberOfChildren > 0 && !skip_old_files) {
-            getTreeBoxNodeFiles(treeBox, treeboxfiles);
+            this.getTreeBoxNodeFiles(treeBox, treeboxfiles);
       }
 
       for (var i = 0; i < imageFileNames.length; i++) {
@@ -2512,7 +2512,7 @@ function addFilteredFilesToTreeBox(parent, pageIndex, newImageFileNames, skip_ol
       if (global.debug) console.writeln("addFilteredFilesToTreeBox " + pageIndex);
 
       // ensure we have treeboxfiles which is array of [ filename, checked, weight, best_image, reference_image ]
-      var treeboxfiles = getNewTreeBoxFiles(parent, pageIndex, newImageFileNames, skip_old_files);
+      var treeboxfiles = this.getNewTreeBoxFiles(parent, pageIndex, newImageFileNames, skip_old_files);
 
       var filteredFiles = engine.getFilterFiles(treeboxfiles, pageIndex, '');
       if (filteredFiles.filecount == 0) {
@@ -2566,7 +2566,7 @@ function addFilteredFilesToTreeBox(parent, pageIndex, newImageFileNames, skip_ol
                               if (global.debug) console.criticalln("addFilteredFilesToTreeBox, no file " + filterFiles[j].name);
                               continue;
                         }
-                        if (findFileFromTreeBox(files_TreeBox, filterFiles[j].name)) {
+                        if (this.findFileFromTreeBox(files_TreeBox, filterFiles[j].name)) {
                               if (global.debug) console.writeln("Skipping duplicate file " + filterFiles[j].name);
                               continue;
                         }
@@ -2598,7 +2598,7 @@ function addFilteredFilesToTreeBox(parent, pageIndex, newImageFileNames, skip_ol
                         } else {
                               node.lightsnode = false;
                         }
-                        updateTreeBoxNodeToolTip(node);
+                        this.updateTreeBoxNodeToolTip(node);
                         if (pageIndex == global.pages.LIGHTS && filterFiles[j].name.indexOf("best_image") != -1) {
                               filename_best_image = filterFiles[j].name;
                         }
@@ -2615,12 +2615,12 @@ function addFilteredFilesToTreeBox(parent, pageIndex, newImageFileNames, skip_ol
 
       if (pageIndex == global.pages.LIGHTS) {
             if (global.user_selected_best_image != null) {
-                  setBestImageInTreeBox(parent, parent.treeBox[global.pages.LIGHTS], global.user_selected_best_image, "");
+                  this.setBestImageInTreeBox(parent, parent.treeBox[global.pages.LIGHTS], global.user_selected_best_image, "");
             } else if (filename_best_image != null) {
-                  setBestImageInTreeBox(parent, parent.treeBox[global.pages.LIGHTS], filename_best_image, "");
+                  this.setBestImageInTreeBox(parent, parent.treeBox[global.pages.LIGHTS], filename_best_image, "");
             }
             for (var i = 0; i < global.user_selected_reference_image.length; i++)  {
-                  setReferenceImageInTreeBox(
+                  this.setReferenceImageInTreeBox(
                         parent, 
                         parent.treeBox[global.pages.LIGHTS], 
                         global.user_selected_reference_image[i][0],
@@ -2630,7 +2630,7 @@ function addFilteredFilesToTreeBox(parent, pageIndex, newImageFileNames, skip_ol
       }
 
       if (preview_file_name != null) {
-            updatePreviewFilenameAndInfo(preview_file_name, true, true);
+            this.updatePreviewFilenameAndInfo(preview_file_name, true, true);
             current_selected_file_name = preview_file_name;
             current_selected_file_filter = preview_file_filter;
       }
@@ -2642,7 +2642,7 @@ function addUnfilteredFilesToTreeBox(parent, pageIndex, newImageFileNames, skip_
 
       var files_TreeBox = parent.treeBox[pageIndex];
 
-      var treeboxfiles = getNewTreeBoxFiles(parent, pageIndex, newImageFileNames, skip_old_files);
+      var treeboxfiles = this.getNewTreeBoxFiles(parent, pageIndex, newImageFileNames, skip_old_files);
       
       files_TreeBox.clear();
 
@@ -2652,7 +2652,7 @@ function addUnfilteredFilesToTreeBox(parent, pageIndex, newImageFileNames, skip_
                   console.criticalln("addUnfilteredFilesToTreeBox, no file " + treeboxfiles[i][0]);
                   continue;
             }
-            if (findFileFromTreeBox(files_TreeBox, treeboxfiles[i][0])) {
+            if (this.findFileFromTreeBox(files_TreeBox, treeboxfiles[i][0])) {
                   console.writeln("Skipping duplicate file " + treeboxfiles[i][0]);
                   continue;
             }
@@ -2675,7 +2675,7 @@ function addExptimeGroupedFilesToTreeBox(parent, pageIndex, newImageFileNames, s
 {
       console.writeln("addExptimeGroupedFilesToTreeBox " + pageIndex);
 
-      var treeboxfiles = getNewTreeBoxFiles(parent, pageIndex, newImageFileNames, skip_old_files);
+      var treeboxfiles = this.getNewTreeBoxFiles(parent, pageIndex, newImageFileNames, skip_old_files);
       if (treeboxfiles.length == 0) {
             if (global.debug) console.writeln("addExptimeGroupedFilesToTreeBox no files");
             return;
@@ -2727,7 +2727,7 @@ function addExptimeGroupedFilesToTreeBox(parent, pageIndex, newImageFileNames, s
                         console.criticalln("addExptimeGroupedFilesToTreeBox, no file " + fileEntry[0]);
                         continue;
                   }
-                  if (findFileFromTreeBox(files_TreeBox, fileEntry[0])) {
+                  if (this.findFileFromTreeBox(files_TreeBox, fileEntry[0])) {
                         console.writeln("Skipping duplicate file " + fileEntry[0]);
                         continue;
                   }
@@ -2757,13 +2757,13 @@ function addFilesToTreeBox(parent, pageIndex, imageFileNames, skip_old_files = f
             case global.pages.LIGHTS:
             case global.pages.FLATS:
             case global.pages.FLAT_DARKS:
-                  addFilteredFilesToTreeBox(parent, pageIndex, imageFileNames, skip_old_files);
+                  this.addFilteredFilesToTreeBox(parent, pageIndex, imageFileNames, skip_old_files);
                   break;
             case global.pages.DARKS:
-                  addExptimeGroupedFilesToTreeBox(parent, pageIndex, imageFileNames, skip_old_files);
+                  this.addExptimeGroupedFilesToTreeBox(parent, pageIndex, imageFileNames, skip_old_files);
                   break;
             case global.pages.BIAS:
-                  addUnfilteredFilesToTreeBox(parent, pageIndex, imageFileNames, skip_old_files);
+                  this.addUnfilteredFilesToTreeBox(parent, pageIndex, imageFileNames, skip_old_files);
                   break;
             default:
                   util.throwFatalError("addFilesToTreeBox bad pageIndex " + pageIndex);
@@ -2776,14 +2776,14 @@ function loadJsonFileCallback(parent, pagearray)
 
       // page array of treebox files names
       for (var i = 0; i < pagearray.length; i++) {
-            addFilesToTreeBox(parent, i, pagearray[i], true);
+            this.addFilesToTreeBox(parent, i, pagearray[i], true);
       }
-      updateInfoLabel(parent);
-      updateExclusionAreaLabel(parent);
+      this.updateInfoLabel(parent);
+      this.updateExclusionAreaLabel(parent);
       if (par.show_flowchart.val && global.flowchartData != null) {
-            flowchartUpdated();
+            this.flowchartUpdated();
       }
-      updateParameterDependencies(parent.dialog);
+      this.updateParameterDependencies(parent.dialog);
 }
 
 function addOneFilesButton(parent, filetype, pageIndex, toolTip)
@@ -2811,22 +2811,22 @@ function addOneFilesButton(parent, filetype, pageIndex, toolTip)
                         var imagetypes = engine.getImagetypFiles(imageFileNames);
                         for (var i = 0; i < global.pages.END; i++) {
                               if (imagetypes[i].length > 0) {
-                                    addFilesToTreeBox(parent, i, imagetypes[i]);
+                                    this.addFilesToTreeBox(parent, i, imagetypes[i]);
                               }
                         }
                   } else {
-                        addFilesToTreeBox(parent, pageIndex, imageFileNames);
+                        this.addFilesToTreeBox(parent, pageIndex, imageFileNames);
                   }
             } else {
                   // page array of treebox files names
                   for (var i = 0; i < pagearray.length; i++) {
                         if (pagearray[i] != null) {
-                              addFilesToTreeBox(parent, i, pagearray[i]);
+                              this.addFilesToTreeBox(parent, i, pagearray[i]);
                         }
                   }
             }
-            updateInfoLabel(parent);
-            updateExclusionAreaLabel(parent);
+            this.updateInfoLabel(parent);
+            this.updateExclusionAreaLabel(parent);
             parent.tabBox.currentPageIndex = pageIndex;
       };
       return filesAdd_Button;
@@ -2870,7 +2870,7 @@ function addMastersButton(parent)
             var firstPageIndex = -1;
 
             if (imagetypes[global.pages.BIAS].length > 0) {
-                  addFilesToTreeBox(parent, global.pages.BIAS, imagetypes[global.pages.BIAS]);
+                  this.addFilesToTreeBox(parent, global.pages.BIAS, imagetypes[global.pages.BIAS]);
                   par.bias_master_files.val = true;
                   if (parent.biasMasterFilesCheckBox) {
                         parent.biasMasterFilesCheckBox.checked = true;
@@ -2878,7 +2878,7 @@ function addMastersButton(parent)
                   if (firstPageIndex == -1) firstPageIndex = global.pages.BIAS;
             }
             if (imagetypes[global.pages.DARKS].length > 0) {
-                  addFilesToTreeBox(parent, global.pages.DARKS, imagetypes[global.pages.DARKS]);
+                  this.addFilesToTreeBox(parent, global.pages.DARKS, imagetypes[global.pages.DARKS]);
                   par.dark_master_files.val = true;
                   if (parent.darkMasterFilesCheckBox) {
                         parent.darkMasterFilesCheckBox.checked = true;
@@ -2886,7 +2886,7 @@ function addMastersButton(parent)
                   if (firstPageIndex == -1) firstPageIndex = global.pages.DARKS;
             }
             if (imagetypes[global.pages.FLATS].length > 0) {
-                  addFilesToTreeBox(parent, global.pages.FLATS, imagetypes[global.pages.FLATS]);
+                  this.addFilesToTreeBox(parent, global.pages.FLATS, imagetypes[global.pages.FLATS]);
                   par.flat_master_files.val = true;
                   if (parent.flatMasterFilesCheckBox) {
                         parent.flatMasterFilesCheckBox.checked = true;
@@ -2894,7 +2894,7 @@ function addMastersButton(parent)
                   if (firstPageIndex == -1) firstPageIndex = global.pages.FLATS;
             }
             if (imagetypes[global.pages.FLAT_DARKS].length > 0) {
-                  addFilesToTreeBox(parent, global.pages.FLAT_DARKS, imagetypes[global.pages.FLAT_DARKS]);
+                  this.addFilesToTreeBox(parent, global.pages.FLAT_DARKS, imagetypes[global.pages.FLAT_DARKS]);
                   par.flat_dark_master_files.val = true;
                   if (parent.flatDarkMasterFilesCheckBox) {
                         parent.flatDarkMasterFilesCheckBox.checked = true;
@@ -2902,8 +2902,8 @@ function addMastersButton(parent)
                   if (firstPageIndex == -1) firstPageIndex = global.pages.FLAT_DARKS;
             }
 
-            updateInfoLabel(parent);
-            updateExclusionAreaLabel(parent);
+            this.updateInfoLabel(parent);
+            this.updateExclusionAreaLabel(parent);
 
             if (firstPageIndex != -1) {
                   parent.tabBox.currentPageIndex = firstPageIndex;
@@ -2929,7 +2929,7 @@ function addTargetType(parent)
       global.rootingArr.push(targetTypeComboBox);
       targetTypeComboBox.onItemSelected = function(itemIndex) {
             targetTypeComboBox.aiParam.val = targetTypeComboBox.aiValarray[itemIndex];
-            updateParameterDependencies(this.dialog);
+            this.updateParameterDependencies(this.dialog);
       }
 
       var outputdir_Sizer = new HorizontalSizer;
@@ -2951,7 +2951,7 @@ function switchToSimpleMode(parent)
       for (var i = 0; i < global.tabs.length; i++) {
             var tab = global.tabs[i];
             if (tab.expert_mode) {
-                  var j = findPageIndexByName(parent.mainTabBox, tab.name);
+                  var j = this.findPageIndexByName(parent.mainTabBox, tab.name);
                   if (j != -1) {
                         parent.mainTabBox.removePage(j);
                   }
@@ -3037,7 +3037,7 @@ function addExpertMode(parent)
       parent.simpleRadio.checked = !global.expert_mode;
       parent.simpleRadio.onCheck = function(checked) {
             if (checked) {
-                  switchToSimpleMode(parent);
+                  this.switchToSimpleMode(parent);
             }
       };
 
@@ -3048,7 +3048,7 @@ function addExpertMode(parent)
       parent.expertRadio.checked = global.expert_mode;
       parent.expertRadio.onCheck = function(checked) {
             if (checked) {
-                  switchToExpertMode(parent);
+                  this.switchToExpertMode(parent);
             }
       };
 
@@ -3076,9 +3076,9 @@ function addExpertMode(parent)
 
 function newRow2Obj(parent)
 {
-      var wpobj = addWinPrefix(parent);
+      var wpobj = this.addWinPrefix(parent);
       var winprefix_sizer = wpobj.sizer;
-      var otobj = addOutputDir(parent);
+      var otobj = this.addOutputDir(parent);
       var outputdir_sizer = otobj.sizer;
 
       var filesButtons_Sizer2 = new HorizontalSizer;
@@ -3095,12 +3095,12 @@ function newRow2Obj(parent)
 function addFilesButtons(parent)
 {
       var buttons = {
-            addLightsButton: addOneFilesButton(parent, "Lights", global.pages.LIGHTS, parent.filesToolTip[global.pages.LIGHTS]),
-            addMastersButton: addMastersButton(parent),
-            addBiasButton: addOneFilesButton(parent, "Bias", global.pages.BIAS, parent.filesToolTip[global.pages.BIAS]),
-            addDarksButton: addOneFilesButton(parent, "Darks", global.pages.DARKS, parent.filesToolTip[global.pages.DARKS]),
-            addFlatsButton: addOneFilesButton(parent, "Flats", global.pages.FLATS, parent.filesToolTip[global.pages.FLATS]),
-            addFlatDarksButton: addOneFilesButton(parent, "Flat Darks", global.pages.FLAT_DARKS, parent.filesToolTip[global.pages.FLAT_DARKS])
+            addLightsButton: this.addOneFilesButton(parent, "Lights", global.pages.LIGHTS, parent.filesToolTip[global.pages.LIGHTS]),
+            addMastersButton: this.addMastersButton(parent),
+            addBiasButton: this.addOneFilesButton(parent, "Bias", global.pages.BIAS, parent.filesToolTip[global.pages.BIAS]),
+            addDarksButton: this.addOneFilesButton(parent, "Darks", global.pages.DARKS, parent.filesToolTip[global.pages.DARKS]),
+            addFlatsButton: this.addOneFilesButton(parent, "Flats", global.pages.FLATS, parent.filesToolTip[global.pages.FLATS]),
+            addFlatDarksButton: this.addOneFilesButton(parent, "Flat Darks", global.pages.FLAT_DARKS, parent.filesToolTip[global.pages.FLAT_DARKS])
       };
 
       var directoryCheckBox = guitools.newCheckBox(parent, "Directory", par.open_directory, 
@@ -3177,9 +3177,9 @@ function addOneFileManualFilterButton(parent, filetype, pageIndex)
                   for (var i = 0; i < imageFileNames.length; i++) {
                         util.addFilterSetFile(filterSet, imageFileNames[i], filetype);
                   }
-                  addFilesToTreeBox(parent, pageIndex, imageFileNames);
-                  updateInfoLabel(parent);
-                  updateExclusionAreaLabel(parent);
+                  this.addFilesToTreeBox(parent, pageIndex, imageFileNames);
+                  this.updateInfoLabel(parent);
+                  this.updateExclusionAreaLabel(parent);
             }
       };
       return filesAdd_Button;
@@ -3189,21 +3189,21 @@ function addFileFilterButtons(parent, pageIndex)
 {
       var buttonsControl = new Control(parent);
       buttonsControl.sizer = new HorizontalSizer;
-      buttonsControl.sizer.add(addOneFileManualFilterButton(parent, 'L', pageIndex));
-      buttonsControl.sizer.add(addOneFileManualFilterButton(parent, 'R', pageIndex));
-      buttonsControl.sizer.add(addOneFileManualFilterButton(parent, 'G', pageIndex));
-      buttonsControl.sizer.add(addOneFileManualFilterButton(parent, 'B', pageIndex));
-      buttonsControl.sizer.add(addOneFileManualFilterButton(parent, 'H', pageIndex));
-      buttonsControl.sizer.add(addOneFileManualFilterButton(parent, 'S', pageIndex));
-      buttonsControl.sizer.add(addOneFileManualFilterButton(parent, 'O', pageIndex));
-      buttonsControl.sizer.add(addOneFileManualFilterButton(parent, 'C', pageIndex));
+      buttonsControl.sizer.add(this.addOneFileManualFilterButton(parent, 'L', pageIndex));
+      buttonsControl.sizer.add(this.addOneFileManualFilterButton(parent, 'R', pageIndex));
+      buttonsControl.sizer.add(this.addOneFileManualFilterButton(parent, 'G', pageIndex));
+      buttonsControl.sizer.add(this.addOneFileManualFilterButton(parent, 'B', pageIndex));
+      buttonsControl.sizer.add(this.addOneFileManualFilterButton(parent, 'H', pageIndex));
+      buttonsControl.sizer.add(this.addOneFileManualFilterButton(parent, 'S', pageIndex));
+      buttonsControl.sizer.add(this.addOneFileManualFilterButton(parent, 'O', pageIndex));
+      buttonsControl.sizer.add(this.addOneFileManualFilterButton(parent, 'C', pageIndex));
       buttonsControl.visible = false;
       return buttonsControl;
 }
 
 function addFileFilterButtonSectionBar(parent, pageIndex)
 {
-      var control = addFileFilterButtons(parent, pageIndex);
+      var control = this.addFileFilterButtons(parent, pageIndex);
 
       var sb = new SectionBar(parent, "Add filter files manually");
       global.rootingArr.push(sb);
@@ -3263,11 +3263,11 @@ function blink_y(imageWindow, y)
 
 function inside_image(imageWindow, x, y)
 {
-      var new_x = blink_x(imageWindow, x);
+      var new_x = this.blink_x(imageWindow, x);
       if (new_x.overflow) {
             return false;
       }
-      var new_y = blink_y(imageWindow, y);
+      var new_y = this.blink_y(imageWindow, y);
       if (new_y.overflow) {
             return false;
       }
@@ -3278,7 +3278,7 @@ function blinkWindowZoomedUpdate(imageWindow, x, y)
 {
       console.writeln("blinkWindowZoomedUpdate, x=" + x + ", y=" + y);
 
-      if (inside_image(imageWindow, 0, 0) || inside_image(imageWindow, x, y)) {
+      if (this.inside_image(imageWindow, 0, 0) || this.inside_image(imageWindow, x, y)) {
             // old or new position is inside image, update position
             blink_zoom_x = blink_zoom_x + x;
             blink_zoom_y = blink_zoom_y + y;
@@ -3287,8 +3287,8 @@ function blinkWindowZoomedUpdate(imageWindow, x, y)
             console.writeln("blinkWindowZoomedUpdate, use old blink_zoom_x=" + blink_zoom_x + ", blink_zoom_y=" + blink_zoom_y);
       }
 
-      var point_x = blink_x(imageWindow, 0);
-      var point_y = blink_y(imageWindow, 0);
+      var point_x = this.blink_x(imageWindow, 0);
+      var point_y = this.blink_y(imageWindow, 0);
 
       console.writeln("blinkWindowZoomedUpdate, image.width=" + point_x.imageWidth + ", image.height=" + point_y.imageHeight);
       console.writeln("blinkWindowZoomedUpdate, viewportWidth=" + point_x.viewportWidth + ", viewportHeight=" + point_y.viewportHeight);
@@ -3338,7 +3338,7 @@ function filesTreeBox(parent, optionsSizer, pageIndex)
                         if (!global.use_preview) {
                               console.hide();
                         } else {
-                              updatePreviewTxt("Processing...");
+                              this.updatePreviewTxt("Processing...");
                         }
                         if (par.debug.val) var start_time = Date.now();
                         console.writeln("files_TreeBox.onCurrentNodeUpdated " + files_TreeBox.currentNode.filename);
@@ -3378,9 +3378,9 @@ function filesTreeBox(parent, optionsSizer, pageIndex)
                         if (par.debug.val) start_time = Date.now();
                         if (!global.use_preview) {
                               engine.autoStretch(imageWindow);
-                              updateImageInfoLabel(imageInfoTxt);
+                              this.updateImageInfoLabel(imageInfoTxt);
                               if (blink_zoom) {
-                                    blinkWindowZoomedUpdate(imageWindow, 0, 0);
+                                    this.blinkWindowZoomedUpdate(imageWindow, 0, 0);
                               }
                               imageWindow.show();
                               if (blink_window != null) {
@@ -3399,7 +3399,7 @@ function filesTreeBox(parent, optionsSizer, pageIndex)
                                           resampled = true;
                                     }
                               }
-                              updatePreviewWinTxt(
+                              this.updatePreviewWinTxt(
                                     imageWindow, 
                                     File.extractName(files_TreeBox.currentNode.filename) + File.extractExtension(files_TreeBox.currentNode.filename),
                                     null,
@@ -3428,7 +3428,7 @@ function filesTreeBox(parent, optionsSizer, pageIndex)
       filesControl.sizer.add(files_TreeBox);
       filesControl.sizer.addSpacing( 4 );
       if (pageIndex == global.pages.LIGHTS || pageIndex == global.pages.FLATS || pageIndex == global.pages.FLAT_DARKS) {
-            let obj = addFileFilterButtonSectionBar(parent, pageIndex);
+            let obj = this.addFileFilterButtonSectionBar(parent, pageIndex);
             global.rootingArr.push(obj);
             filesControl.sizer.add(obj);
       }
@@ -3458,11 +3458,11 @@ function appendInfoTxt(txt, cnt, type)
 function updateInfoLabel(parent)
 {
       var txt = "";
-      txt = appendInfoTxt(txt, getTreeBoxFileCount(parent.treeBox[global.pages.LIGHTS]), "light");
-      txt = appendInfoTxt(txt, getTreeBoxFileCount(parent.treeBox[global.pages.BIAS]), "bias");
-      txt = appendInfoTxt(txt, getTreeBoxFileCount(parent.treeBox[global.pages.DARKS]), "dark");
-      txt = appendInfoTxt(txt, getTreeBoxFileCount(parent.treeBox[global.pages.FLATS]), "flat");
-      txt = appendInfoTxt(txt, getTreeBoxFileCount(parent.treeBox[global.pages.FLAT_DARKS]), "flat dark");
+      txt = this.appendInfoTxt(txt, this.getTreeBoxFileCount(parent.treeBox[global.pages.LIGHTS]), "light");
+      txt = this.appendInfoTxt(txt, this.getTreeBoxFileCount(parent.treeBox[global.pages.BIAS]), "bias");
+      txt = this.appendInfoTxt(txt, this.getTreeBoxFileCount(parent.treeBox[global.pages.DARKS]), "dark");
+      txt = this.appendInfoTxt(txt, this.getTreeBoxFileCount(parent.treeBox[global.pages.FLATS]), "flat");
+      txt = this.appendInfoTxt(txt, this.getTreeBoxFileCount(parent.treeBox[global.pages.FLAT_DARKS]), "flat dark");
 
       console.writeln(txt);
 
@@ -3533,19 +3533,19 @@ function processingCompletedText(success)
 function runAction(parent)
 {
       console.writeln("Run button pressed");
-      exitFromDialog();
+      this.exitFromDialog();
       if (par.integrated_lights.val) {
             console.criticalln("Cannot use Run button with Integrated lights option, Autocontinue button must be used.");
             return;
       }
       guitools.current_preview.image = null;
       guitools.current_preview.image_versions = [];
-      updateWindowPrefix();
-      getFilesFromTreebox(parent.dialog);
+      this.updateWindowPrefix();
+      this.getFilesFromTreebox(parent.dialog);
       global.haveIconized = 0;
-      var index = findPrefixIndex(ppar.win_prefix);
+      var index = this.findPrefixIndex(ppar.win_prefix);
       if (index == -1) {
-            index = findNewPrefixIndex(ppar.userColumnCount == -1);
+            index = this.findNewPrefixIndex(ppar.userColumnCount == -1);
       }
       if (ppar.userColumnCount == -1) {
             global.columnCount = ppar.prefixArray[index][0];
@@ -3556,18 +3556,18 @@ function runAction(parent)
       }
       global.iconStartRow = 0;
       global.write_processing_log_file = true;
-      var success = Autorun(parent);
+      var success = this.Autorun(parent);
       if (global.haveIconized) {
             // We have iconized something so update prefix array
             ppar.prefixArray[index] = [ global.columnCount, ppar.win_prefix, global.haveIconized ];
-            fix_win_prefix_array();
+            this.fix_win_prefix_array();
             if (ppar.userColumnCount != -1 && par.use_manual_icon_column.val) {
                   ppar.userColumnCount = global.columnCount + 1;
                   parent.dialog.columnCountControlComboBox.currentItem = ppar.userColumnCount + 1;
             }
-            savePersistentSettings(false);
+            this.savePersistentSettings(false);
       }
-      processingCompletedText(success);
+      this.processingCompletedText(success);
 }
 
 function newRunButton(parent, toolbutton)
@@ -3575,7 +3575,7 @@ function newRunButton(parent, toolbutton)
       var local_run_action = function()
       {
             if (!global.get_flowchart_data) {
-                  runAction(parent);
+                  this.runAction(parent);
             }
       };
       return guitools.newPushOrToolButton(
@@ -3594,9 +3594,9 @@ function newExitButton(parent, toolbutton)
       {
             console.noteln("AutoIntegrate exiting");
             // save settings at the end
-            savePersistentSettings(true);
-            exitFromDialog();
-            exitCleanup(parent.dialog);
+            this.savePersistentSettings(true);
+            this.exitFromDialog();
+            this.exitCleanup(parent.dialog);
             console.noteln("Close dialog");
             parent.dialog.cancel();
       };
@@ -3637,7 +3637,7 @@ function newAutoContinueButton(parent, toolbutton)
 {
       var autocontinue_action = function()
       {
-            exitFromDialog();
+            this.exitFromDialog();
             console.writeln("Start AutoContinue");
 
             // Do not create subdirectory structure with AutoContinue
@@ -3648,8 +3648,8 @@ function newAutoContinueButton(parent, toolbutton)
                   // If we do not have a fixed output directory then do not use subdirectories 
                   util.clearDefaultDirs();
             }
-            getFilesFromTreebox(parent.dialog);
-            if (isbatchNarrowbandPaletteMode() && engine.autocontinueHasNarrowband()) {
+            this.getFilesFromTreebox(parent.dialog);
+            if (this.isbatchNarrowbandPaletteMode() && engine.autocontinueHasNarrowband()) {
                   var batch_narrowband_palette_mode = true;
             } else {
                   var batch_narrowband_palette_mode = false;
@@ -3658,17 +3658,17 @@ function newAutoContinueButton(parent, toolbutton)
             global.haveIconized = 0;
             global.write_processing_log_file = true;
             try {
-                  updateWindowPrefix();
+                  this.updateWindowPrefix();
                   global.run_auto_continue = true;
                   if (batch_narrowband_palette_mode) {
 
                         engine.autointegrateNarrowbandPaletteBatch(parent.dialog, true);
 
                   } else {
-                        var index = findPrefixIndex(ppar.win_prefix);
+                        var index = this.findPrefixIndex(ppar.win_prefix);
                         if (index == -1) {
                               global.iconStartRow = 0;
-                              index = findNewPrefixIndex(ppar.userColumnCount == -1);
+                              index = this.findNewPrefixIndex(ppar.userColumnCount == -1);
                         } else {
                               // With AutoContinue start icons below current
                               // icons.
@@ -3689,15 +3689,15 @@ function newAutoContinueButton(parent, toolbutton)
                   }
                   global.run_auto_continue = false;
                   util.setDefaultDirs();
-                  update_enhancements_target_image_window_list(null);
+                  this.update_enhancements_target_image_window_list(null);
                   if (global.haveIconized && !batch_narrowband_palette_mode) {
                         // We have iconized something so update prefix array
                         ppar.prefixArray[index] = [ global.columnCount, ppar.win_prefix, Math.max(global.haveIconized, global.iconStartRow) ];
-                        fix_win_prefix_array();
+                        this.fix_win_prefix_array();
                         //parent.columnCountControlComboBox.currentItem = global.columnCount + 1;
-                        savePersistentSettings(false);
+                        this.savePersistentSettings(false);
                   }
-                  processingCompletedText(true);
+                  this.processingCompletedText(true);
             }
             catch(err) {
                   console.criticalln(err);
@@ -3706,8 +3706,8 @@ function newAutoContinueButton(parent, toolbutton)
                   global.run_auto_continue = false;
                   global.is_processing = global.processing_state.none;
                   util.setDefaultDirs();
-                  fix_win_prefix_array();
-                  processingCompletedText(false);
+                  this.fix_win_prefix_array();
+                  this.processingCompletedText(false);
             }
       };
 
@@ -3799,7 +3799,7 @@ function blinkArrowButton(parent, icon, x, y)
             }
             if (blink_window != null && blink_zoom) {
                   console.writeln("blinkArrowButton");
-                  blinkWindowZoomedUpdate(blink_window, x, y);
+                  this.blinkWindowZoomedUpdate(blink_window, x, y);
             }
       };
       return blinkArrowButton;
@@ -3966,40 +3966,40 @@ function newActionSizer(parent)
       actionsSizer.add( obj );
       actionsSizer.addSpacing( 6 );
 
-      obj = newCancelButton(parent, true);
+      obj = this.newCancelButton(parent, true);
       global.rootingArr.push(obj);
       actionsSizer.add( obj );
       actionsSizer.addSpacing( 6 );
 
-      obj = newAutoContinueButton(parent, true);
+      obj = this.newAutoContinueButton(parent, true);
       global.rootingArr.push(obj);
       actionsSizer.add( obj );
       actionsSizer.addSpacing( 6 );
 
-      obj = newRunButton(parent, true);
+      obj = this.newRunButton(parent, true);
       global.rootingArr.push(obj);
       actionsSizer.add( obj );
 
-      obj = newExitButton(parent, true);
+      obj = this.newExitButton(parent, true);
       global.rootingArr.push(obj);
       actionsSizer.add( obj );
       actionsSizer.addSpacing( 12 );
 
-      obj = newCollapeSectionsButton(parent);
+      obj = this.newCollapeSectionsButton(parent);
       global.rootingArr.push(obj);
       actionsSizer.add( obj );
       actionsSizer.addSpacing( 6 );
 
-      obj = newAdjustToContentButton(parent);
+      obj = this.newAdjustToContentButton(parent);
       global.rootingArr.push(obj);
       actionsSizer.add( obj );
       actionsSizer.addSpacing( 12 );
 
-      obj = newMinimizeDialogButton(parent);
+      obj = this.newMinimizeDialogButton(parent);
       global.rootingArr.push(obj);
       actionsSizer.add( obj );
 
-      obj = newMaximizeDialogButton(parent);
+      obj = this.newMaximizeDialogButton(parent);
       global.rootingArr.push(obj);
       actionsSizer.add( obj );
 
@@ -4045,13 +4045,13 @@ function newPageButtonsSizer(parent, jsonSizer, actionSizer)
                         blink_zoom = true;
                         blink_zoom_x = 0;
                         blink_zoom_y = 0;
-                        blinkWindowZoomedUpdate(blink_window, 0, 0);
+                        this.blinkWindowZoomedUpdate(blink_window, 0, 0);
                   }
             };
-            var blinkLeft = blinkArrowButton(parent, ":/icons/arrow-left.png", -1, 0);
-            var blinkRight = blinkArrowButton(parent, ":/icons/arrow-right.png", 1, 0);
-            var blinkUp = blinkArrowButton(parent, ":/icons/arrow-up.png", 0, -1);
-            var blinkDown = blinkArrowButton(parent, ":/icons/arrow-down.png", 0, 1);
+            var blinkLeft = this.blinkArrowButton(parent, ":/icons/arrow-left.png", -1, 0);
+            var blinkRight = this.blinkArrowButton(parent, ":/icons/arrow-right.png", 1, 0);
+            var blinkUp = this.blinkArrowButton(parent, ":/icons/arrow-up.png", 0, -1);
+            var blinkDown = this.blinkArrowButton(parent, ":/icons/arrow-down.png", 0, 1);
       }
       var currentPageLabel = new Label( parent );
       global.rootingArr.push(currentPageLabel);
@@ -4066,7 +4066,7 @@ function newPageButtonsSizer(parent, jsonSizer, actionSizer)
       currentPageCheckButton.setScaledFixedSize( 20, 20 );
       currentPageCheckButton.onClick = function()
       {
-            checkAllTreeBoxFiles(parent.dialog.treeBox[parent.dialog.tabBox.currentPageIndex], true);
+            this.checkAllTreeBoxFiles(parent.dialog.treeBox[parent.dialog.tabBox.currentPageIndex], true);
       };
       var currentPageUncheckButton = new ToolButton( parent );
       global.rootingArr.push(currentPageUncheckButton);
@@ -4075,7 +4075,7 @@ function newPageButtonsSizer(parent, jsonSizer, actionSizer)
       currentPageUncheckButton.setScaledFixedSize( 20, 20 );
       currentPageUncheckButton.onClick = function()
       {
-            checkAllTreeBoxFiles(parent.dialog.treeBox[parent.dialog.tabBox.currentPageIndex], false);
+            this.checkAllTreeBoxFiles(parent.dialog.treeBox[parent.dialog.tabBox.currentPageIndex], false);
       };
       var currentPageClearButton = new ToolButton( parent );
       global.rootingArr.push(currentPageClearButton);
@@ -4087,7 +4087,7 @@ function newPageButtonsSizer(parent, jsonSizer, actionSizer)
             if (global.debug.val) console.writeln("currentPageClearButton clicked");
             var pageIndex = parent.tabBox.currentPageIndex;
             parent.treeBox[pageIndex].clear();
-            updateInfoLabel(parent);
+            this.updateInfoLabel(parent);
             if (parent.tabBox.currentPageIndex == global.pages.LIGHTS) {
                   global.user_selected_best_image = null;
                   global.user_selected_reference_image = [];
@@ -4115,8 +4115,8 @@ function newPageButtonsSizer(parent, jsonSizer, actionSizer)
             // get checked files and unchecked files
             var checked_files = [];
             var unchecked_files = [];
-            getTreeBoxFileNamesCheckedIf(treebox, checked_files, true);
-            getTreeBoxFileNamesCheckedIf(treebox, unchecked_files, false);
+            this.getTreeBoxFileNamesCheckedIf(treebox, checked_files, true);
+            this.getTreeBoxFileNamesCheckedIf(treebox, unchecked_files, false);
             if (parent.tabBox.currentPageIndex == global.pages.LIGHTS) {
                   // find global.user_selected_best_image from unchecked files
                   if (global.user_selected_best_image != null) {
@@ -4128,7 +4128,7 @@ function newPageButtonsSizer(parent, jsonSizer, actionSizer)
                   }
                   // remove unchecked files from global.user_selected_reference_image array
                   for (var i = 0; i < unchecked_files.length; i++) {
-                        remove_user_selected_reference_image(unchecked_files[i], null);
+                        this.remove_user_selected_reference_image(unchecked_files[i], null);
                   }
                   // find global.star_alignment_image from unchecked files
                   if (global.star_alignment_image != null) {
@@ -4164,9 +4164,9 @@ function newPageButtonsSizer(parent, jsonSizer, actionSizer)
             // add checked files back
             treebox.clear();
             var treeboxfiles = [];
-            filenamesToTreeboxfiles(treeboxfiles, checked_files, true);
-            addFilesToTreeBox(parent, pageIndex, treeboxfiles);
-            updateInfoLabel(parent);
+            this.filenamesToTreeboxfiles(treeboxfiles, checked_files, true);
+            this.addFilesToTreeBox(parent, pageIndex, treeboxfiles);
+            this.updateInfoLabel(parent);
       };
 
       var currentPageCollapseButton = new ToolButton( parent );
@@ -4176,7 +4176,7 @@ function newPageButtonsSizer(parent, jsonSizer, actionSizer)
       currentPageCollapseButton.setScaledFixedSize( 20, 20 );
       currentPageCollapseButton.onClick = function()
       {
-            setExpandedTreeBoxNode(parent.dialog.treeBox[parent.dialog.tabBox.currentPageIndex], false);
+            this.setExpandedTreeBoxNode(parent.dialog.treeBox[parent.dialog.tabBox.currentPageIndex], false);
       };
       var currentPageExpandButton = new ToolButton( parent );
       global.rootingArr.push(currentPageExpandButton);
@@ -4185,7 +4185,7 @@ function newPageButtonsSizer(parent, jsonSizer, actionSizer)
       currentPageExpandButton.setScaledFixedSize( 20, 20 );
       currentPageExpandButton.onClick = function()
       {
-            setExpandedTreeBoxNode(parent.dialog.treeBox[parent.dialog.tabBox.currentPageIndex], true);
+            this.setExpandedTreeBoxNode(parent.dialog.treeBox[parent.dialog.tabBox.currentPageIndex], true);
       };
 
       var bestImageLabel = guitools.newLabel( parent, "Reference images", "Selecting the reference images for star alignment, image integration and local normalization.");
@@ -4198,7 +4198,7 @@ function newPageButtonsSizer(parent, jsonSizer, actionSizer)
       setBestImageButton.onClick = function()
       {
             if (parent.tabBox.currentPageIndex == global.pages.LIGHTS && current_selected_file_name != null) {
-                  setBestImageInTreeBox(parent, parent.treeBox[global.pages.LIGHTS], current_selected_file_name, "");
+                  this.setBestImageInTreeBox(parent, parent.treeBox[global.pages.LIGHTS], current_selected_file_name, "");
             }
       };
 
@@ -4210,7 +4210,7 @@ function newPageButtonsSizer(parent, jsonSizer, actionSizer)
       setReferenceImageButton.onClick = function()
       {
             if (parent.tabBox.currentPageIndex == global.pages.LIGHTS && current_selected_file_name != null) {
-                  setReferenceImageInTreeBox(parent, parent.treeBox[global.pages.LIGHTS], current_selected_file_name, "", current_selected_file_filter);
+                  this.setReferenceImageInTreeBox(parent, parent.treeBox[global.pages.LIGHTS], current_selected_file_name, "", current_selected_file_filter);
             }
       };
 
@@ -4222,8 +4222,8 @@ function newPageButtonsSizer(parent, jsonSizer, actionSizer)
       clearBestImageButton.onClick = function()
       {
             if (parent.tabBox.currentPageIndex == global.pages.LIGHTS) {
-                  setBestImageInTreeBox(parent, parent.treeBox[global.pages.LIGHTS], null, "");
-                  setReferenceImageInTreeBox(parent, parent.treeBox[global.pages.LIGHTS], null, "", null);
+                  this.setBestImageInTreeBox(parent, parent.treeBox[global.pages.LIGHTS], null, "");
+                  this.setReferenceImageInTreeBox(parent, parent.treeBox[global.pages.LIGHTS], null, "", null);
                   global.user_selected_best_image = null;
                   global.user_selected_reference_image = [];
                   global.star_alignment_image = null;
@@ -4239,15 +4239,15 @@ function newPageButtonsSizer(parent, jsonSizer, actionSizer)
       findBestImageButton.onClick = function()
       {
             if (parent.tabBox.currentPageIndex == global.pages.LIGHTS) {
-                  if (findBestImageFromTreeBoxFiles(parent.treeBox[global.pages.LIGHTS])) {
+                  if (this.findBestImageFromTreeBoxFiles(parent.treeBox[global.pages.LIGHTS])) {
                         // Best files are set into global.user_selected_best_image and global.user_selected_reference_image
-                        setBestImageInTreeBox(
+                        this.setBestImageInTreeBox(
                               parent, 
                               parent.treeBox[global.pages.LIGHTS], 
                               global.user_selected_best_image,
                               "");
                         for (var i = 0; i < global.user_selected_reference_image.length; i++)  {
-                              setReferenceImageInTreeBox(
+                              this.setReferenceImageInTreeBox(
                                     parent, 
                                     parent.treeBox[global.pages.LIGHTS], 
                                     global.user_selected_reference_image[i][0],
@@ -4360,7 +4360,7 @@ function newHistogramControl(parent)
       if (!ppar.preview.show_histogram) {
             return null;
       }
-      var size = getHistogramSize();
+      var size = this.getHistogramSize();
       var width = size.width;
       var height = size.height;
 
@@ -4370,7 +4370,7 @@ function newHistogramControl(parent)
 
       var bitmap = new Bitmap(width, height);
       var graphics = new Graphics(bitmap);      // VectorGraphics
-      setHistogramBitmapBackground(graphics);
+      this.setHistogramBitmapBackground(graphics);
       graphics.end();
       histogramViewControl.aiInfo = { histogramBitmap: bitmap, scaledValues: null, cumulativeValues: null, percentageValues: null, log_x_scale: false };
       histogramViewControl.onPaint = function(x0, y0, x1, y1) {
@@ -4440,7 +4440,7 @@ function exitFromDialog()
             blink_window.forceClose();
             blink_window = null;
       }
-      updateImageInfoLabel("");
+      this.updateImageInfoLabel("");
 }
 
 function updatePreviewSize(w, h, hh, sw, sh, shh)
@@ -4599,7 +4599,7 @@ function AutoIntegrateDialog()
       this.onClose = function() {
             // This fires when dialog closes by ANY method
             // Including X button, Escape key, or programmatic close
-            exitCleanup(thisdialog);
+            this.exitCleanup(thisdialog);
             console.noteln("Dialog is closing");
       };
 
@@ -4614,7 +4614,7 @@ function AutoIntegrateDialog()
       global.screen_height = screen_height;
 
        if (ppar.preview.use_preview) {
-            use_restored_preview_size = getPreviewSize();
+            use_restored_preview_size = this.getPreviewSize();
       }
 
       this.textEditWidth = 25 * this.font.width( "M" );
@@ -4674,11 +4674,11 @@ function AutoIntegrateDialog()
             "</ul>";
 
       // Run, Exit and AutoContinue buttons
-      this.run_Button = newRunButton(this, false);
-      this.exit_Button = newExitButton(this, false);
-      this.cancel_Button = newCancelButton(this, false);
-      this.autoContinueButton = newAutoContinueButton(this, false);
-      this.autoContinuePrefixSizer = addAutoContinueWinPrefix(this);
+      this.run_Button = this.newRunButton(this, false);
+      this.exit_Button = this.newExitButton(this, false);
+      this.cancel_Button = this.newCancelButton(this, false);
+      this.autoContinueButton = this.newAutoContinueButton(this, false);
+      this.autoContinuePrefixSizer = this.addAutoContinueWinPrefix(this);
       
       this.filesToolTip = [];
       this.filesToolTip[global.pages.LIGHTS] = "<p>Add light files. If only lights are added " + 
@@ -4699,41 +4699,41 @@ function AutoIntegrateDialog()
       this.treeBox = [];
       this.treeBoxRootingArr = [];
 
-      this.expertModeSizer = addExpertMode(this);
+      this.expertModeSizer = this.addExpertMode(this);
 
-      var obj = addTargetType(this);
+      var obj = this.addTargetType(this);
       this.targetTypeSizer = obj.sizer;
       this.target_type_label = obj.label;
 
-      var obj = newRow2Obj(this);
+      var obj = this.newRow2Obj(this);
       this.winprefixOutputdirSizer = obj.sizer;
       this.window_prefix_label = obj.window_prefix_label;
       this.output_dir_label = obj.output_dir_label;
 
-      var ret = addFilesButtons(this);
+      var ret = this.addFilesButtons(this);
       this.filesButtonsSizer = ret.sizer;
       this.filesButtons = ret.buttons;
       this.directoryCheckBox = ret.directoryCheckBox;
 
       this.tabBox = new TabBox( this );
 
-      let newFilesTreeBox = new filesTreeBox( this, lightsOptions(this), global.pages.LIGHTS );
+      let newFilesTreeBox = new this.filesTreeBox( this, this.lightsOptions(this), global.pages.LIGHTS );
       global.rootingArr.push(newFilesTreeBox);
       this.tabBox.addPage( newFilesTreeBox, "Lights" );
 
-      newFilesTreeBox = new filesTreeBox( this, biasOptions(this), global.pages.BIAS );
+      newFilesTreeBox = new this.filesTreeBox( this, this.biasOptions(this), global.pages.BIAS );
       global.rootingArr.push(newFilesTreeBox);
       this.tabBox.addPage( newFilesTreeBox, "Bias" );
 
-      newFilesTreeBox = new filesTreeBox( this, darksOptions(this), global.pages.DARKS );
+      newFilesTreeBox = new this.filesTreeBox( this, this.darksOptions(this), global.pages.DARKS );
       global.rootingArr.push(newFilesTreeBox);
       this.tabBox.addPage( newFilesTreeBox, "Darks" );
 
-      newFilesTreeBox = new filesTreeBox( this, flatsOptions(this), global.pages.FLATS );
+      newFilesTreeBox = new this.filesTreeBox( this, this.flatsOptions(this), global.pages.FLATS );
       global.rootingArr.push(newFilesTreeBox);
       this.tabBox.addPage( newFilesTreeBox, "Flats" );
 
-      newFilesTreeBox = new filesTreeBox( this, flatdarksOptions(this), global.pages.FLAT_DARKS );
+      newFilesTreeBox = new this.filesTreeBox( this, this.flatdarksOptions(this), global.pages.FLAT_DARKS );
       global.rootingArr.push(newFilesTreeBox);
       this.tabBox.addPage( newFilesTreeBox, "Flat Darks" );
 
@@ -4889,9 +4889,9 @@ function AutoIntegrateDialog()
             "<p>Selecting this enables manual adding of filter files for lights and flats.</p>",
             function(checked) { 
                   this.dialog.autodetect_filter_CheckBox.aiParam.val = checked; 
-                  showOrHideFilterSectionBar(global.LIGHTS);
-                  showOrHideFilterSectionBar(global.FLATS);
-                  showOrHideFilterSectionBar(global.FLAT_DARKS);
+                  this.showOrHideFilterSectionBar(global.LIGHTS);
+                  this.showOrHideFilterSectionBar(global.FLATS);
+                  this.showOrHideFilterSectionBar(global.FLAT_DARKS);
             });
       this.save_all_files_CheckBox = guitools.newCheckBox(this, "Save all files", par.save_all_files, 
             "<p>If selected save buttons will save all processed and iconized files and not just final image files. </p>" );
@@ -5339,14 +5339,14 @@ function AutoIntegrateDialog()
             if (engine.firstDateFileInfo == null) {
                   console.criticalln("No first image.");
             } else {
-                  updatePreviewFilename(engine.firstDateFileInfo.name, true);
+                  this.updatePreviewFilename(engine.firstDateFileInfo.name, true);
             }
       }
       var cometLastImageAction = function() {
             if (engine.lastDateFileInfo == null) {
                   console.criticalln("No last image.");
             } else {
-                  updatePreviewFilename(engine.lastDateFileInfo.name, true);
+                  this.updatePreviewFilename(engine.lastDateFileInfo.name, true);
             }
       }
 
@@ -5669,7 +5669,7 @@ function AutoIntegrateDialog()
       if (starxterminator_default_ai_model != "unknown" && par.starxterminator_ai_model.val == "") {
             par.starxterminator_ai_model.val = starxterminator_default_ai_model;
       }
-      this.StarXTerminatorAImodeSizer = AImodelSizer(this, "AI model", par.starxterminator_ai_model, 
+      this.StarXTerminatorAImodeSizer = this.AImodelSizer(this, "AI model", par.starxterminator_ai_model, 
                                                 "<p>Use the selected AI model. Default AI model is " + starxterminator_default_ai_model + "</p>" +
                                                 "<p>AI models are stored in the PixInsight installation directory and have a .pb extension. " + 
                                                 "At least in Windows they are in PixInsight/library directory.</p>");
@@ -6026,7 +6026,7 @@ function AutoIntegrateDialog()
       this.metricsVisualizerSSWEIGHTButton.onClick = function() 
       {
             try {
-                  metricsVisualizerSSWEIGHT(this.dialog);
+                  this.metricsVisualizerSSWEIGHT(this.dialog);
             } catch (e) {
                   console.criticalln("Metrics visualizer: " + e);
             }
@@ -6066,7 +6066,7 @@ function AutoIntegrateDialog()
       this.metricsVisualizerFiltersButton.onClick = function() 
       {
             try {
-                  metricsVisualizerFilters(this.dialog);
+                  this.metricsVisualizerFilters(this.dialog);
             } catch (e) {
                   console.criticalln("Metrics visualizer: " + e);
             }
@@ -6652,7 +6652,7 @@ function AutoIntegrateDialog()
       this.narrowbandSelectMultipleButton.toolTip = "<p>Select narrowband mappings.</p>";
       this.narrowbandSelectMultipleButton.onClick = function()
       {
-            let narrowbandSelectMultiple = new AutoIntegrateNarrowbandSelectMultipleDialog(global, par.narrowband_multiple_mappings_list.val);
+            let narrowbandSelectMultiple = new this.AutoIntegrateNarrowbandSelectMultipleDialog(global, par.narrowband_multiple_mappings_list.val);
             narrowbandSelectMultiple.windowTitle = "Select Narrowband Mappings";
             if (narrowbandSelectMultiple.execute()) {
                   if (narrowbandSelectMultiple.names == null) {
@@ -7079,10 +7079,10 @@ function AutoIntegrateDialog()
       this.closeAllButton.onClick = function()
       {
             console.noteln("Close prefix");
-            updateWindowPrefix();
+            this.updateWindowPrefix();
             // Close all using the current ppar.win_prefix
             util.closeAllWindows(par.keep_integrated_images.val, false);
-            var index = findPrefixIndex(ppar.win_prefix);
+            var index = this.findPrefixIndex(ppar.win_prefix);
             if (index != -1) {
                   // If prefix was found update array
                   if (par.keep_integrated_images.val) {
@@ -7092,14 +7092,14 @@ function AutoIntegrateDialog()
                   } else {
                         // Mark closed position as empty/free
                         ppar.prefixArray[index] = [ 0, '-', 0 ];
-                        fix_win_prefix_array();
+                        this.fix_win_prefix_array();
                   }
                   ppar.win_prefix = "";
 
-                  savePersistentSettings(false);
+                  this.savePersistentSettings(false);
                   //this.columnCountControlComboBox.currentItem = global.columnCount + 1;
             }
-            update_enhancements_target_image_window_list(null);
+            this.update_enhancements_target_image_window_list(null);
             console.noteln("Close prefix completed");
       };
 
@@ -7111,16 +7111,16 @@ function AutoIntegrateDialog()
       {
             console.noteln("Close all prefixes");
             try {
-                  updateWindowPrefix();
+                  this.updateWindowPrefix();
                   // Always close default/empty prefix
                   // For delete to work we need to update fixed window
                   // names with the prefix we use for closing
                   util.fixAllWindowArrays("");
                   console.writeln("Close default empty prefix");
                   util.closeAllWindows(par.keep_integrated_images.val, false);
-                  if (ppar.win_prefix != "" && findPrefixIndex(ppar.win_prefix) == -1) {
+                  if (ppar.win_prefix != "" && this.findPrefixIndex(ppar.win_prefix) == -1) {
                         // Window prefix box has unsaved prefix, clear that too.
-                        var prefix = validateWindowPrefix(ppar.win_prefix);
+                        var prefix = this.validateWindowPrefix(ppar.win_prefix);
                         console.writeln("Close prefix '" + prefix + "'");
                         util.fixAllWindowArrays(prefix);
                         util.closeAllWindows(par.keep_integrated_images.val, false);
@@ -7128,7 +7128,7 @@ function AutoIntegrateDialog()
                   // Go through the prefix list
                   for (var i = 0; i < ppar.prefixArray.length; i++) {
                         if (ppar.prefixArray[i][1] != '-') {
-                              var prefix = validateWindowPrefix(ppar.prefixArray[i][1]);
+                              var prefix = this.validateWindowPrefix(ppar.prefixArray[i][1]);
                               console.writeln("Close prefix '" + prefix + "'");
                               util.fixAllWindowArrays(prefix);
                               util.closeAllWindows(par.keep_integrated_images.val, false);
@@ -7148,11 +7148,11 @@ function AutoIntegrateDialog()
             }  catch (x) {
                   console.writeln( x );
             }
-            fix_win_prefix_array();
-            savePersistentSettings(false);
+            this.fix_win_prefix_array();
+            this.savePersistentSettings(false);
             // restore original prefix
             util.fixAllWindowArrays(ppar.win_prefix);
-            update_enhancements_target_image_window_list(null);
+            this.update_enhancements_target_image_window_list(null);
             console.noteln("Close all prefixes completed");
       };
 
@@ -7192,8 +7192,8 @@ function AutoIntegrateDialog()
                   }
 
                   console.noteln("New flowchart");
-                  if (generateNewFlowchartData(this.parent)) {
-                        flowchartUpdated();
+                  if (this.generateNewFlowchartData(this.parent)) {
+                        this.flowchartUpdated();
                         console.noteln("Flowchart updated");
                   } else {
                         console.noteln("No flowchart data available");
@@ -7210,7 +7210,7 @@ function AutoIntegrateDialog()
                         par.show_flowchart.val = checked;
                         if (checked) {
                               if (global.flowchartData != null) {
-                                    flowchartUpdated();
+                                    this.flowchartUpdated();
                               } else {
                                     console.noteln("No flowchart data available");
                               }
@@ -7286,7 +7286,7 @@ function AutoIntegrateDialog()
                   }
                   if (par.show_flowchart.val) {
                         if (global.flowchartData != null) {
-                              flowchartUpdated();
+                              this.flowchartUpdated();
                         } else {
                               // console.noteln("No flowchart data available");
                         }
@@ -7408,7 +7408,7 @@ function AutoIntegrateDialog()
             "<p>Settings are saved by default when exiting the script. This button can be used " +
             "to save settings without exiting. It can be useful if the Exit button is not visible.</p>";
       this.saveInterfaceButton.onClick = function() {
-            savePersistentSettings(false);
+            this.savePersistentSettings(false);
       };
 
       this.show_preview_CheckBox = guitools.newPparCheckBox(this, "Enable preview", ppar, ppar.preview.use_preview, 
@@ -7475,14 +7475,14 @@ function AutoIntegrateDialog()
       this.side_preview_width_edit = guitools.newPparSpinBox(this, ppar, ppar.preview.side_preview_width, 100, 4000, 
             "Preview image width.",
             function(value) { 
-                  updatePreviewSize(0, 0, 0, value, 0); 
+                  this.updatePreviewSize(0, 0, 0, value, 0); 
             }
       );
       this.side_preview_height_label = guitools.newLabel(this, 'height', "Preview image height.");
       this.side_preview_height_edit = guitools.newPparSpinBox(this, ppar, ppar.preview.side_preview_height, 100, 4000, 
             "Preview image height.",
             function(value) { 
-                  updatePreviewSize(0, 0, 0, 0, value); 
+                  this.updatePreviewSize(0, 0, 0, 0, value); 
             }
       );
 
@@ -7490,7 +7490,7 @@ function AutoIntegrateDialog()
       this.side_histogram_height_edit = guitools.newPparSpinBox(this, ppar, ppar.preview.side_histogram_height, 50, 2000, 
             this.side_histogram_height_label.toolTip,
             function(value) { 
-                  updatePreviewSize(0, 0, 0, 0, 0, value);
+                  this.updatePreviewSize(0, 0, 0, 0, 0, value);
             }
       );
 
@@ -7635,7 +7635,7 @@ function AutoIntegrateDialog()
       this.newInstance_Button.onMousePress = function()
       {
          this.hasFocus = true;
-         saveParametersToProcessIcon();
+         this.saveParametersToProcessIcon();
          this.pushed = false;
          this.dialog.newInstance();
          console.noteln("New instance created");
@@ -7650,7 +7650,7 @@ function AutoIntegrateDialog()
       this.savedefaults_Button.onClick = function()
       {
             // We ask for confirmation in function saveParametersToPersistentModuleSettings
-            saveParametersToPersistentModuleSettings();
+            this.saveParametersToPersistentModuleSettings();
       };
       this.reset_Button = new ToolButton(this);
       this.reset_Button.icon = new Bitmap( ":/images/icons/reset.png" );
@@ -7688,7 +7688,7 @@ function AutoIntegrateDialog()
             Dialog.openBrowser(global.autointegrateinfo_link);
       };
 
-      this.adjusttocontent_Button = newAdjustToContentButton(this);
+      this.adjusttocontent_Button = this.newAdjustToContentButton(this);
    
       this.infoLabel = new Label( this );
       this.infoLabel.text = "";
@@ -7903,8 +7903,8 @@ function AutoIntegrateDialog()
             /* Create preview objects.
              */
             if (global.debug) console.writeln("Create preview objects");
-            this.previewObj = newPreviewObj(this);
-            histogramControl = newHistogramControl(this);
+            this.previewObj = this.newPreviewObj(this);
+            histogramControl = this.newHistogramControl(this);
 
             previewControl = this.previewObj.control;
             previewInfoLabel = this.previewObj.infolabel;
@@ -7932,14 +7932,14 @@ function AutoIntegrateDialog()
       this.mainTabBox = new TabBox( this );
       mainTabBox = this.mainTabBox;
 
-      this.pageButtonsSizer = newPageButtonsSizer(this);
+      this.pageButtonsSizer = this.newPageButtonsSizer(this);
       this.filesTabSizer = new VerticalSizer;
       this.filesTabSizer.margin = 6;
       this.filesTabSizer.spacing = 4;
       this.filesTabSizer.add( this.tabBox );
       this.filesTabSizer.add( this.filesButtonsSizer );
       this.filesTabSizer.add( this.pageButtonsSizer );
-      this.filesPage = { page: mainSizerTab(this, this.filesTabSizer), name: "Files", expert_mode: false };
+      this.filesPage = { page: this.mainSizerTab(this, this.filesTabSizer), name: "Files", expert_mode: false };
       global.tabs.push(this.filesPage);
       this.mainTabBox.addPage( this.filesPage.page, this.filesPage.name );
 
@@ -7947,7 +7947,7 @@ function AutoIntegrateDialog()
       this.settingsTabSizer.margin = 6;
       this.settingsTabSizer.spacing = 4;
       this.settingsTabSizer.add( this.settingsGroupBox );
-      this.settingsPage = { page: mainSizerTab(this, this.settingsTabSizer), name: "Settings", expert_mode: false };
+      this.settingsPage = { page: this.mainSizerTab(this, this.settingsTabSizer), name: "Settings", expert_mode: false };
       global.tabs.push(this.settingsPage);
       this.mainTabBox.addPage( this.settingsPage.page, this.settingsPage.name );
 
@@ -7955,7 +7955,7 @@ function AutoIntegrateDialog()
       this.otherTabSizer.margin = 6;
       this.otherTabSizer.spacing = 4;
       this.otherTabSizer.add( this.otherGroupBox );
-      this.otherPage = { page: mainSizerTab(this, this.otherTabSizer), name: "Other", expert_mode: true };
+      this.otherPage = { page: this.mainSizerTab(this, this.otherTabSizer), name: "Other", expert_mode: true };
       global.tabs.push(this.otherPage);
       this.mainTabBox.addPage( this.otherPage.page, this.otherPage.name );
 
@@ -7964,7 +7964,7 @@ function AutoIntegrateDialog()
       this.preProcessingsTabSizer.margin = 6;
       this.preProcessingsTabSizer.spacing = 4;
       this.preProcessingsTabSizer.add( this.preprocessingGroupBox );
-      this.preProcessingsPage = { page: mainSizerTab(this, this.preProcessingsTabSizer), name: "Preprocessing", expert_mode: true };
+      this.preProcessingsPage = { page: this.mainSizerTab(this, this.preProcessingsTabSizer), name: "Preprocessing", expert_mode: true };
       global.tabs.push(this.preProcessingsPage);
       this.mainTabBox.addPage( this.preProcessingsPage.page, this.preProcessingsPage.name );
 
@@ -7973,7 +7973,7 @@ function AutoIntegrateDialog()
       this.integrationTabSizer.margin = 6;
       this.integrationTabSizer.spacing = 4;
       this.integrationTabSizer.add( this.integrationGroupBox );
-      this.integrationPage = { page: mainSizerTab(this, this.integrationTabSizer), name: "Integration", expert_mode: true };
+      this.integrationPage = { page: this.mainSizerTab(this, this.integrationTabSizer), name: "Integration", expert_mode: true };
       global.tabs.push(this.integrationPage);
       this.mainTabBox.addPage( this.integrationPage.page, this.integrationPage.name );
 
@@ -7982,7 +7982,7 @@ function AutoIntegrateDialog()
       this.postProcessingTabSizer.margin = 6;
       this.postProcessingTabSizer.spacing = 4;
       this.postProcessingTabSizer.add( this.postProcessingGroupBox );
-      this.postProcessingPage = { page: mainSizerTab(this, this.postProcessingTabSizer), name: "Postprocessing", expert_mode: true };
+      this.postProcessingPage = { page: this.mainSizerTab(this, this.postProcessingTabSizer), name: "Postprocessing", expert_mode: true };
       global.tabs.push(this.postProcessingPage);
       this.mainTabBox.addPage( this.postProcessingPage.page, this.postProcessingPage.name );
 
@@ -7991,7 +7991,7 @@ function AutoIntegrateDialog()
       this.toolsTabSizer.margin = 6;
       this.toolsTabSizer.spacing = 4;
       this.toolsTabSizer.add( this.toolsGroupBox );
-      this.toolsPage = { page: mainSizerTab(this, this.toolsTabSizer), name: "Tools", expert_mode: false };
+      this.toolsPage = { page: this.mainSizerTab(this, this.toolsTabSizer), name: "Tools", expert_mode: false };
       global.tabs.push(this.toolsPage);
       this.mainTabBox.addPage( this.toolsPage.page, this.toolsPage.name );
 
@@ -8005,7 +8005,7 @@ function AutoIntegrateDialog()
       } else {
             tabname = "Enhancements";
       }
-      this.enhancementsPage = { page: mainSizerTab(this, this.enhancementsSizer), name: tabname, expert_mode: false };
+      this.enhancementsPage = { page: this.mainSizerTab(this, this.enhancementsSizer), name: tabname, expert_mode: false };
       global.tabs.push(this.enhancementsPage);
       this.mainTabBox.addPage( this.enhancementsPage.page, this.enhancementsPage.name );
 
@@ -8014,7 +8014,7 @@ function AutoIntegrateDialog()
       this.interfaceTabSizer.margin = 6;
       this.interfaceTabSizer.spacing = 4;
       this.interfaceTabSizer.add( this.interfaceGroupBox );
-      this.interfacePage = { page: mainSizerTab(this, this.interfaceTabSizer), name: "Interface", expert_mode: false };
+      this.interfacePage = { page: this.mainSizerTab(this, this.interfaceTabSizer), name: "Interface", expert_mode: false };
       global.tabs.push(this.interfacePage);
       this.mainTabBox.addPage( this.interfacePage.page, this.interfacePage.name );
 
@@ -8029,7 +8029,7 @@ function AutoIntegrateDialog()
       this.baseSizer.margin = 6;
       this.baseSizer.spacing = 4;
 
-      this.actionSizer = newActionSizer(this);
+      this.actionSizer = this.newActionSizer(this);
 
       var res = guitools.newJsonSizerObj(this, loadJsonFileCallback);
       this.jsonSizer = res.sizer;
@@ -8100,7 +8100,7 @@ function AutoIntegrateDialog()
       }
       //this.files_GroupBox.setFixedHeight();
 
-      setWindowPrefixHelpTip(ppar.win_prefix);
+      this.setWindowPrefixHelpTip(ppar.win_prefix);
       util.updateStatusInfoLabel(global.autointegrate_version);
 
       console.show();
@@ -8125,7 +8125,7 @@ function AutoIntegrateDialog()
       }
       if (ppar.preview.use_preview) {
             if (par.debug.val || global.debug) console.writeln("updatePreviewNoImage, side_preview");
-            updatePreviewNoImageInControl(previewControl);
+            this.updatePreviewNoImageInControl(previewControl);
             console.writeln("Screen size " + screen_size +  
                             ", preview size " + ppar.preview.side_preview_width + "x" + ppar.preview.side_preview_height + 
                             ", histogram height " + ppar.preview.side_histogram_height + 
@@ -8135,9 +8135,9 @@ function AutoIntegrateDialog()
       global.reportUnusedParameters();
 
       if (global.expert_mode) {
-            switchToExpertMode(this);
+            this.switchToExpertMode(this);
       } else {
-            switchToSimpleMode(this);
+            this.switchToSimpleMode(this);
       }
 
       // Initialize tutorial system
@@ -8321,7 +8321,7 @@ AutoIntegrateDialog.getGettingStartedSteps = function() {
                          "<p>AutoIntegrate will automatically detect the filter used on each file based on its metadata.</p>",
             target: this.filesPage.page,
             tooltipPosition: "center",
-            switchToTab: findPageIndexByName(this.mainTabBox, this.filesPage.name)  // Switch to Files tab
+            switchToTab: this.findPageIndexByName(this.mainTabBox, this.filesPage.name)  // Switch to Files tab
         },
         {
             title: "Add Light Frames",
@@ -8331,14 +8331,14 @@ AutoIntegrateDialog.getGettingStartedSteps = function() {
                          "<p>AutoIntegrate will automatically select the best images as reference images.</p>",
             target: this.filesButtons.addLightsButton,
             tooltipPosition: "center",
-            switchToTab: findPageIndexByName(this.mainTabBox, this.filesPage.name)  // Switch to Files tab
+            switchToTab: this.findPageIndexByName(this.mainTabBox, this.filesPage.name)  // Switch to Files tab
         },
         {
             title: "Settings Tab",
             description: "<p>The Settings tab contains most important processing options.</p>",
             target: this.settingsPage.page,
             tooltipPosition: "center",
-            switchToTab: findPageIndexByName(this.mainTabBox, this.settingsPage.name),      // Switch to Settings tab
+            switchToTab: this.findPageIndexByName(this.mainTabBox, this.settingsPage.name),      // Switch to Settings tab
             sectionBars: ["Image1", "ImageTools"]     // Show Image processing parameters and tools
         },
         {
@@ -8361,7 +8361,7 @@ AutoIntegrateDialog.getGettingStartedSteps = function() {
                          "<p>There are undo and redo buttons so you can easily experiment with different settings.</p>",
             target: this.enhancementsPage.page,
             tooltipPosition: "center",
-            switchToTab: findPageIndexByName(this.mainTabBox, this.enhancementsPage.name),        // Switch on Enhancements tab
+            switchToTab: this.findPageIndexByName(this.mainTabBox, this.enhancementsPage.name),        // Switch on Enhancements tab
             sectionBars: ["EnhancementsTarget", "Enhancements1"]    // Show some sections
         },
         {
@@ -8370,7 +8370,7 @@ AutoIntegrateDialog.getGettingStartedSteps = function() {
                          "<p>It is recommended that you adjust the preview size to match your screen size for optimal experience.</p>",
             target: this.side_preview_width_label,
             tooltipPosition: "center",
-            switchToTab: findPageIndexByName(this.mainTabBox, this.interfacePage.name),    // Switch to Interface tab
+            switchToTab: this.findPageIndexByName(this.mainTabBox, this.interfacePage.name),    // Switch to Interface tab
             sectionBars: ["interface"]                // Show some sections
         },
         {
@@ -8380,7 +8380,7 @@ AutoIntegrateDialog.getGettingStartedSteps = function() {
                          "This may take a little extra time but allows you to see the full processing plan in advance.</p>",
             target: this.runGetFlowchartDataCheckBox,
             tooltipPosition: "center",
-            switchToTab: findPageIndexByName(this.mainTabBox, this.interfacePage.name),    // Switch to Interface tab
+            switchToTab: this.findPageIndexByName(this.mainTabBox, this.interfacePage.name),    // Switch to Interface tab
             sectionBars: ["Flowchart"]                // Show some sections
         },
         {
@@ -8409,7 +8409,7 @@ AutoIntegrateDialog.getGettingStartedSteps = function() {
                          "<p>Check out also other tutorials in the <i>Interface section!</i></p>",
             target: null,
             tooltipPosition: "center",
-            switchToTab: findPageIndexByName(this.mainTabBox, this.filesPage.name)   // Back to Files tab
+            switchToTab: this.findPageIndexByName(this.mainTabBox, this.filesPage.name)   // Back to Files tab
         }
     ];
 };
@@ -8427,7 +8427,7 @@ AutoIntegrateDialog.getFileManagementSteps = function() {
             description: "<p>In the Files tab you can load your light frames, bias, darks, and flat frames. Click on the tabs to see all calibration frame options.</p>",
             target: this.filesPage.page,
             tooltipPosition: "center",
-            switchToTab: findPageIndexByName(this.mainTabBox, this.filesPage.name)  // Switch to Files tab
+            switchToTab: this.findPageIndexByName(this.mainTabBox, this.filesPage.name)  // Switch to Files tab
         },
         {
             title: "Directory Checkbox",
@@ -8457,7 +8457,7 @@ AutoIntegrateDialog.getFileManagementSteps = function() {
                          "<p>You can save final image also in other formats like TIFF or JPEG here.</p>",
             target: this.saveFinalImageControl,
             tooltipPosition: "center",
-            switchToTab: findPageIndexByName(this.mainTabBox, this.settingsPage.name),     // Switch to Settings tab
+            switchToTab: this.findPageIndexByName(this.mainTabBox, this.settingsPage.name),     // Switch to Settings tab
             sectionBars: ["Savefinalimagefiles"]      // Show some sections
         },
         {
@@ -8466,7 +8466,7 @@ AutoIntegrateDialog.getFileManagementSteps = function() {
                          "there is a button where you can save the image in XISF and 16-bit TIFF formats.</p>",
             target: this.enhancements_gui.enhancementsSaveButton,
             tooltipPosition: "center",
-            switchToTab: findPageIndexByName(this.mainTabBox, this.enhancementsPage.name),        // Switch to Enhancements tab
+            switchToTab: this.findPageIndexByName(this.mainTabBox, this.enhancementsPage.name),        // Switch to Enhancements tab
             sectionBars: ["EnhancementsTarget"]              // Show some sections
         },
         {
@@ -8474,7 +8474,7 @@ AutoIntegrateDialog.getFileManagementSteps = function() {
             description: "<p>You now know how to manage files in AutoIntegrate!</p>",
             target: null,
             tooltipPosition: "center",
-            switchToTab: findPageIndexByName(this.mainTabBox, this.filesPage.name)   // Back to Files tab
+            switchToTab: this.findPageIndexByName(this.mainTabBox, this.filesPage.name)   // Back to Files tab
         }
     ];
 };
@@ -8493,7 +8493,7 @@ AutoIntegrateDialog.getProcessingSettingsSteps = function() {
             description: "<p>Automatically crop your final image to remove unwanted edges and artifacts after integration.</p>",
             target: this.crop_to_common_area_CheckBox,
             tooltipPosition: "center",
-            switchToTab: findPageIndexByName(this.mainTabBox, this.settingsPage.name),     // Switch to Settings tab
+            switchToTab: this.findPageIndexByName(this.mainTabBox, this.settingsPage.name),     // Switch to Settings tab
             sectionBars: ["Image1"]                   // Show Image processing parameters
         },
         {
@@ -8580,7 +8580,7 @@ AutoIntegrateDialog.getCometProcessingSteps = function() {
             description: "<p>First run a normal workflow to get correct stars and background objects.</p>",
             target: this.run_Button,
             tooltipPosition: "center",
-            switchToTab: findPageIndexByName(this.mainTabBox, this.filesPage.name)         // Switch to Files tab
+            switchToTab: this.findPageIndexByName(this.mainTabBox, this.filesPage.name)         // Switch to Files tab
         },
         {
             title: "Load star aligned files",
@@ -8600,7 +8600,7 @@ AutoIntegrateDialog.getCometProcessingSteps = function() {
             description: "<p>Check Comet align in <i>Settings / Image processing parameters</i> section.</p>",
             target: this.CometAlignCheckBox,
             tooltipPosition: "center",
-            switchToTab: findPageIndexByName(this.mainTabBox, this.settingsPage.name),           // Switch to Settings tab
+            switchToTab: this.findPageIndexByName(this.mainTabBox, this.settingsPage.name),           // Switch to Settings tab
             sectionBars: ["Image1"]                         // Show Image processing parameters
         },
         {
@@ -8614,7 +8614,7 @@ AutoIntegrateDialog.getCometProcessingSteps = function() {
             description: "<p>Check Remove stars from lights in <i>Postprocessing / Star stretching and removing</i> section.</p>",
             target: this.remove_stars_light_CheckBox,
             tooltipPosition: "center",
-            switchToTab: findPageIndexByName(this.mainTabBox, this.postProcessingPage.name),     // Switch to postprocessing tab
+            switchToTab: this.findPageIndexByName(this.mainTabBox, this.postProcessingPage.name),     // Switch to postprocessing tab
             sectionBars: ["ps_starstretching"]              // Show Image processing parameters
         },
         {
@@ -8622,7 +8622,7 @@ AutoIntegrateDialog.getCometProcessingSteps = function() {
             description: "<p>Check No CosmeticCorrection in <i>Other / Other parameters</i> section.</p>",
             target: this.CosmeticCorrectionCheckBox,
             tooltipPosition: "center",
-            switchToTab: findPageIndexByName(this.mainTabBox, this.otherPage.name),        // Switch to Other tab
+            switchToTab: this.findPageIndexByName(this.mainTabBox, this.otherPage.name),        // Switch to Other tab
             sectionBars: ["Other1"]                   // Show Other parameters
         },
         {
@@ -8631,7 +8631,7 @@ AutoIntegrateDialog.getCometProcessingSteps = function() {
                          "to show the first image in the preview window.",
             target: this.cometAlignFirstXYButton,
             tooltipPosition: "center",
-            switchToTab: findPageIndexByName(this.mainTabBox, this.preProcessingsPage.name),     // Switch to Preprocessing tab
+            switchToTab: this.findPageIndexByName(this.mainTabBox, this.preProcessingsPage.name),     // Switch to Preprocessing tab
             sectionBars: ["ps_alignment"]                   // Show Comet alignment
         },
         {
@@ -8693,7 +8693,5 @@ this.forceNewHistogram = forceNewHistogram;
 this.closeAllPrefixButton = closeAllPrefixButton;
 
 }  /* AutoIntegrateGUI*/
-
-AutoIntegrateGUI.prototype = new Object;
 
 #endif /* AUTOINTEGRATEGUI_JS */
