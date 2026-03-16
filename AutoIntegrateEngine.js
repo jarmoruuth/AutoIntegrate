@@ -86,6 +86,10 @@ by Pleiades Astrophoto and its contributors (https://pixinsight.com/).
 #define AUTOINTEGRATEENGINE_JS
 
 #ifndef NO_SOLVER_LIBRARY
+#define NO_SOLVER_LIBRARY
+#endif
+
+#ifndef NO_SOLVER_LIBRARY
 /* Settings to ImageSolver script. This is copied from WBPP script. */
 #define USE_SOLVER_LIBRARY true
 #define USE_ANNOTATE_LIBRARY true
@@ -8699,7 +8703,7 @@ runAutoSTFex(GC_win, iscolor, targetBackground, silent, rgbLinked, save_process 
             rgbLinked = this.getRgbLinked(GC_win, iscolor);
       }
       this.applyAutoSTF(GC_win.mainView,
-                  DEFAULT_AUTOSTRETCH_SCLIP,
+                  this.global.DEFAULT_AUTOSTRETCH_SCLIP,
                   targetBackground,
                   rgbLinked,
                   silent);
@@ -8731,7 +8735,7 @@ autoStretch(imgWin, silent = true)
       this.runAutoSTFex(
             imgWin, 
             imgWin.mainView.image.isColor, 
-            DEFAULT_AUTOSTRETCH_TBGND, 
+            this.global.DEFAULT_AUTOSTRETCH_TBGND, 
             silent, 
             null);     // rgbLinked, null = use default
 }
@@ -9698,7 +9702,7 @@ runHistogramTransform(GC_win, iscolor, type)
       //if (image_stretching == 'Auto STF' || type == 'mask') {
       if (image_stretching == 'Auto STF') {
             if (type == 'mask') {
-                  targetBackground = DEFAULT_AUTOSTRETCH_TBGND;
+                  targetBackground = this.global.DEFAULT_AUTOSTRETCH_TBGND;
             } else {
                   targetBackground = this.par.STF_targetBackground.val;
             }
@@ -10485,8 +10489,8 @@ findTrueBackground(w, testmode)
                   // For now keep original forat so pixel values are not changed
                   this.applyAutoSTF(
                         bw.mainView,
-                        DEFAULT_AUTOSTRETCH_SCLIP,
-                        DEFAULT_AUTOSTRETCH_TBGND,
+                        this.global.DEFAULT_AUTOSTRETCH_SCLIP,
+                        this.global.DEFAULT_AUTOSTRETCH_TBGND,
                         false,
                         false);
             }
@@ -11053,8 +11057,8 @@ findDBEsamples(w)
                         // For now keep original forat so pixel values are not changed
                         this.applyAutoSTF(
                               bw.mainView,
-                              DEFAULT_AUTOSTRETCH_SCLIP,
-                              DEFAULT_AUTOSTRETCH_TBGND,
+                              this.global.DEFAULT_AUTOSTRETCH_SCLIP,
+                              this.global.DEFAULT_AUTOSTRETCH_TBGND,
                               false,
                               false);
                   }
@@ -11511,8 +11515,8 @@ runImageSolver(id)
                   solved = this.runImageSolverEx(id, true, true, 1);
                   if (!solved) {
                         var txt = "ImageSolver failed. Do you want to retry?";
-                        var response = new MessageBox(txt, "AutoIntegrate", StdIcon_Question, StdButton_Yes, StdButton_No ).execute();
-                        if (response != StdButton_Yes) {
+                        var response = new MessageBox(txt, "AutoIntegrate", StdIcon_Question, StdButton.Yes, StdButton.No ).execute();
+                        if (response != StdButton.Yes) {
                               break;
                         }
                   }
@@ -16184,7 +16188,7 @@ enhancementsAutoSTF(win)
       this.runAutoSTFex(
             win, 
             win.mainView.image.isColor, 
-            DEFAULT_AUTOSTRETCH_TBGND, 
+            this.global.DEFAULT_AUTOSTRETCH_TBGND, 
             true,       // silent
             true);      // rgbLinked
 
@@ -18254,8 +18258,8 @@ createCropInformationEx()
       // Autostretch for the convenience of the user
       this.applyAutoSTF(
             this.util.findWindow(this.crop_lowClipImageName).mainView,
-            DEFAULT_AUTOSTRETCH_SCLIP,
-            DEFAULT_AUTOSTRETCH_TBGND,
+            this.global.DEFAULT_AUTOSTRETCH_SCLIP,
+            this.global.DEFAULT_AUTOSTRETCH_TBGND,
             false,
             false);
       

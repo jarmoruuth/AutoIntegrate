@@ -19,20 +19,6 @@ by Pleiades Astrophoto and its contributors (https://pixinsight.com/).
 #ifndef AUTOINTEGRATEGLOBAL_JS
 #define AUTOINTEGRATEGLOBAL_JS
 
-#define SETTINGSKEY "AutoIntegrate"
-
-/*
- * Default STF Parameters
- */
-
-// Shadows clipping point in (normalized) MAD units from the median.
-#define DEFAULT_AUTOSTRETCH_SCLIP  -2.80
-// Target mean background in the [0,1] range.
-#define DEFAULT_AUTOSTRETCH_TBGND   0.25
-// Apply the same STF to all nominal channels (true), or treat each channel
-// separately (false).
-#define DEFAULT_AUTOSTRETCH_CLINK   true
-
 class AutoIntegrateGlobal extends Object
 {
     constructor() {
@@ -50,13 +36,19 @@ this.autointegrate_version_info = [
 
 /* Interface version changes:
  *    0: Initial version.
- *    1: Fixed settings keys to always use SETTINGSKEY prefix.
+ *    1: Fixed settings keys to always use "AutoIntegrate" prefix.
  */
 this.interface_version = 1;    // Interface version
 
 this.pixinsight_version_str = "";   // PixInsight version string, e.g. 1.8.8.10
 this.pixinsight_version_num = 0;    // PixInsight version number, e.h. 1080810
 this.pixinsight_build_num = 0;      // PixInsight build number, e.g. 1601
+
+/*
+ * Default STF Parameters
+ */
+this.DEFAULT_AUTOSTRETCH_SCLIP = -2.80;
+this.DEFAULT_AUTOSTRETCH_TBGND = 0.25;
 
 this.expert_mode = false;
 this.tabs = [];                     // Store tab controls for enabling/disabling
@@ -1011,10 +1003,10 @@ setParameterValue(param, val) {
       }
       param.val = val;
       if (param.set_callback != undefined) {
-            if (this.debug) console.writeln("setParameterValue callback for " + param.name);
+            if (this.debug) console.writeln("setParameterValue call set_callbacklback for " + param.name);
             param.set_callback(param);
       } else {
-            if (this.debug) console.writeln("setParameterValue default for " + param.name);
+            if (this.debug) console.writeln("setParameterValue, param.name=" + param.name + ", val=" + val);
       }
 };
 

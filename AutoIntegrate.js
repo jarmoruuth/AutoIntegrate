@@ -270,18 +270,18 @@ class AutoIntegrate extends Object {
       constructor() {
             super();
 
-var global = new AutoIntegrateGlobal();
-var util = new AutoIntegrateUtil(global);
-var flowchart = new AutoIntegrateFlowchart(global, util);
-var engine = new AutoIntegrateEngine(global, util, flowchart);
-var gui = new AutoIntegrateGUI(global, util, engine, flowchart);
+this.global = new AutoIntegrateGlobal();
+this.util = new AutoIntegrateUtil(this.global);
+this.flowchart = new AutoIntegrateFlowchart(this.global, this.util);
+this.engine = new AutoIntegrateEngine(this.global, this.util, this.flowchart);
+this.gui = new AutoIntegrateGUI(this.global, this.util, this.engine, this.flowchart);
 
-util.setGUI(gui);
-engine.setGUI(gui);
-flowchart.setGUI(gui);
+this.util.setGUI(this.gui);
+this.engine.setGUI(this.gui);
+this.flowchart.setGUI(this.gui);
 
-var par = global.par;
-var ppar = global.ppar;
+this.par = this.global.par;
+this.ppar = this.global.ppar;
 
 } // constructor
 
@@ -290,146 +290,146 @@ var ppar = global.ppar;
  *    test utility functions
  * 
  */
-function init_pixinsight_version()
+init_pixinsight_version()
 {
-      util.init_pixinsight_version();
+      this.util.init_pixinsight_version();
 }
 
-function readPersistentSettings()
+readPersistentSettings()
 {
-      if (global.do_not_read_settings) {
+      if (this.global.do_not_read_settings) {
             console.writeln("Use default settings, do not read session settings from persistent module settings");
             return;
       }
       // Read prefix info. We use new setting names to avoid conflict with
-      // older global.columnCount/winPrefix names
+      // older this.global.columnCount/winPrefix names
       console.noteln("Read window prefix settings");
-      var tempSetting = Settings.read(SETTINGSKEY + "/prefixName", DataType.String);
+      var tempSetting = Settings.read("AutoIntegrate" + "/prefixName", DataType.String);
       if (Settings.lastReadOK) {
             console.writeln("AutoIntegrate: Restored prefixName '" + tempSetting + "' from settings.");
-            ppar.win_prefix = tempSetting;
+            this.ppar.win_prefix = tempSetting;
       }
-      if (par.start_with_empty_window_prefix.val) {
-            ppar.win_prefix = '';
+      if (this.par.start_with_empty_window_prefix.val) {
+            this.ppar.win_prefix = '';
       }
-      var tempSetting  = Settings.read(SETTINGSKEY + "/prefixArray", DataType.String);
+      var tempSetting  = Settings.read("AutoIntegrate" + "/prefixArray", DataType.String);
       if (Settings.lastReadOK) {
             console.writeln("AutoIntegrate: Restored prefixArray '" + tempSetting + "' from settings.");
-            ppar.prefixArray = JSON.parse(tempSetting);
-            if (ppar.prefixArray.length > 0 && ppar.prefixArray[0].length == 2) {
+            this.ppar.prefixArray = JSON.parse(tempSetting);
+            if (this.ppar.prefixArray.length > 0 && this.ppar.prefixArray[0].length == 2) {
                   // We have old format prefix array without column position
                   // Add column position as the first array element
-                  console.writeln("AutoIntegrate:converting old format prefix array " + JSON.stringify(ppar.prefixArray));
-                  for (var i = 0; i < ppar.prefixArray.length; i++) {
-                        if (ppar.prefixArray[i] == null) {
-                              ppar.prefixArray[i] = [0, '-', 0];
-                        } else if (ppar.prefixArray[i][0] == '-') {
+                  console.writeln("AutoIntegrate:converting old format prefix array " + JSON.stringify(this.ppar.prefixArray));
+                  for (var i = 0; i < this.ppar.prefixArray.length; i++) {
+                        if (this.ppar.prefixArray[i] == null) {
+                              this.ppar.prefixArray[i] = [0, '-', 0];
+                        } else if (this.ppar.prefixArray[i][0] == '-') {
                               // add zero column position
-                              ppar.prefixArray[i].unshift(0);
+                              this.ppar.prefixArray[i].unshift(0);
                         } else {
                               // Used slot, add i as column position
-                              ppar.prefixArray[i].unshift(i);
+                              this.ppar.prefixArray[i].unshift(i);
                         }
                   }
             }
-            gui.fix_win_prefix_array();
+            this.gui.fix_win_prefix_array();
       }
-      var tempSetting = Settings.read(SETTINGSKEY + "/global.columnCount", DataType.Int32);
+      var tempSetting = Settings.read("AutoIntegrate" + "/this.global.columnCount", DataType.Int32);
       if (Settings.lastReadOK) {
-            console.writeln("AutoIntegrate: Restored global.columnCount '" + tempSetting + "' from settings.");
-            ppar.userColumnCount = tempSetting;
+            console.writeln("AutoIntegrate: Restored this.global.columnCount '" + tempSetting + "' from settings.");
+            this.ppar.userColumnCount = tempSetting;
       }
-      if (!par.use_manual_icon_column.val) {
-            ppar.userColumnCount = -1;
+      if (!this.par.use_manual_icon_column.val) {
+            this.ppar.userColumnCount = -1;
       }
-      util.restoreLastDir();
-      util.restoreMasterDir();
-      var tempSetting = Settings.read(SETTINGSKEY + "/savedVersion", DataType.String);
+      this.util.restoreLastDir();
+      this.util.restoreMasterDir();
+      var tempSetting = Settings.read("AutoIntegrate" + "/savedVersion", DataType.String);
       if (Settings.lastReadOK) {
             console.writeln("AutoIntegrate: Restored savedVersion '" + tempSetting + "' from settings.");
-            ppar.savedVersion = tempSetting;
+            this.ppar.savedVersion = tempSetting;
       }
-      var tempSetting = Settings.read(SETTINGSKEY + "/savedInterfaceVersion", DataType.Int32);
+      var tempSetting = Settings.read("AutoIntegrate" + "/savedInterfaceVersion", DataType.Int32);
       if (Settings.lastReadOK) {
             console.writeln("AutoIntegrate: Restored savedInterfaceVersion '" + tempSetting + "' from settings.");
-            ppar.savedInterfaceVersion = tempSetting;
+            this.ppar.savedInterfaceVersion = tempSetting;
       }
 
-      var tempSetting = Settings.read(SETTINGSKEY + "/previewSettings", DataType.String);
+      var tempSetting = Settings.read("AutoIntegrate" + "/previewSettings", DataType.String);
       if (Settings.lastReadOK) {
             console.writeln("AutoIntegrate: Restored previewSettings '" + tempSetting + "' from settings.");
             var preview = JSON.parse(tempSetting);
             // Check that all settings are defined. When coming from older version
             // some values may be missing. Use defaults for missing values.
             if (preview.show_histogram == undefined) {
-                  preview.show_histogram = ppar.preview.show_histogram;
+                  preview.show_histogram = this.ppar.preview.show_histogram;
             }
             if (preview.side_preview_width == undefined) {
-                  preview.side_preview_width = ppar.preview.side_preview_width;
+                  preview.side_preview_width = this.ppar.preview.side_preview_width;
             }
             if (preview.side_preview_height == undefined) {
-                  preview.side_preview_height = ppar.preview.side_preview_height;
+                  preview.side_preview_height = this.ppar.preview.side_preview_height;
             }
             if (preview.side_histogram_height == undefined) {
-                  preview.side_histogram_height = ppar.preview.side_histogram_height;
+                  preview.side_histogram_height = this.ppar.preview.side_histogram_height;
             }
             if (preview.black_background == undefined) {
-                  preview.black_background = ppar.preview.black_background;
+                  preview.black_background = this.ppar.preview.black_background;
             }
-            ppar.preview = preview;
-            global.use_preview = ppar.preview.use_preview;
+            this.ppar.preview = preview;
+            this.global.use_preview = this.ppar.preview.use_preview;
       } else {
             /* Read old style separate settings. */
-            var tempSetting = Settings.read(SETTINGSKEY + "/usePreview", DataType.Boolean);
+            var tempSetting = Settings.read("AutoIntegrate" + "/usePreview", DataType.Boolean);
             if (Settings.lastReadOK) {
                   console.writeln("AutoIntegrate: Restored usePreview '" + tempSetting + "' from settings.");
-                  ppar.preview.use_preview = tempSetting;
-                  global.use_preview = tempSetting;
+                  this.ppar.preview.use_preview = tempSetting;
+                  this.global.use_preview = tempSetting;
             }
             /* Now we have preview size for each screen size. */
-            var tempSetting = Settings.read(SETTINGSKEY + "/previewWidth", DataType.Int32);
+            var tempSetting = Settings.read("AutoIntegrate" + "/previewWidth", DataType.Int32);
             if (Settings.lastReadOK) {
                   console.writeln("AutoIntegrate: Restored previewWidth '" + tempSetting + "' from settings.");
-                  ppar.preview.preview_width = tempSetting;
+                  this.ppar.preview.preview_width = tempSetting;
             }
-            var tempSetting = Settings.read(SETTINGSKEY + "/previewHeight", DataType.Int32);
+            var tempSetting = Settings.read("AutoIntegrate" + "/previewHeight", DataType.Int32);
             if (Settings.lastReadOK) {
                   console.writeln("AutoIntegrate: Restored previewHeight '" + tempSetting + "' from settings.");
-                  ppar.preview.preview_height = tempSetting;
+                  this.ppar.preview.preview_height = tempSetting;
             }
       }
 
-      var tempSetting = Settings.read(SETTINGSKEY + "/useSingleColumn", DataType.Boolean);
+      var tempSetting = Settings.read("AutoIntegrate" + "/useSingleColumn", DataType.Boolean);
       if (Settings.lastReadOK) {
             console.writeln("AutoIntegrate: Restored useSingleColumn '" + tempSetting + "' from settings.");
-            ppar.use_single_column = tempSetting;
+            this.ppar.use_single_column = tempSetting;
       }
-      var tempSetting = Settings.read(SETTINGSKEY + "/useMoreTabs ", DataType.Boolean);
+      var tempSetting = Settings.read("AutoIntegrate" + "/useMoreTabs ", DataType.Boolean);
       if (Settings.lastReadOK) {
             console.writeln("AutoIntegrate: Restored useMoreTabs '" + tempSetting + "' from settings.");
-            ppar.use_more_tabs = tempSetting;
+            this.ppar.use_more_tabs = tempSetting;
       }
-      var tempSetting = Settings.read(SETTINGSKEY + "/filesInTab", DataType.Boolean);
+      var tempSetting = Settings.read("AutoIntegrate" + "/filesInTab", DataType.Boolean);
       if (Settings.lastReadOK) {
             console.writeln("AutoIntegrate: Restored filesInTab '" + tempSetting + "' from settings.");
-            ppar.files_in_tab = tempSetting;
+            this.ppar.files_in_tab = tempSetting;
       }
-      var tempSetting = Settings.read(SETTINGSKEY + "/showStartupImage ", DataType.Boolean);
+      var tempSetting = Settings.read("AutoIntegrate" + "/showStartupImage ", DataType.Boolean);
       if (Settings.lastReadOK) {
             console.writeln("AutoIntegrate: Restored showStartupImage '" + tempSetting + "' from settings.");
-            ppar.show_startup_image = tempSetting;
+            this.ppar.show_startup_image = tempSetting;
       }
-      var tempSetting = Settings.read(SETTINGSKEY + "/startupImageName", DataType.String);
+      var tempSetting = Settings.read("AutoIntegrate" + "/startupImageName", DataType.String);
       if (Settings.lastReadOK) {
             console.writeln("AutoIntegrate: Restored startupImageName '" + tempSetting + "' from settings.");
-            ppar.startup_image_name = tempSetting;
+            this.ppar.startup_image_name = tempSetting;
       }
 }
 
-function readOneParameterFromProcessIcon(name, type)
+readOneParameterFromProcessIcon(name, type)
 {
       var val = null;
-      name = util.mapBadChars(name);
+      name = this.util.mapBadChars(name);
       if (Parameters.has(name)) {
             switch (type) {
                   case 'S':
@@ -454,7 +454,7 @@ function readOneParameterFromProcessIcon(name, type)
                         console.writeln(name + "=" + val);
                         break;
                   default:
-                        util.throwFatalError("Unknown type '" + type + '" for parameter ' + name);
+                        this.util.throwFatalError("Unknown type '" + type + '" for parameter ' + name);
                         break;
             }
       }
@@ -462,94 +462,94 @@ function readOneParameterFromProcessIcon(name, type)
 }
 
 // Read default parameters from process icon
-function readParametersFromProcessIcon() 
+readParametersFromProcessIcon() 
 {
-      if (global.do_not_read_settings) {
+      if (this.global.do_not_read_settings) {
             console.writeln("Use default settings, do not read parameter values from process icon");
             return;
       }
       console.writeln("readParametersFromProcessIcon");
-      for (let x in par) {
-            var param = par[x];
+      for (let x in this.par) {
+            var param = this.par[x];
             var val = this.readOneParameterFromProcessIcon(param.name, param.type);
             if (val == null && param.oldname != undefined) {
                   val = this.readOneParameterFromProcessIcon(param.oldname, param.type);
             }
             if (val != null) {
-                  global.setParameterValue(param, val);
+                  this.global.setParameterValue(param, val);
             }
       }
 }
 
-this.test_initialize_new = function()
+test_initialize_new()
 {
-      global.debug = true;
-      global.par.debug.val = true;
+      this.global.debug = true;
+      this.global.this.par.debug.val = true;
 
-      global.testmode = true;
-      global.testmode_log = "";
+      this.global.testmode = true;
+      this.global.testmode_log = "";
 
       // do not read defaults from persistent module settings
-      global.ai_use_persistent_module_settings = false; 
-      global.do_not_read_settings = true;
-      global.do_not_write_settings = true;
+      this.global.ai_use_persistent_module_settings = false; 
+      this.global.do_not_read_settings = true;
+      this.global.do_not_write_settings = true;
 
       // All logging is done by the calling test program
-      util.loggingEnabled = false;
+      this.util.loggingEnabled = false;
 }
 
-this.test_initdebug = function()
+test_initdebug()
 {
-      global.par.debug.val = true;
-      global.ai_use_persistent_module_settings = false;  // do not read defaults from persistent module settings
+      this.global.this.par.debug.val = true;
+      this.global.ai_use_persistent_module_settings = false;  // do not read defaults from persistent module settings
 }
 
-this.test_initialize = function()
+test_initialize()
 {
       console.writeln("test_initialize");
 
       this.init_pixinsight_version();
 
-      global.interactiveMode = false;
-      global.do_not_write_settings = true;
-      global.testmode = true;
-      global.testmode_log = "";
-      global.debug = true;
+      this.global.interactiveMode = false;
+      this.global.do_not_write_settings = true;
+      this.global.testmode = true;
+      this.global.testmode_log = "";
+      this.global.debug = true;
 
-      util.setDefaultDirs();
+      this.util.setDefaultDirs();
 
       // Initialize ppar to the default values they have when the script is started
-      ppar.win_prefix = '';
-      ppar.prefixArray = [];
-      ppar.userColumnCount = -1;    
-      ppar.lastDir = '';  
+      this.ppar.win_prefix = '';
+      this.ppar.prefixArray = [];
+      this.ppar.userColumnCount = -1;    
+      this.ppar.lastDir = '';  
 
       // Hopefully remove the prefixes of a previous run
-      util.fixAllWindowArrays(ppar.win_prefix);
+      this.util.fixAllWindowArrays(this.ppar.win_prefix);
 
       // Reset the parameters to the default they would have when the program is loaded
-      util.setParameterDefaults();
+      this.util.setParameterDefaults();
 
       console.writeln("test_initialize done");
 }
 
-this.load_setup = function(setup_path)
+load_setup(setup_path)
 {
       console.writeln("load_setup " + setup_path);
 
-      var pagearray = util.readJsonFile(setup_path, false);
+      var pagearray = this.util.readJsonFile(setup_path, false);
 
       for (var i = 0; i < pagearray.length; i++) {
             if (pagearray[i] != null) {
-                  gui.addFilesToTreeBox(this.dialog, i, pagearray[i]);
+                  this.gui.addFilesToTreeBox(this.dialog, i, pagearray[i]);
             }
       }
-      gui.updateInfoLabel(this.dialog);
+      this.gui.updateInfoLabel(this.dialog);
 
       console.writeln("load_setup done");
 }
 
-this.test_autosetup = function(autosetup_path)
+test_autosetup = function(autosetup_path)
 {
       console.writeln("test_autosetup");
 
@@ -558,56 +558,56 @@ this.test_autosetup = function(autosetup_path)
       console.writeln("test_autosetup done");
 }
 
-this.test_getpar = function()
+test_getpar()
 {
-      return par;
+      return this.par;
 }
 
-this.test_getppar = function()
+test_getppar()
 {
-      return ppar;
+      return this.ppar;
 }
 
-this.test_gui = function()
+test_gui()
 {
-      return gui;
+      return this.gui;
 }
 
-this.test_nopreview = function()
+test_nopreview()
 {
-      global.ppar.preview.use_preview = false;
-      global.use_preview = false;
+      this.global.this.ppar.preview.use_preview = false;
+      this.global.use_preview = false;
 }
 
-this.get_run_results = function()
+get_run_results()
 {
-      return global.run_results;
+      return this.global.run_results;
 }
 
-this.cancel = function()
+cancel()
 {
       console.noteln("Cancel requested...");
-      global.cancel_processing = true;
+      this.global.cancel_processing = true;
 }
 
-this.get_autointegrate_version = function()
+get_autointegrate_version()
 {
-      return global.autointegrate_version;
+      return this.global.autointegrate_version;
 }
 
-this.set_outputRootDir = function(dir)
+set_outputRootDir(dir)
 {
-      util.setOutputRootDir(dir);
+      this.util.setOutputRootDir(dir);
 }
 
-this.set_dialog = function(dialog)
+set_dialog(dialog)
 {
       this.dialog = dialog;
 }
 
-this.openImageWindowFromFile = function(name)
+openImageWindowFromFile(name)
 {
-      return util.openImageWindowFromFile(name);
+      return this.util.openImageWindowFromFile(name);
 }
 
 /***************************************************************************
@@ -615,7 +615,7 @@ this.openImageWindowFromFile = function(name)
  *    autointegrate_main
  * 
  */
-this.autointegrate_main = function(runsetuppath = null)
+autointegrate_main(runsetuppath = null)
 {
       var errors = false;
 
@@ -640,7 +640,7 @@ this.autointegrate_main = function(runsetuppath = null)
              * For example:
              *    run -a="do_not_read_settings" -a="do_not_write_settings" --execute-mode=auto "C:/path_to_script/AutoIntegrate.js"
              */
-            for (let i = 0; i < Runtime.jsArguments.length && !global.testmode; i++) {
+            for (let i = 0; i < Runtime.jsArguments.length && !this.global.testmode; i++) {
                   if (Runtime.jsArguments[i].startsWith("runsetup=")) {
                         var eqpos = Runtime.jsArguments[i].indexOf('=');
                         if (eqpos > 0) {
@@ -657,20 +657,20 @@ this.autointegrate_main = function(runsetuppath = null)
                         }
                   } else if (Runtime.jsArguments[i] == "do_not_read_settings") {
                         console.writeln("Found do_not_read_settings argument, no parameters are read from persistent module settings or from icon.");
-                        global.do_not_read_settings = true;
+                        this.global.do_not_read_settings = true;
                   } else if (Runtime.jsArguments[i] == "do_not_write_settings") {
                         console.writeln("Found do_not_write_settings argument, no parameters are written to persistent module settings.");
-                        global.do_not_write_settings = true;
+                        this.global.do_not_write_settings = true;
                   } else {
                         console.criticalln("Unknown argument " + Runtime.jsArguments[i]);
                         errors = true;
                   }
             }
             if (runsetuppath != null) {
-                  global.interactiveMode = false;
+                  this.global.interactiveMode = false;
             }
 
-            util.setDefaultDirs();
+            this.util.setDefaultDirs();
 
             if (Parameters.isGlobalTarget || Parameters.isViewTarget) {
                   // 1. Read parameters saved to process icon, these overwrite default settings
@@ -685,17 +685,17 @@ this.autointegrate_main = function(runsetuppath = null)
             } else {
                   // 2. Read saved parameters from persistent module settings
                   console.noteln("Read persistent module settings");
-                  util.readParametersFromPersistentModuleSettings();
+                  this.util.readParametersFromPersistentModuleSettings();
             }
             
-            if (global.ai_use_persistent_module_settings) {
+            if (this.global.ai_use_persistent_module_settings) {
                   // 3. Read persistent module settings that are temporary work values
                   this.readPersistentSettings();
             } else {
                   console.noteln("Skip reading persistent settings");
             }
 
-            util.fixAllWindowArrays(ppar.win_prefix);
+            this.util.fixAllWindowArrays(this.ppar.win_prefix);
 
             this.init_pixinsight_version();
 
@@ -712,42 +712,42 @@ this.autointegrate_main = function(runsetuppath = null)
             console.noteln("https://ruuth.xyz/autointegrate/ ");
             console.noteln("======================================================");
             console.noteln("For more information visit the following links:");
-            console.noteln("Web site: " + global.autointegrateinfo_link);
+            console.noteln("Web site: " + this.global.autointegrateinfo_link);
             console.noteln("Discussion forums: https://forums.ruuth.xyz");
             console.noteln("Discord: https://discord.gg/baqMqmKS3N");
             console.noteln("======================================================");
-            console.noteln(global.autointegrate_version + ", PixInsight v" + global.pixinsight_version_str + ' (' + global.pixinsight_version_num + ')');
+            console.noteln(this.global.autointegrate_version + ", PixInsight v" + this.global.pixinsight_version_str + ' (' + this.global.pixinsight_version_num + ')');
             console.noteln("======================================================");
-            if (global.autointegrate_version_info.length > 0) {
-                  for (var i = 0; i < global.autointegrate_version_info.length; i++) {
-                        console.noteln(global.autointegrate_version_info[i]);
+            if (this.global.autointegrate_version_info.length > 0) {
+                  for (var i = 0; i < this.global.autointegrate_version_info.length; i++) {
+                        console.noteln(this.global.autointegrate_version_info[i]);
                   }
                   console.noteln("======================================================");
             }
-            if (global.pixinsight_version_num < 1080810) {
+            if (this.global.pixinsight_version_num < 1080810) {
                   var old_default = 'Generic';
-                  if (par.use_weight.val == par.use_weight.def 
-                      && par.use_weight.def != old_default) 
+                  if (this.par.use_weight.val == this.par.use_weight.def 
+                      && this.par.use_weight.def != old_default) 
                   {
                         console.noteln("PixInsight version is older than 1.8.8-10, using " + old_default + " instead of " + 
-                                       par.use_weight.def + " for " + par.use_weight.name);
-                        par.use_weight.val = old_default;
-                        par.use_weight.def = old_default;
+                                       this.par.use_weight.def + " for " + this.par.use_weight.name);
+                        this.par.use_weight.val = old_default;
+                        this.par.use_weight.def = old_default;
                   }
             }
-            if (global.pixinsight_version_num >= 1080902 && global.pixinsight_build_num >= 1601) {
+            if (this.global.pixinsight_version_num >= 1080902 && this.global.pixinsight_build_num >= 1601) {
                   // We have GradientCorrection process available
-                  global.is_gc_process = true;
+                  this.global.is_gc_process = true;
             } else {
                   // Old versions do not have GradientCorrection process
-                  par.use_abe.val = true;
-                  par.use_abe.def = true;
-                  global.is_gc_process = false;
+                  this.par.use_abe.val = true;
+                  this.par.use_abe.def = true;
+                  this.global.is_gc_process = false;
             }
-            if (global.pixinsight_version_num >= 1090000) {
-                  global.is_mgc_process = true;
+            if (this.global.pixinsight_version_num >= 1090000) {
+                  this.global.is_mgc_process = true;
             } else {
-                  global.is_mgc_process = false;
+                  this.global.is_mgc_process = false;
             }
       }
       catch (x) {
@@ -755,8 +755,8 @@ this.autointegrate_main = function(runsetuppath = null)
             errors = true;
       }
 
-      this.dialog = new gui.AutoIntegrateDialog(global);
-      global.dialog = this.dialog;
+      this.dialog = this.gui;
+      this.global.dialog = this.dialog;
       if (runsetuppath != null) {
             console.noteln("Using JSON file: " + runsetuppath);
             // Load Json file

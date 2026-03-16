@@ -443,7 +443,7 @@ class AutoIntegrateMetricsVisualizerDialog extends Dialog {
             if ((new MessageBox(
                     "Do you really want to close " + this.dialog.visualizer.WINDOW_TITLE + " and apply limits?",
                     this.dialog.visualizer.WINDOW_TITLE,
-                    StdIcon.Warning, StdButton_Yes, StdButton_No)).execute() === StdButton_Yes)
+                    StdIcon.Warning, StdButton.Yes, StdButton.No)).execute() === StdButton.Yes)
             {
                 this.dialog.ok();
             }

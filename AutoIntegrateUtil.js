@@ -1178,14 +1178,14 @@ saveLastDir(dirname)
 {
       this.ppar.lastDir = this.removePathEndSlash(dirname);
       if (!this.global.do_not_write_settings) {
-            Settings.write(SETTINGSKEY + '/lastDir', DataType.String, this.ppar.lastDir);
+            Settings.write("AutoIntegrate" + '/lastDir', DataType.String, this.ppar.lastDir);
             if (this.global.debug) console.writeln("Save lastDir '" + this.ppar.lastDir + "'");
       }
 }
 
 restoreLastDir()
 {
-      var tempSetting = Settings.read(SETTINGSKEY + "/lastDir", DataType.String);
+      var tempSetting = Settings.read("AutoIntegrate" + "/lastDir", DataType.String);
       if (Settings.lastReadOK) {
             if (this.global.debug) console.writeln("AutoIntegrate: Restored lastDir '" + tempSetting + "' from settings.");
             this.ppar.lastDir = tempSetting;
@@ -1196,14 +1196,14 @@ saveMasterDir(dirname)
 {
       this.ppar.masterDir = this.removePathEndSlash(dirname);
       if (!this.global.do_not_write_settings) {
-            Settings.write(SETTINGSKEY + '/masterDir', DataType.String, this.ppar.masterDir);
+            Settings.write("AutoIntegrate" + '/masterDir', DataType.String, this.ppar.masterDir);
             if (this.global.debug) console.writeln("Save masterDir '" + this.ppar.masterDir + "'");
       }
 }
 
 restoreMasterDir()
 {
-      var tempSetting = Settings.read(SETTINGSKEY + "/masterDir", DataType.String);
+      var tempSetting = Settings.read("AutoIntegrate" + "/masterDir", DataType.String);
       if (Settings.lastReadOK) {
             if (this.global.debug) console.writeln("AutoIntegrate: Restored masterDir '" + tempSetting + "' from settings.");
             this.ppar.masterDir = tempSetting;
@@ -1217,11 +1217,11 @@ readAndMigrateSetting(newname, oldname, type, old_interface_version)
             var val = Settings.read(oldname, type);
             if (Settings.lastReadOK && !this.global.do_not_write_settings) {
                   if (this.global.debug) console.writeln("AutoIntegrate: Migrate setting " + oldname + " to " + newname + "=" + val);
-                  Settings.write(SETTINGSKEY + '/' + newname, type, val);
+                  Settings.write("AutoIntegrate" + '/' + newname, type, val);
                   Settings.remove(oldname);   // Remove old setting
             }
       } else {
-            var key = SETTINGSKEY + '/' + newname;
+            var key = "AutoIntegrate" + '/' + newname;
             var val = Settings.read(key, type);
             if (this.global.debug) console.writeln("AutoIntegrate: Read setting " + key + "=" + val);
       }
@@ -1230,7 +1230,7 @@ readAndMigrateSetting(newname, oldname, type, old_interface_version)
 
 readOneParameterFromPersistentModuleSettings(name, type)
 {
-      name = SETTINGSKEY + '/' + this.mapBadChars(name);
+      name = "AutoIntegrate" + '/' + this.mapBadChars(name);
       switch (type) {
             case 'S':
                   var tempSetting = Settings.read(name, DataType.String);
@@ -1252,7 +1252,7 @@ readOneParameterFromPersistentModuleSettings(name, type)
                   break;
       }
       if (Settings.lastReadOK) {
-            console.writeln("AutoIntegrate: read from settings " + name + "=" + tempSetting);
+            console.writeln("AutoIntegrate: read parameter from settings " + name + "=" + tempSetting);
             if (type == 'O') {
                   // Convert Json string to an object
                   tempSetting = JSON.parse(tempSetting);
@@ -1293,7 +1293,7 @@ readParametersFromPersistentModuleSettings()
 
 writeParameterToSettings(param)
 {
-      var name = SETTINGSKEY + '/' + this.mapBadChars(param.name);
+      var name = "AutoIntegrate" + '/' + this.mapBadChars(param.name);
       if (this.global.isParameterChanged(param)) {
             // not a default value, save setting
             console.writeln("AutoIntegrate: save to settings " + name + "=" + param.val);
@@ -1320,7 +1320,7 @@ writeParameterToSettings(param)
             }
             if (param.oldname != undefined) {
                   // remove old name
-                  Settings.remove(SETTINGSKEY + '/' + this.mapBadChars(param.oldname));
+                  Settings.remove("AutoIntegrate" + '/' + this.mapBadChars(param.oldname));
             }
       } else {
             // default value, remove possible setting

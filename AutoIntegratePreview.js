@@ -68,6 +68,7 @@ class AutoIntegratePreviewControl extends Frame
       constructor(parentDialog, name, engine, util, global, size_x, size_y, call_from_max_preview) {
             super(parentDialog);
 
+      this.parentDialog = parentDialog;
       this.name = name;
       this.engine = engine;
       this.util = util;
@@ -568,23 +569,23 @@ class AutoIntegratePreviewControl extends Frame
             this.coordinatesEdit.toolTip = "Zoom to 1:1 view and click left mouse button to fill coordinates to the coordinates box.";
             
             this.coordinatesCopyFirstButton = new ToolButton( this );
-            this.coordinatesCopyFirstButton.icon = parentDialog.scaledResource( ":/icons/left.png" );
+            this.coordinatesCopyFirstButton.icon = this.parentDialog.scaledResource( ":/icons/left.png" );
             this.coordinatesCopyFirstButton.onClick = function () {
                   var preview = this.parent.parent;
                   if (preview.coordinatesEdit.text != "") {
-                        parentDialog.cometAlignFirstXY.text = preview.coordinatesEdit.text;
-                        this.par.comet_first_xy.val = preview.coordinatesEdit.text;
+                        preview.parentDialog.cometAlignFirstXY.text = preview.coordinatesEdit.text;
+                        preview.parentDialog.par.comet_first_xy.val = preview.coordinatesEdit.text;
                   }
             };
             this.coordinatesCopyFirstButton.toolTip = "Copy coordinates to comet first image X₀,Y₀ coordinates.";
 
             this.coordinatesCopyLastButton = new ToolButton( this );
-            this.coordinatesCopyLastButton.icon = parentDialog.scaledResource( ":/icons/right.png" );
+            this.coordinatesCopyLastButton.icon = this.parentDialog.scaledResource( ":/icons/right.png" );
             this.coordinatesCopyLastButton.onClick = function () {
                   var preview = this.parent.parent;
                   if (preview.coordinatesEdit.text != "") {
-                        parentDialog.cometAlignLastXY.text = preview.coordinatesEdit.text;
-                        this.par.comet_last_xy.val = preview.coordinatesEdit.text;
+                        preview.parentDialog.cometAlignLastXY.text = preview.coordinatesEdit.text;
+                        preview.parentDialog.par.comet_last_xy.val = preview.coordinatesEdit.text;
                   }
             };
             this.coordinatesCopyLastButton.toolTip = "Copy coordinates to comet last image X₁,Y₁ coordinates.";

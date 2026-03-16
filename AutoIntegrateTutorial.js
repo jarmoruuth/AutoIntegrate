@@ -183,17 +183,17 @@ class AutoIntegrateWelcomeDialog extends Dialog {
             "  background: rgb(39, 174, 96); " +
             "}";
         var welcomeDialog = this;
-        this.gettingStartedButton.onClick = function() {
-            welcomeDialog.selectedTutorial = "getting-started";
-            welcomeDialog.ok();
+        this.gettingStartedButton.onClick = () => {
+            this.selectedTutorial = "getting-started";
+            this.ok();
         };
         
         this.allTutorialsButton = new PushButton(this.tutorialsGroupBox);
         this.allTutorialsButton.text = "View All Tutorials";
         this.allTutorialsButton.icon = this.scaledResource(":/icons/book.png");
-        this.allTutorialsButton.onClick = function() {
-            welcomeDialog.selectedTutorial = "show-manager";
-            welcomeDialog.ok();
+        this.allTutorialsButton.onClick = () => {
+            this.selectedTutorial = "show-manager";
+            this.ok();
         };
         
         this.tutorialsGroupBox.sizer.add(this.tutorialLabel);
@@ -215,7 +215,7 @@ class AutoIntegrateWelcomeDialog extends Dialog {
         this.docsButton = new PushButton(this.resourcesGroupBox);
         this.docsButton.text = "📖 Online Documentation";
         this.docsButton.toolTip = "Open AutoIntegrate documentation in browser";
-        this.docsButton.onClick = function() {
+        this.docsButton.onClick = () => {
             Console.writeln("Documentation: " + global.autointegrateinfo_link);
             Dialog.openBrowser(global.autointegrateinfo_link);
         };
@@ -224,7 +224,7 @@ class AutoIntegrateWelcomeDialog extends Dialog {
         this.forumButton = new PushButton(this.resourcesGroupBox);
         this.forumButton.text = "💬 Support Forum";
         this.forumButton.toolTip = "Visit the AutoIntegrate forum for help and discussion";
-        this.forumButton.onClick = function() {
+        this.forumButton.onClick = () => {
             Console.writeln("Forum: https://forums.ruuth.xyz/");
             Dialog.openBrowser("https://forums.ruuth.xyz/");
         };
@@ -233,7 +233,7 @@ class AutoIntegrateWelcomeDialog extends Dialog {
         this.videoButton = new PushButton(this.resourcesGroupBox);
         this.videoButton.text = "🎥 Video Tutorials";
         this.videoButton.toolTip = "Watch video guides on YouTube";
-        this.videoButton.onClick = function() {
+        this.videoButton.onClick = () => {
             Console.writeln("Videos: https://www.youtube.com/watch?v=so8T765h-Kc");
             Dialog.openBrowser("https://www.youtube.com/watch?v=so8T765h-Kc");
         };
@@ -242,8 +242,8 @@ class AutoIntegrateWelcomeDialog extends Dialog {
         this.creditsButton = new PushButton(this.resourcesGroupBox);
         this.creditsButton.text = "Credits";
         this.creditsButton.toolTip = "View credits and version information";
-        this.creditsButton.onClick = function() {
-            var credits = new AutoIntegrateCreditsDialog(global);
+        this.creditsButton.onClick = () => {
+            var credits = new AutoIntegrateCreditsDialog(this.global);
             credits.execute();
         };
         
@@ -270,8 +270,8 @@ class AutoIntegrateWelcomeDialog extends Dialog {
         this.showOnStartupLabel = new Label(this);
         this.showOnStartupLabel.text = "Show this welcome screen on startup";
         this.showOnStartupLabel.cursor = new Cursor(StdCursor.PointingHand);
-        this.showOnStartupLabel.onMousePress = function() {
-            welcomeDialog.showOnStartupCheckBox.checked = !welcomeDialog.showOnStartupCheckBox.checked;
+        this.showOnStartupLabel.onMousePress = () => {
+            this.showOnStartupCheckBox.checked = !this.showOnStartupCheckBox.checked;
         };
         
         var showOnStartupSizer = new HorizontalSizer;
@@ -285,16 +285,16 @@ class AutoIntegrateWelcomeDialog extends Dialog {
         this.skipButton.text = "Skip - Start Using AutoIntegrate";
         this.skipButton.icon = this.scaledResource(":/icons/forward.png");
         this.skipButton.onClick = function() {
-            welcomeDialog.selectedTutorial = null;
-            welcomeDialog.ok();
+            this.selectedTutorial = null;
+            this.ok();
         };
         
         this.closeButton = new PushButton(this);
         this.closeButton.text = "Close";
         this.closeButton.icon = this.scaledResource(":/icons/close.png");
-        this.closeButton.onClick = function() {
-            welcomeDialog.selectedTutorial = null;
-            welcomeDialog.cancel();
+        this.closeButton.onClick = () => {
+            this.selectedTutorial = null;
+            this.cancel();
         };
         
         var buttonSizer = new HorizontalSizer;
@@ -324,7 +324,10 @@ class AutoIntegrateWelcomeDialog extends Dialog {
 
 saveShowOnStartup() {
         if (!this.global.do_not_write_settings) {
-            Settings.write(SETTINGSKEY + '/' + "ShowWelcomeOnStartup", DataType.Boolean, this.showOnStartupCheckBox.checked);
+            if (this.global.debug) console.writeln("Saving ShowWelcomeOnStartup setting: " + this.showOnStartupCheckBox.checked);
+            Settings.write("AutoIntegrate" + '/' + "ShowWelcomeOnStartup", DataType.Boolean, this.showOnStartupCheckBox.checked);
+        } else {
+            if (this.global.debug) console.writeln("do_not_write_settings is true, not saving ShowWelcomeOnStartup setting");
         }
 }
 
@@ -548,7 +551,7 @@ isTutorialCompleted(tutorialId) {
       }
       var key = "Tutorial_" + tutorialId + "_Completed";
       if (global.debug) console.writeln("Read setting: " + key);
-      return Settings.read(SETTINGSKEY + '/' + key, DataType.Boolean);
+      return Settings.read("AutoIntegrate" + '/' + key, DataType.Boolean);
 };
 
 // Mark tutorial as completed
@@ -578,7 +581,7 @@ resetAllTutorials() {
       var tutorials = this.getTutorials();
       for (var i = 0; i < tutorials.length; i++) {
             var key = "Tutorial_" + tutorials[i].id + "_Completed";
-            Settings.remove(SETTINGSKEY + '/' + key);
+            Settings.remove("AutoIntegrate" + '/' + key);
       }
       this.populateTutorials();
 };
@@ -591,7 +594,7 @@ launchSelectedTutorial() {
                   "Please select a tutorial from the list.",
                   "No Tutorial Selected",
                   StdIcon.Information,
-                  StdButton_Ok
+                  StdButton.Ok
             );
             msg.execute();
             return;
@@ -997,7 +1000,7 @@ endTutorial() {
     // Mark tutorial as completed
     if (this.currentTutorialId &&  !this.global.do_not_write_settings) {
         var key = "AutoIntegrate_Tutorial_" + this.currentTutorialId + "_Completed";
-        Settings.write(SETTINGSKEY + '/' + key, DataType.Boolean, true);
+        Settings.write("AutoIntegrate" + '/' + key, DataType.Boolean, true);
         Console.noteln("Tutorial completed: " + this.currentTutorialId);
     }
     

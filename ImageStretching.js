@@ -64,7 +64,6 @@ class AutoIntegrateImageStretchingDialog extends Dialog {
         // this.minWidth = 1000;
 
         this.global = new AutoIntegrateGlobal();
-        this.global.debug = false;
         for (let i = 0; i < Runtime.jsArguments.length; i++) {
             if (Runtime.jsArguments[i] == "do_not_read_settings") {
                 console.writeln("do_not_read_settings");

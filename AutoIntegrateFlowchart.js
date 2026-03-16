@@ -17,42 +17,42 @@ class AutoIntegrateFlowchart
         this.global = global;
         this.util = util;
 
-var gui = null;
+this.gui = null;
 
-var par = global.par;
-var ppar = global.ppar;
+this.par = this.global.par;
+this.ppar = this.global.ppar;
 
 // Globals for section: Collect flowchart data from processing engine
 
-var flowchart_active = false;
-var flowchartCurrent = null;
-var flowchartStack = [];
-var flowchartOperationList = [];
-var flowchart_operation_level = 0;
+this.flowchart_active = false;
+this.flowchartCurrent = null;
+this.flowchartStack = [];
+this.flowchartOperationList = [];
+this.flowchart_operation_level = 0;
 
 // Globals for section: Draw flowchart Preview Image
 
-var flowchart_text_margin = 4;                                                // Margin between box and text
-var flowchart_box_margin = 4;                                                 // Margin outside of the box
-var flowchart_line_margin = 12;                                               // Margin for lines with child nodes
-var flowchart_margin = 2 * (flowchart_text_margin + flowchart_box_margin);    // Margin for elements in the graph
+this.flowchart_text_margin = 4;                                                // Margin between box and text
+this.flowchart_box_margin = 4;                                                 // Margin outside of the box
+this.flowchart_line_margin = 12;                                               // Margin for lines with child nodes
+this.flowchart_margin = 2 * (this.flowchart_text_margin + this.flowchart_box_margin);    // Margin for elements in the graph
 
 // light orange 0xffffd7b5
 // light orange 0xffFFD580
 // light red 0xffffb3b3
 // red       0xffff0000
 //                          blue        green       orange      magenta     cyan        yellow      black
-var flowchart_colors =    [ 0xffb3d1ff, 0xffc2f0c2, 0xffffd7b5, 0xffffb3ff, 0xffb3f0ff, 0xffffffb3, 0xff000000 ];      // For background
-var flowchart_active_id_color = 0xffff0000;      // For active node, red
-var flowchart_inactive_id_color = 0xFFD3D3D3;    // For inactive node, light gray
+this.flowchart_colors =    [ 0xffb3d1ff, 0xffc2f0c2, 0xffffd7b5, 0xffffb3ff, 0xffb3f0ff, 0xffffffb3, 0xff000000 ];      // For background
+this.flowchart_active_id_color = 0xffff0000;      // For active node, red
+this.flowchart_inactive_id_color = 0xFFD3D3D3;    // For inactive node, light gray
 
-var flowchart_is_background_image = false;
-var flowchart_garbagecollection_ctr = 0;
+this.flowchart_is_background_image = false;
+this.flowchart_garbagecollection_ctr = 0;
 
 } // constructor end
 
-function setGUI(aigui) {
-      gui = aigui;
+setGUI(aigui) {
+      this.gui = aigui;
 }
 
 // =============================================================================
@@ -68,17 +68,17 @@ function setGUI(aigui) {
 // level: level in the graph
 // boxwidth: width of the box, this is max box width in the level
 
-function node_get_txt(node)
+node_get_txt(node)
 {
-      if (par.flowchart_time.val) {
-            return node.txt + util.get_node_execute_time_str(node);
+      if (this.par.flowchart_time.val) {
+            return node.txt + this.util.get_node_execute_time_str(node);
       } else {
             return node.txt;
       }
 }
 
 // Iterate size of the flowchart childs graph
-function flowchartGraphIterateChilds(parent, font, level)
+flowchartGraphIterateChilds(parent, font, level)
 {
       parent.level = level;
       var list = parent.list;
@@ -88,11 +88,11 @@ function flowchartGraphIterateChilds(parent, font, level)
       // iterate childs to get size
       for (var i = 0; i < list.length; i++) {
             var node = list[i];
-            if (par.flowchart_debug.val) {
+            if (this.par.flowchart_debug.val) {
                   console.writeln("flowchartGraphIterateChilds: " + node.type + " " + this.node_get_txt(node));
             }
-            node.width = font.width(this.node_get_txt(node)) + flowchart_margin;
-            node.height = font.height + flowchart_margin;
+            node.width = font.width(this.node_get_txt(node)) + this.flowchart_margin;
+            node.height = font.height + this.flowchart_margin;
             node_boxwidth = Math.max(node_boxwidth, node.width);
 
             var size = this.flowchartGraphIterate(node, font, level);  // Iterate childs, parent node is a dummy node
@@ -112,7 +112,7 @@ function flowchartGraphIterateChilds(parent, font, level)
 }
 
 // Iterate size of the flowchart graph
-function flowchartGraphIterate(parent, font, level)
+flowchartGraphIterate(parent, font, level)
 {
       parent.level = level;
       var list = parent.list;
@@ -122,11 +122,11 @@ function flowchartGraphIterate(parent, font, level)
       // iterate childs to get size
       for (var i = 0; i < list.length; i++) {
             var node = list[i];
-            if (par.flowchart_debug.val) {
+            if (this.par.flowchart_debug.val) {
                   console.writeln("flowchartGraphIterate: " + node.type + " " + this.node_get_txt(node));
             }
-            node.width = font.width(this.node_get_txt(node)) + flowchart_margin;
-            node.height = font.height + flowchart_margin;
+            node.width = font.width(this.node_get_txt(node)) + this.flowchart_margin;
+            node.height = font.height + this.flowchart_margin;
             node_boxwidth = Math.max(node_boxwidth, node.width);
             if (node.type == "header") {
                   if (node.list.length > 0) {
@@ -141,7 +141,7 @@ function flowchartGraphIterate(parent, font, level)
                         node.height = size[1];
                         if (node.list.length > 1) {
                               // parent has no text but add space for connecting lines
-                              node.height += 2 * flowchart_line_margin;
+                              node.height += 2 * this.flowchart_line_margin;
                         }
                   }
             } else if (node.type == "mask") {
@@ -164,57 +164,57 @@ function flowchartGraphIterate(parent, font, level)
       return [ width, height ];
 }
 
-function flowchartLineColor()
+flowchartLineColor()
 {
-      if (flowchart_is_background_image) {
+      if (this.flowchart_is_background_image) {
             return 0xffffffff;      // white
       } else {
             return 0xff000000;      // black
       }
 }
 
-function flowchartDrawText(graphics, x, y, node)
+flowchartDrawText(graphics, x, y, node)
 {
       if (!node.boxwidth) {
-            util.throwFatalError("flowchartDrawText: boxwidth == null");
+            this.util.throwFatalError("flowchartDrawText: boxwidth == null");
       }
 
-      if (par.flowchart_debug.val) {
+      if (this.par.flowchart_debug.val) {
             console.writeln("flowchartDrawText: " + node.type + " " + this.node_get_txt(node) + " in: " + x + " " + y);
       }
 
       var drawbox = (node.type == "process" || node.type == "mask");
 
-      var x0 = x + flowchart_box_margin;
-      var y0 = y + flowchart_box_margin;
-      var x1 = x + node.boxwidth - flowchart_box_margin;
+      var x0 = x + this.flowchart_box_margin;
+      var y0 = y + this.flowchart_box_margin;
+      var x1 = x + node.boxwidth - this.flowchart_box_margin;
       if (drawbox) {
-            var y1 = y + node.height - flowchart_box_margin;
+            var y1 = y + node.height - this.flowchart_box_margin;
       } else {
-            var y1 = y + graphics.font.height + 2 * flowchart_text_margin;
+            var y1 = y + graphics.font.height + 2 * this.flowchart_text_margin;
       }
 
-      if (par.flowchart_debug.val) {
+      if (this.par.flowchart_debug.val) {
             console.writeln("flowchartDrawText: " + node.type + " " + this.node_get_txt(node) + " rect:" + x0 + " " + y0 + " " + x1 + " " + y1);
       }
 
-      if (node.id && drawbox && global.flowchartActiveId > 0) {
+      if (node.id && drawbox && this.global.flowchartActiveId > 0) {
             var check_special_color = true;
       } else {
             var check_special_color = false;
       }
 
-      if (par.flowchart_debug.val) {
-            console.writeln("flowchartDrawText: node.id " + node.id + ", global.flowchartActiveId " + global.flowchartActiveId);
+      if (this.par.flowchart_debug.val) {
+            console.writeln("flowchartDrawText: node.id " + node.id + ", this.global.flowchartActiveId " + this.global.flowchartActiveId);
       }
-      if (check_special_color && node.id == global.flowchartActiveId) {
-            graphics.brush = new Brush( flowchart_active_id_color );
+      if (check_special_color && node.id == this.global.flowchartActiveId) {
+            graphics.brush = new Brush( this.flowchart_active_id_color );
             graphics.pen = new Pen(0xffffffff, 1);       // white
-      } else if (check_special_color && node.id > global.flowchartActiveId) {
-            graphics.brush = new Brush( flowchart_inactive_id_color );
+      } else if (check_special_color && node.id > this.global.flowchartActiveId) {
+            graphics.brush = new Brush( this.flowchart_inactive_id_color );
             graphics.pen = new Pen(0xff000000, 1);       // black
       } else {
-            graphics.brush = new Brush( flowchart_colors[node.level % flowchart_colors.length] );
+            graphics.brush = new Brush( this.flowchart_colors[node.level % flowchart_colors.length] );
             graphics.pen = new Pen(drawbox ? 0xff000000 : this.flowchartLineColor(), 1);       // black
       }
       if (drawbox) {
@@ -227,27 +227,27 @@ function flowchartDrawText(graphics, x, y, node)
 // draw vertical lines for each child position
 // lines are always drawn to down direction
 // position is the top left corner of the graph
-function flowchartGraphDrawChildsConnectLines(parent, pos, graphics)
+flowchartGraphDrawChildsConnectLines(parent, pos, graphics)
 {
       var list = parent.list;
       var p = pos;
       for (var i = 0; i < list.length; i++) {
             var node = list[i];
-            if (par.flowchart_debug.val) {
+            if (this.par.flowchart_debug.val) {
                   console.writeln("flowchartGraphDrawChildsConnectLines: " + node.type + " " + this.node_get_txt(node) + " " + p.x + " " + p.y);
             }
-            graphics.drawLine(p.x + node.width / 2, p.y, p.x + node.width / 2, p.y + flowchart_line_margin / 2);
+            graphics.drawLine(p.x + node.width / 2, p.y, p.x + node.width / 2, p.y + this.flowchart_line_margin / 2);
             p.x += node.width;
       }
 }
 
 // draw a line connecting child nodes
 // position is the top left corner of the graph
-function flowchartGraphDrawChildsLine(parent, pos, graphics, loc)
+flowchartGraphDrawChildsLine(parent, pos, graphics, loc)
 {
       var p = pos;
 
-      p.y += flowchart_line_margin / 2;
+      p.y += this.flowchart_line_margin / 2;
 
       var childlen1 = parent.list[0].width;
       var childlen2 = parent.list[parent.list.length - 1].width;
@@ -258,15 +258,15 @@ function flowchartGraphDrawChildsLine(parent, pos, graphics, loc)
       if (loc == "top") {
             this.flowchartGraphDrawChildsConnectLines(parent, { x: p.x, y: p.y }, graphics);
       } else if (loc == "bottom") {
-            this.flowchartGraphDrawChildsConnectLines(parent, { x: p.x, y: p.y -  + flowchart_line_margin / 2 }, graphics);
+            this.flowchartGraphDrawChildsConnectLines(parent, { x: p.x, y: p.y -  + this.flowchart_line_margin / 2 }, graphics);
       } else {
-            util.throwFatalError("flowchartGraphDrawChildsLine: loc != top or bottom, " + loc);
+            this.util.throwFatalError("flowchartGraphDrawChildsLine: loc != top or bottom, " + loc);
       }
 }
 
 // Iterate size of the flowchart childs graph
 // position is the middle position of the graph
-function flowchartGraphDrawChilds(parent, pos, graphics)
+flowchartGraphDrawChilds(parent, pos, graphics)
 {
       var list = parent.list;
       var p = pos;
@@ -281,7 +281,7 @@ function flowchartGraphDrawChilds(parent, pos, graphics)
       for (var i = 0; i < list.length; i++) {
             var node = list[i];
             if (node.type != "child") {
-                  util.throwFatalError("flowchartGraphDrawChilds: node.type != child, type " + node.type + ", txt " + this.node_get_txt(node));
+                  this.util.throwFatalError("flowchartGraphDrawChilds: node.type != child, type " + node.type + ", txt " + this.node_get_txt(node));
             }
             if (node.list.length == 0) {
                   continue;
@@ -289,18 +289,18 @@ function flowchartGraphDrawChilds(parent, pos, graphics)
             var middle_x = p.x + node.width / 2;
             var x = middle_x - node.boxwidth / 2;
             var y = p.y;
-            if (par.flowchart_debug.val) {
+            if (this.par.flowchart_debug.val) {
                   console.writeln("flowchartGraphDraw: " + node.type + " " + this.node_get_txt(node) + " " + x + " " + y);
             }
             this.flowchartDrawText(graphics, x, y, node);
-            this.flowchartGraphDraw(node, { x: middle_x, y: p.y + graphics.font.height + flowchart_margin }, graphics);
+            this.flowchartGraphDraw(node, { x: middle_x, y: p.y + graphics.font.height + this.flowchart_margin }, graphics);
             p.x += node.width;
       }
 }
 
 // Iterate size of the flowchart graph
 // pos is middle position of the node
-function flowchartGraphDraw(parent, pos, graphics)
+flowchartGraphDraw(parent, pos, graphics)
 {
       var list = parent.list;
       var p = pos;
@@ -310,19 +310,19 @@ function flowchartGraphDraw(parent, pos, graphics)
                   if (node.list.length > 0) {
                         var x = p.x - node.boxwidth / 2;
                         var y = p.y;
-                        if (par.flowchart_debug.val) {
+                        if (this.par.flowchart_debug.val) {
                               console.writeln("flowchartGraphDraw: " + node.type + " " + this.node_get_txt(node) + " " + x + " " + y);
                         }
                         this.flowchartDrawText(graphics, x, y, node);
-                        this.flowchartGraphDraw(node, { x: p.x, y: p.y + graphics.font.height + flowchart_margin }, graphics);
+                        this.flowchartGraphDraw(node, { x: p.x, y: p.y + graphics.font.height + this.flowchart_margin }, graphics);
                   }
             } else if (node.type == "parent") {
-                  if (par.flowchart_debug.val) {
+                  if (this.par.flowchart_debug.val) {
                         console.writeln("flowchartGraphDraw: " + node.type + " " + node.type + " " + this.node_get_txt(node));
                   }
                   if (node.list.length > 0) {
                         if (node.list.length > 1) {
-                              var parent_margin = flowchart_line_margin;
+                              var parent_margin = this.flowchart_line_margin;
                               this.flowchartGraphDrawChildsLine(node, { x: p.x - node.width / 2, y: p.y }, graphics, "top");
                         } else {
                               var parent_margin = 0;
@@ -336,7 +336,7 @@ function flowchartGraphDraw(parent, pos, graphics)
                   // process or mask
                   var x = p.x - node.boxwidth / 2;
                   var y = p.y;
-                  if (par.flowchart_debug.val) {
+                  if (this.par.flowchart_debug.val) {
                         console.writeln("flowchartGraphDraw: " + node.type + " " + this.node_get_txt(node) + " " + x + " " + y);
                   }
                   this.flowchartDrawText(graphics, x, y, node);
@@ -346,9 +346,9 @@ function flowchartGraphDraw(parent, pos, graphics)
 }
 
 // Draw a graphical version of the workflow
-function flowchartGraph(rootnode, current_preview_image, txt)
+flowchartGraph(rootnode, current_preview_image, txt)
 {
-      if (par.flowchart_debug.val) {
+      if (this.par.flowchart_debug.val) {
             console.writeln("flowchart Graph");
       }
 
@@ -357,16 +357,16 @@ function flowchartGraph(rootnode, current_preview_image, txt)
             return null;
       }
 
-      if (global.is_processing == global.processing_state.none) {
+      if (this.global.is_processing == this.global.processing_state.none) {
             this.flowchartPrint(rootnode);
       }
 
-      if (!global.use_preview) {
+      if (!this.global.use_preview) {
             return null;
       }
 
       var fontsize = 8;
-      var font = new Font( FontFamily_SansSerif, fontsize );
+      var font = new Font( FontFamily.SansSerif, fontsize );
 
       var size = this.flowchartGraphIterate(rootnode, font, 0);
 
@@ -378,16 +378,16 @@ function flowchartGraph(rootnode, current_preview_image, txt)
       width = Math.max(width, ppar.preview.side_preview_width / 2);
       height = Math.max(height, ppar.preview.side_preview_height / 2);
 
-      if (par.flowchart_debug.val || par.debug.val) {
+      if (this.par.flowchart_debug.val || this.par.debug.val) {
             console.writeln("flowchartGraph:background bitmap " + width + "x" + height);
       }
 
-      if (current_preview_image != null && par.flowchart_background_image.val) {
-            var bitmap = util.createEmptyBitmap(width, height, 0x00C0C0C0);  // transparent background
-            flowchart_is_background_image = true;
+      if (current_preview_image != null && this.par.flowchart_background_image.val) {
+            var bitmap = this.util.createEmptyBitmap(width, height, 0x00C0C0C0);  // transparent background
+            this.flowchart_is_background_image = true;
       } else {
-            var bitmap = util.createEmptyBitmap(width, height, 0xffC0C0C0);  // gray background
-            flowchart_is_background_image = false;
+            var bitmap = this.util.createEmptyBitmap(width, height, 0xffC0C0C0);  // gray background
+            this.flowchart_is_background_image = false;
             txt = null;
       }
 
@@ -400,13 +400,13 @@ function flowchartGraph(rootnode, current_preview_image, txt)
 
       graphics.end();
 
-      if (par.flowchart_debug.val) {
+      if (this.par.flowchart_debug.val) {
             console.writeln("flowchartGraph:show bitmap");
       }
 
-      if (flowchart_is_background_image) {
+      if (this.flowchart_is_background_image) {
             // Scale bitmap to image size
-            if (par.flowchart_debug.val || par.debug.val) {
+            if (this.par.flowchart_debug.val || this.par.debug.val) {
                   console.writeln("flowchartGraph:image " + current_preview_image.width + "x" + current_preview_image.height);
             }
             if (bitmap.height != current_preview_image.height) {
@@ -429,24 +429,24 @@ function flowchartGraph(rootnode, current_preview_image, txt)
             var y = (current_preview_image.height - bitmap.height) / 2;
             graphics.drawBitmap(x, y, bitmap);
             graphics.end();
-            var flowchartImage = util.createImageFromBitmap(background_bitmap);
+            var flowchartImage = this.util.createImageFromBitmap(background_bitmap);
             // background_image.free();
             // background_image = null;
       } else {
-            var flowchartImage = util.createImageFromBitmap(bitmap);
+            var flowchartImage = this.util.createImageFromBitmap(bitmap);
       }
-      if (global.flowchart_image != null) {
-            global.flowchart_image.free();
-            global.flowchart_image = null;
+      if (this.global.flowchart_image != null) {
+            this.global.flowchart_image.free();
+            this.global.flowchart_image = null;
       }
-      global.flowchart_image = flowchartImage;
+      this.global.flowchart_image = flowchartImage;
 
-      if (flowchart_garbagecollection_ctr++ > 5) {
-            util.runGarbageCollection();
-            flowchart_garbagecollection_ctr = 0;
+      if (this.flowchart_garbagecollection_ctr++ > 5) {
+            this.util.runGarbageCollection();
+            this.flowchart_garbagecollection_ctr = 0;
       }
 
-      if (par.flowchart_debug.val) {
+      if (this.par.flowchart_debug.val) {
             console.writeln("flowchartGraph:end");
       }
 
@@ -457,157 +457,157 @@ function flowchartGraph(rootnode, current_preview_image, txt)
 // Section: Collect flowchart data from processing engine
 // =============================================================================
 
-function flowchartNewNode(type, txt)
+flowchartNewNode(type, txt)
 {
-      return { type: type, txt: txt, list: [], id: global.flowchartActiveId, start_time: null, end_time: null };
+      return { type: type, txt: txt, list: [], id: this.global.flowchartActiveId, start_time: null, end_time: null };
 }
 
-function flowchartCheckOperationList(type, txt)
+flowchartCheckOperationList(type, txt)
 {
       var node = null;
-      var nodepos = global.flowchartActiveId;
-      global.flowchartActiveId++;
-      if (global.flowchartOperationList.length > 0) {
-            if (nodepos < global.flowchartOperationList.length
-                && txt == global.flowchartOperationList[nodepos].txt) 
+      var nodepos = this.global.flowchartActiveId;
+      this.global.flowchartActiveId++;
+      if (this.global.this.flowchartOperationList.length > 0) {
+            if (nodepos < this.global.this.flowchartOperationList.length
+                && txt == this.global.flowchartOperationList[nodepos].txt) 
             {
-                  if (par.flowchart_debug.val) console.writeln("flowchartCheckOperationList:match " + txt + ", global.flowchartOperationList[" + global.flowchartActiveId + "] " + global.flowchartOperationList[global.flowchartActiveId]);
+                  if (this.par.flowchart_debug.val) console.writeln("flowchartCheckOperationList:match " + txt + ", this.global.flowchartOperationList[" + this.global.flowchartActiveId + "] " + this.global.flowchartOperationList[this.global.flowchartActiveId]);
                   // Use previously created node
-                  node = global.flowchartOperationList[nodepos];
+                  node = this.global.flowchartOperationList[nodepos];
             } else {
-                  if (par.flowchart_debug.val) console.writeln("flowchartCheckOperationList:mismatch " + txt + ", global.flowchartOperationList[" + global.flowchartActiveId + "] " + global.flowchartOperationList[global.flowchartActiveId]);
+                  if (this.par.flowchart_debug.val) console.writeln("flowchartCheckOperationList:mismatch " + txt + ", this.global.flowchartOperationList[" + this.global.flowchartActiveId + "] " + this.global.flowchartOperationList[this.global.flowchartActiveId]);
             }
       } else {
-            if (par.flowchart_debug.val) console.writeln("flowchartCheckOperationList:flowchartOperationList is empty, txt " + txt);
+            if (this.par.flowchart_debug.val) console.writeln("flowchartCheckOperationList:flowchartOperationList is empty, txt " + txt);
       }
       if (node == null) {
             node = this.flowchartNewNode(type, txt);
       }
-      flowchartOperationList.push(node);
+      this.flowchartOperationList.push(node);
 
       return node;
 }
 
-function flowchartOperation(txt)
+flowchartOperation(txt)
 {
-      if (!flowchart_active) {
+      if (!this.flowchart_active) {
             return null;
       }
-      flowchart_operation_level++;
+      this.flowchart_operation_level++;
       console.writeln("Process begin " + txt);
-      if (par.flowchart_debug.val) console.writeln("flowchartOperation " + txt + ", flowchart_operation_level: " + flowchart_operation_level);
+      if (this.par.flowchart_debug.val) console.writeln("flowchartOperation " + txt + ", flowchart_operation_level: " + this.flowchart_operation_level);
       var node = this.flowchartCheckOperationList("process", txt);
-      flowchartCurrent.list.push( node );
-      gui.flowchartUpdated();
+      this.flowchartCurrent.list.push( node );
+      this.gui.flowchartUpdated();
       node.start_time = Date.now();
       return node;
 }
 
-function flowchartOperationEnd(node)
+flowchartOperationEnd(node)
 {
-        if (par.flowchart_debug.val) console.writeln("engine_end_process " + node.txt + ", flowchart.flowchart_operation_level: " + flowchart_operation_level);
-        flowchart_operation_level--;
+        if (this.par.flowchart_debug.val) console.writeln("engine_end_process " + node.txt + ", flowchart.flowchart_operation_level: " + this.flowchart_operation_level);
+        this.flowchart_operation_level--;
         node.end_time = Date.now();
 }
 
 // Special handling for new mask since we want to
 // hide suboperations when creating a mask.
-function flowchartMaskBegin(txt)
+flowchartMaskBegin(txt)
 {
-      if (!flowchart_active) {
+      if (!this.flowchart_active) {
             return;
       }
-      if (global.get_flowchart_data) {
-            if (par.flowchart_debug.val) console.writeln("flowchartMaskBegin " + txt);
+      if (this.global.get_flowchart_data) {
+            if (this.par.flowchart_debug.val) console.writeln("flowchartMaskBegin " + txt);
       }
       var node = this.flowchartCheckOperationList("mask", txt);
-      flowchartStack.push(flowchartCurrent);
+      this.flowchartStack.push(this.flowchartCurrent);
       var newFlowchartCurrent = node;
-      flowchartCurrent.list.push(newFlowchartCurrent);
-      flowchartCurrent = newFlowchartCurrent;
+      this.flowchartCurrent.list.push(newFlowchartCurrent);
+      this.flowchartCurrent = newFlowchartCurrent;
 }
 
-function flowchartMaskEnd(txt)
+flowchartMaskEnd(txt)
 {
-      if (!flowchart_active) {
+      if (!this.flowchart_active) {
             return;
       }
-      if (global.get_flowchart_data) {
-            if (par.flowchart_debug.val) console.writeln("flowchartMaskEnd " + (txt != null ? txt : "null"));
+      if (this.global.get_flowchart_data) {
+            if (this.par.flowchart_debug.val) console.writeln("flowchartMaskEnd " + (txt != null ? txt : "null"));
       }
-      flowchartCurrent = flowchartStack.pop();
+      this.flowchartCurrent = this.flowchartStack.pop();
 }
 
-function flowchartParentBegin(txt)
+flowchartParentBegin(txt)
 {
-      if (!flowchart_active) {
+      if (!this.flowchart_active) {
             return;
       }
-      if (global.get_flowchart_data) {
-            if (par.flowchart_debug.val) console.writeln("flowchartParentBegin " + txt);
+      if (this.global.get_flowchart_data) {
+            if (this.par.flowchart_debug.val) console.writeln("flowchartParentBegin " + txt);
       }
-      flowchartStack.push(flowchartCurrent);
+      this.flowchartStack.push(this.flowchartCurrent);
       var newFlowchartCurrent = this.flowchartNewNode("parent", txt);
-      flowchartCurrent.list.push(newFlowchartCurrent);
-      flowchartCurrent = newFlowchartCurrent;
+      this.flowchartCurrent.list.push(newFlowchartCurrent);
+      this.flowchartCurrent = newFlowchartCurrent;
 }
 
-function flowchartParentEnd(txt)
+flowchartParentEnd(txt)
 {
-      if (!flowchart_active) {
+      if (!this.flowchart_active) {
             return;
       }
-      if (global.get_flowchart_data) {
-            if (par.flowchart_debug.val) console.writeln("flowchartParentEnd " + (txt != null ? txt : "null"));
+      if (this.global.get_flowchart_data) {
+            if (this.par.flowchart_debug.val) console.writeln("flowchartParentEnd " + (txt != null ? txt : "null"));
       }
-      if (flowchartCurrent.type != "parent") {
-            util.addWarningStatus("flowchartParentEnd, current node type " + flowchartCurrent.type + " is not parent, node txt:" + flowchartCurrent.txt);
+      if (this.flowchartCurrent.type != "parent") {
+            this.util.addWarningStatus("flowchartParentEnd, current node type " + this.flowchartCurrent.type + " is not parent, node txt:" + this.flowchartCurrent.txt);
             this.flowchartCancel();
             return;
       }
-      flowchartCurrent = flowchartStack.pop();
-      this.flowchartCleanup(flowchartCurrent);
+      this.flowchartCurrent = this.flowchartStack.pop();
+      this.flowchartCleanup(this.flowchartCurrent);
 }
 
-function flowchartChildBegin(txt)
+flowchartChildBegin(txt)
 {
-      if (!flowchart_active) {
+      if (!this.flowchart_active) {
             return;
       }
-      if (global.get_flowchart_data) {
-            if (par.flowchart_debug.val) console.writeln("flowchartChildBegin " + txt);
+      if (this.global.get_flowchart_data) {
+            if (this.par.flowchart_debug.val) console.writeln("flowchartChildBegin " + txt);
       }
-      if (flowchartCurrent.type != "parent" && flowchartCurrent.type != "child") {
-            util.addWarningStatus("flowchartChildBegin, current node type " + flowchartCurrent.type + " is not parent or child, node txt:" + flowchartCurrent.txt);
+      if (this.flowchartCurrent.type != "parent" && this.flowchartCurrent.type != "child") {
+            this.util.addWarningStatus("flowchartChildBegin, current node type " + this.flowchartCurrent.type + " is not parent or child, node txt:" + this.flowchartCurrent.txt);
             this.flowchartCancel();
             return;
       }
-      flowchartStack.push(flowchartCurrent);
+      this.flowchartStack.push(this.flowchartCurrent);
       var newFlowchartCurrent = this.flowchartNewNode("child", txt);
-      flowchartCurrent.list.push(newFlowchartCurrent);
-      flowchartCurrent = newFlowchartCurrent;
-      gui.flowchartUpdated();
+      this.flowchartCurrent.list.push(newFlowchartCurrent);
+      this.flowchartCurrent = newFlowchartCurrent;
+      this.gui.flowchartUpdated();
 }
 
-function flowchartChildEnd(txt)
+flowchartChildEnd(txt)
 {
-      if (!flowchart_active) {
+      if (!this.flowchart_active) {
             return;
       }
-      if (global.get_flowchart_data) {
-            if (par.flowchart_debug.val) console.writeln("flowchartChildEnd " + (txt != null ? txt : "null"));
+      if (this.global.get_flowchart_data) {
+            if (this.par.flowchart_debug.val) console.writeln("flowchartChildEnd " + (txt != null ? txt : "null"));
       }
-      if (flowchartCurrent.type != "child") {
-            util.addWarningStatus("flowchartChildEnd, current node type " + flowchartCurrent.type + " is not child, node txt:" + flowchartCurrent.txt);
+      if (this.flowchartCurrent.type != "child") {
+            this.util.addWarningStatus("flowchartChildEnd, current node type " + this.flowchartCurrent.type + " is not child, node txt:" + this.flowchartCurrent.txt);
             this.flowchartCancel();
             return;
       }
-      flowchartCurrent = flowchartStack.pop();
-      gui.flowchartUpdated();
+      this.flowchartCurrent = this.flowchartStack.pop();
+      this.gui.flowchartUpdated();
 }
 
 // Remove empty nodes
-function flowchartCleanupChilds(parent)
+flowchartCleanupChilds(parent)
 {
       var removed = false;
       var list = parent.list;
@@ -616,17 +616,17 @@ function flowchartCleanupChilds(parent)
       // filter list first
       for (var i = 0; i < list.length; i++) {
             var node = list[i];
-            if (par.debug.val) {
+            if (this.par.debug.val) {
                   console.writeln("flowchartCleanupChilds: " + node.txt);
             }
             if (node.type != "child") {
-                  util.addWarningStatus("flowchartCleanupChilds: node.type " + node.type + " is not child, node txt:" + node.txt);
+                  this.util.addWarningStatus("flowchartCleanupChilds: node.type " + node.type + " is not child, node txt:" + node.txt);
                   parent.list = [];
                   return false;
             }
             if (node.list.length == 0) {
                   if (node.type == "process") {
-                        util.addWarningStatus("flowchartCleanupChilds: node.type == process, node txt:" + node.txt);
+                        this.util.addWarningStatus("flowchartCleanupChilds: node.type == process, node txt:" + node.txt);
                         parent.list = [];
                         return false;
                   }
@@ -649,7 +649,7 @@ function flowchartCleanupChilds(parent)
 }
 
 // Remove empty nodes
-function flowchartCleanup(parent)
+flowchartCleanup(parent)
 {
       var removed = false;
       var list = parent.list;
@@ -693,15 +693,15 @@ function flowchartCleanup(parent)
       return removed;
 }
 
-function flowchartPrintList(list, indent, testmode = false)
+flowchartPrintList(list, indent, testmode = false)
 {
       for (var i = 0; i < list.length; i++) {
             var item = list[i];
             var txt = indent + item.txt;
             if (testmode) {
-                  global.testmode_log += txt + "\n";
+                  this.global.testmode_log += txt + "\n";
             } else {
-                  console.writeln(txt + util.get_node_execute_time_str(item));
+                  console.writeln(txt + this.util.get_node_execute_time_str(item));
             }
             if (item.type == "header") {
                   this.flowchartPrintList(item.list, indent + "  ", testmode);
@@ -715,7 +715,7 @@ function flowchartPrintList(list, indent, testmode = false)
       }
 }
 
-function flowchartPrint(rootnode, testmode = false)
+flowchartPrint(rootnode, testmode = false)
 {
       if (rootnode == null) {
             console.writeln("No flowchart");
@@ -727,68 +727,70 @@ function flowchartPrint(rootnode, testmode = false)
       this.flowchartPrintList(rootnode.list, "  ", testmode);
 }
 
-function flowchartReset()
+flowchartReset()
 {
       console.writeln("flowchartReset");
-      flowchart_active = false;
-      flowchartCurrent = null;
-      flowchartStack = [];
-      flowchartOperationList = [];
+      this.flowchart_active = false;
+      this.flowchartCurrent = null;
+      this.flowchartStack = [];
+      this.flowchartOperationList = [];
 
-      global.flowchartData = null;
-      global.flowchartActiveId = 0;
-      global.flowchartOperationList = [];
+      this.global.flowchartData = null;
+      this.global.flowchartActiveId = 0;
+      this.global.flowchartOperationList = [];
 
-      flowchart_operation_level = 0;
+      this.flowchart_operation_level = 0;
 }
 
-function flowchartCancel()
+flowchartCancel()
 {
       console.writeln("flowchartCancel");
       this.flowchartReset();
 }
 
-function flowchartInit(txt)
+flowchartInit(txt)
 {
       console.writeln("flowchartInit");
-      flowchartCurrent = this.flowchartNewNode("header", txt);
-      flowchartStack = [];
-      flowchartOperationList = [];
-      if (global.flowchartOperationList.length == 0) {
+      this.flowchartCurrent = this.flowchartNewNode("header", txt);
+      this.flowchartStack = [];
+      this.flowchartOperationList = [];
+      if (this.global.this.flowchartOperationList.length == 0) {
             // No previous flowchart data, use current flowchart
             console.writeln("flowchartInit, no previous flowchart data");
-            global.flowchartData = flowchartCurrent;
+            this.global.flowchartData = this.flowchartCurrent;
       } else {
             // Use previous flowchart data
             console.writeln("flowchartInit, use previous flowchart data");
       }
 
-      global.flowchartActiveId = 0;
-      flowchart_operation_level = 0;
+      this.global.flowchartActiveId = 0;
+      this.flowchart_operation_level = 0;
 
-      flowchart_active = true;
+      this.flowchart_active = true;
 }
 
-function flowchartDone()
+flowchartDone()
 {
-      if (!flowchart_active) {
+      if (!this.flowchart_active) {
             return;
       }
       console.writeln("flowchartDone");
-      flowchart_active = false;
-      global.flowchartActiveId = 0;
-      global.flowchartData = flowchartCurrent;
-      global.flowchartOperationList = flowchartOperationList;
+      this.flowchart_active = false;
+      this.global.flowchartActiveId = 0;
+      this.global.flowchartData = this.flowchartCurrent;
+      this.global.flowchartOperationList = this.flowchartOperationList;
 
       // Iterate cleanup to remove empty nodes
       for (var i = 0; i < 10; i++) {
-            if (!this.flowchartCleanup(global.flowchartData)) {
+            if (!this.flowchartCleanup(this.global.flowchartData)) {
                   break;
             }
       }
       
-      gui.flowchartUpdated();
+      this.gui.flowchartUpdated();
 }
+
+/*
 
 this.setGUI = setGUI;
 
@@ -806,6 +808,8 @@ this.flowchartInit = flowchartInit;
 this.flowchartDone = flowchartDone;
 this.flowchartReset = flowchartReset;
 this.flowchartPrint = flowchartPrint;
+
+*/
 
 }  /* AutoIntegrateFlowchart*/
 

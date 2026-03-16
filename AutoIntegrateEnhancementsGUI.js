@@ -534,10 +534,7 @@ createEnhancementsControls(parent)
             "<p>Do hue shift to enhance HSO colors. Useful with SHO color palette.</p>" );
 
       this.selectiveColor = new AutoIntegrateSelectiveColor(this.guitools, this.util, this.global, this.preview);
-      this.selectiveColorEngine = this.selectiveColor.createSelectiveColorEngine();
-      this.selectiveColorSizer = this.selectiveColor.createSelectiveColorSizer(parent, this.selectiveColorEngine);
-
-      this.engine.selectiveColorEngine = this.selectiveColorEngine;
+      this.selectiveColorSizer = this.selectiveColor.createSelectiveColorSizer(parent);
 
       this.narrowband_leave_some_green_CheckBox = this.guitools.newCheckBox(parent, "Leave some green", this.par.leave_some_green, 
             "<p>Leave some green color on image when running SCNR. Useful with SHO color palette. </p>");

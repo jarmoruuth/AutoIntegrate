@@ -654,6 +654,4 @@ this.LDDOutput = LDDOutput;
 
 }  /* AutoIntegrateLDD */
 
-AutoIntegrateLDD.prototype = new Object;
-
 #endif  // AUTOINTEGRATELDD_JS

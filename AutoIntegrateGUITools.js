@@ -577,15 +577,15 @@ getSectionVisible(name, control)
                   if (this.global.debug) console.writeln("AutoIntegrate: migrated from old settings " + oldname + "=" + tempSetting);
                   control.visible = tempSetting;
                   if (!this.global.do_not_write_settings) {
-                        Settings.write(SETTINGSKEY + "/" + name, DataType.Boolean, control.visible);
+                        Settings.write("AutoIntegrate" + "/" + name, DataType.Boolean, control.visible);
                         Settings.remove(name);
                   }
             }
       } else {
-            var key = SETTINGSKEY + "/" + name;
+            var key = "AutoIntegrate" + "/" + name;
             var tempSetting = Settings.read(key, DataType.Boolean);
             if (Settings.lastReadOK) {
-                  if (this.global.debug) console.writeln("AutoIntegrate: read from settings " + key + "=" + tempSetting);
+                  if (this.global.debug) console.writeln("AutoIntegrate: read section from settings " + key + "=" + tempSetting);
                   control.visible = tempSetting;
             }
       }
@@ -597,7 +597,7 @@ newSectionBarAdd(parent, groupbox, control, title, name, level = 1)
       sb.setSection(control);
       sb.onToggleSection = function(bar, beginToggle) {
             if (!parent.global.do_not_write_settings) {
-                  Settings.write(SETTINGSKEY + "/" + name, DataType.Boolean, control.visible);
+                  Settings.write("AutoIntegrate" + "/" + name, DataType.Boolean, control.visible);
             }
             parent.ensureLayoutUpdated();
             parent.adjustToContents();
@@ -1426,7 +1426,7 @@ getExclusionAreas()
       }
 
       console.writeln("Opening Exclusion Area dialog for target image: " + this.exclusionAreasTargetImageName);
-      let exclusionAreaDialog = new AutoIntegrateExclusionArea(this.util);
+      let exclusionAreaDialog = new AutoIntegrateExclusionArea(this.util, this.engine);
       if (exclusionAreaDialog.main(win, this.global.exclusion_areas)) {
       
             var exclusion_areas = exclusionAreaDialog.getExclusionAreas();

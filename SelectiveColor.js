@@ -58,20 +58,14 @@ function AutoIntegrateSelectiveColorDialog() {
     this.__base__ = Dialog;
     this.__base__();
 
-    var self = this;
-
-    var debug = false;
-
     this.TITLE = "Selective Color";
     this.VERSION = "1.00";
 
     this.windowTitle = this.TITLE + " v" + this.VERSION;
     // this.minWidth = 800;
 
-    var global = new AutoIntegrateGlobal();
-    this.global = global;
+    this.global = new AutoIntegrateGlobal();
 
-    global.debug = debug;
     for (let i = 0; i < Runtime.jsArguments.length; i++) {
         if (Runtime.jsArguments[i] == "do_not_read_settings") {
             console.writeln("do_not_read_settings");
@@ -79,20 +73,16 @@ function AutoIntegrateSelectiveColorDialog() {
         }
     }
 
-    var util = new AutoIntegrateUtil(global);
-    this.util = util;
+    this.util = new AutoIntegrateUtil(global);
 
-    var flowchart = new AutoIntegrateDummyFlowchart();
-    this.flowchart = flowchart;
-    var engine = new AutoIntegrateEngine(global, util, flowchart);
-    this.engine = engine;
-    var guitools = new AutoIntegrateGUITools(this, global, util, engine);
-    this.guitools = guitools;
+    this.flowchart = new AutoIntegrateDummyFlowchart();
+    this.engine = new AutoIntegrateEngine(this.global, this.util, this.flowchart);
+    this.guitools = new AutoIntegrateGUITools(this, this.global, this.util, this.engine);
 
     // Read parameter default settings from persistent module settings.
-    util.initStandalone();
+    this.util.initStandalone();
 
-    global.par.enhancements_selective_color.val = true;
+    this.global.par.enhancements_selective_color.val = true;
 
    // -------------------------------------------------------------------------
    // Status
@@ -197,13 +187,8 @@ function AutoIntegrateSelectiveColorDialog() {
    // Selective Color Controls
    // -------------------------------------------------------------------------
 
-    var selectiveColor = new AutoIntegrateSelectiveColor(guitools, util, global, preview_functions);
-    this.selectiveColor = selectiveColor;
-    var selectiveColorEngine = selectiveColor.createSelectiveColorEngine();
-    this.selectiveColorEngine = selectiveColorEngine;
-    self.engine.selectiveColorEngine = self.selectiveColorEngine;
-
-    this.selectiveColorSizer = selectiveColor.createSelectiveColorSizer(this, selectiveColorEngine);
+    this.selectiveColor = new AutoIntegrateSelectiveColor(guitools, util, global, preview_functions);
+    this.selectiveColorSizer = this.selectiveColor.createSelectiveColorSizer(this);
 
    // -------------------------------------------------------------------------
    // Close Button
