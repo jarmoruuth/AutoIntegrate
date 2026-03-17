@@ -19,6 +19,7 @@ class AutoIntegrateMetricsVisualizerPlotControl extends Control {
         this.title      = metrics.name;
         this.data       = metrics.data;
         this.filter_high = metrics.filter_high;
+        this.stats      = stats;
         this.plotColor  = color || 0xFF0066CC;
         this.margin     = 40;
         this.preferredWidth  = 500;

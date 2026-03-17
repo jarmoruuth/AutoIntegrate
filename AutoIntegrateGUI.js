@@ -230,7 +230,7 @@ this.metricsVisualizerToolTip =            "<p>Show SubframeSelector metrics vis
 
 this.exclusion_area_image_window_list = null;
 
-this.AutoIntegrateDialog();
+// this.AutoIntegrateDialog();
 
 } // constructor
 
@@ -1429,6 +1429,7 @@ updatePreviewNoImageInControl(control)
       var startup_text = [ this.global.autointegrate_version ];
       if (this.ppar.savedVersion == "") {
             // First run, show the welcome text
+            if (this.global.debug) console.writeln("First run, show the welcome text");
             startup_text.push("");
             startup_text.push("Welcome to AutoIntegrate!");
             startup_text.push("");
@@ -1440,6 +1441,7 @@ updatePreviewNoImageInControl(control)
             startup_text.push(" - AutoIntegrate video tutorials: https://www.youtube.com/@JarmoRuuth");
       } else if (this.ppar.savedVersion != this.global.autointegrate_version) {
             // Started with a new version, show the version info
+            if (this.global.debug) console.writeln("Started with a new version, show the version info");
             startup_text.push("");
             for (var i = 0; i < this.global.autointegrate_version_info.length; i++) {
                   startup_text.push(this.global.autointegrate_version_info[i]);
@@ -2247,7 +2249,7 @@ metricsVisualizerSSWEIGHT(parent)
       }
       var metricsFilteredOut = this.engine.getMetricsFilteredOut(this.global.saved_measurements, true);
 
-      let metricsVisualizer = new AutoIntegrateMetricsVisualizer(global);
+      let metricsVisualizer = new AutoIntegrateMetricsVisualizer(this.global);
 
       if (metricsVisualizer.main(data, metricsFilteredOut)) {
             // Update all changed data
@@ -2300,7 +2302,7 @@ metricsVisualizerFilters(parent)
       }
       var metricsFilteredOut = this.engine.getMetricsFilteredOut(this.global.saved_measurements);
 
-      let metricsVisualizer = new AutoIntegrateMetricsVisualizer(global);
+      let metricsVisualizer = new AutoIntegrateMetricsVisualizer(this.global);
 
       if (metricsVisualizer.main(data, metricsFilteredOut)) {
             // Update all changed data

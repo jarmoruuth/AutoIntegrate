@@ -9,16 +9,39 @@
 #ifndef AUTOINTEGRATEEXCLUSIONAREA_JS
 #define AUTOINTEGRATEEXCLUSIONAREA_JS
 
-// Main - creates the script this.dialog
-class AutoIntegrateExclusionAreaDialog extends Dialog {
-   constructor() {
+class AutoIntegrateExclusionArea extends Dialog {
+   constructor(global, util, engine, activeWindow, currentExclusionAreas) {
       super();
+
+   this.global = global;
+   this.util = util;
+   this.engine = engine;
+   
+   if (this.global.debug) console.writeln("AutoIntegrateExclusionArea constructor called.");
+
+   // Global variables
+   this.exclusionAreaPolygons = []; // Array of arrays, each containing points for a polygon
+   this.activePolygon = []; // Current polygon being drawn
+   this.isDrawing = false;
+   this.targetView = null;
+   this.targetWindow = null;
+   this.previewControl = null;
+   this.title = "AutoIntegrate Exclusion Area";
+   this.scale = 1.0;
+
+   this.targetWindow = activeWindow;
+   this.targetView = this.targetWindow.currentView;
+
+   // Get the image this.scale and save it to use for scaling exclusion areas
+   this.getScale(this.targetView);
+
+   // Scale saved exclusions area points to current image size
+   this.exclusionAreaPolygons = this.scaleExclusionAreasToImage(currentExclusionAreas, this.targetWindow);
 
    this.labelWidth = this.font.width("Exclusion areas: 000") + 4;
 
    // Track mouse position
    this.lastMousePos = null;
-
 
    // UI components
    this.helpLabel = new Label(this);
@@ -104,7 +127,7 @@ class AutoIntegrateExclusionAreaDialog extends Dialog {
    this.preview_Control.backgroundcolor = 0xFF000000;
    this.preview_Control.toolTip = "Preview of exclusion areas";
    this.preview_Control.onPaint = () => {
-      this.drawPreview(this);
+      this.drawPreview(this.preview_Control);
    };
    this.previewControl = this.preview_Control;
    
@@ -126,13 +149,13 @@ class AutoIntegrateExclusionAreaDialog extends Dialog {
    this.dialog_ok_Button.text = "OK";
    this.dialog_ok_Button.icon = this.scaledResource(":/icons/ok.png");
    this.dialog_ok_Button.onClick = () => {
-      this.dialog.ok();
+      this.ok();
    };
    this.dialog_cancel_Button = new PushButton(this);
    this.dialog_cancel_Button.text = "Cancel";
    this.dialog_cancel_Button.icon = this.scaledResource(":/icons/cancel.png");
    this.dialog_cancel_Button.onClick = () => {
-      this.dialog.cancel();
+      this.cancel();
    };
    
    // Dialog layout
@@ -182,29 +205,6 @@ class AutoIntegrateExclusionAreaDialog extends Dialog {
    this.ensureLayoutUpdated();
    this.adjustToContents();
 } // constructor
-} // AutoIntegrateExclusionAreaDialog class end
-
-class AutoIntegrateExclusionArea extends Object
-{
-    constructor(util, engine) {
-        super();
-        this.util = util;
-        this.engine = engine;
-
-this.dialog = null;
-
-// Global variables
-this.exclusionAreaPolygons = []; // Array of arrays, each containing points for a polygon
-this.activePolygon = []; // Current polygon being drawn
-this.isDrawing = false;
-this.targetView = null;
-this.targetWindow = null;
-this.previewControl = null;
-this.title = "AutoIntegrate Exclusion Area";
-this.scale = 1.0;
-
-} // constructor
-
 
 // Helper to draw the preview
 drawPreview(control) {
@@ -330,14 +330,14 @@ finishPolygon() {
    this.uninstallPolygonHandler();
    this.updatePreview();
    
-   this.dialog.startDrawing_Button.enabled = true;
-   this.dialog.finishDrawing_Button.enabled = false;
-   this.dialog.cancelDrawing_Button.enabled = false;
+   this.startDrawing_Button.enabled = true;
+   this.finishDrawing_Button.enabled = false;
+   this.cancelDrawing_Button.enabled = false;
 }
 
 // Update the exclusion count label
 updateExclusionCount() {
-   this.dialog.exclusionCount_Label.text = "Exclusion areas: " + this.exclusionAreaPolygons.length;
+   this.exclusionCount_Label.text = "Exclusion areas: " + this.exclusionAreaPolygons.length;
 }
 
 // Force a preview update
@@ -351,7 +351,7 @@ getScale(targetView) {
    var imgWidth = targetView.image.width;
    var imgHeight = targetView.image.height;
    
-   // Set reasonable limits for the this.dialog size
+   // Set reasonable limits for the dialog size
    var maxPreviewWidth = Math.min(800, imgWidth);
    var maxPreviewHeight = Math.min(600, imgHeight);
    
@@ -369,9 +369,9 @@ setPreviewForView() {
       // Set the preview size
       this.previewControl.setFixedSize(Math.round(imgWidth * this.scale), Math.round(imgHeight * this.scale));
       
-      // Force this.dialog to adjust to the new control size
-      this.dialog.ensureLayoutUpdated();
-      this.dialog.adjustToContents();
+      // Force dialog to adjust to the new control size
+      this.ensureLayoutUpdated();
+      this.adjustToContents();
    }
    
    this.updatePreview();
@@ -426,10 +426,12 @@ getExclusionAreas() {
 // Scale current exclusion areas to match the image dimensions.
 scaleExclusionAreasToImage(currentExclusionAreas, targetWindow) {
 
+   if (this.global.debug) console.writeln("Scaling exclusion areas to image dimensions", JSON.stringify(currentExclusionAreas));
+
    // Scale the exclusion areas to match the image dimensions
    var exclusionAreas = this.util.getScaledExclusionAreas(currentExclusionAreas, targetWindow);
    
-   // Scale target image exclusion areas to the this.dialog image size
+   // Scale target image exclusion areas to the dialog image size
    var scaledExclusionAreaPolygons = [];
    for (var i = 0; i < exclusionAreas.polygons.length; i++) {
       var polygon = exclusionAreas.polygons[i];
@@ -444,29 +446,10 @@ scaleExclusionAreasToImage(currentExclusionAreas, targetWindow) {
    return scaledExclusionAreaPolygons;
 }
 
-// Main script entry point
-main(activeWindow, currentExclusionAreas) {
-   
-   this.targetWindow = activeWindow;
-   this.targetView = this.targetWindow.currentView;
-
-   // Get the image this.scale and save it to use for scaling exclusion areas
-   this.getScale(this.targetView);
-
-   // Scale saved exclusions area points to current image size
-   this.exclusionAreaPolygons = this.scaleExclusionAreasToImage(currentExclusionAreas, this.targetWindow);
-
-   // Create and execute this.dialog
-   this.dialog = new this.AutoIntegrateExclusionAreaDialog();
-   return this.dialog.execute();
-}
-
 /*
-this.main = main;
-this.exportExclusionMask = exportExclusionMask;
 this.getExclusionAreas = getExclusionAreas;
 */
 
-}  /* AutoIntegrateExclusionArea */
+} // AutoIntegrateExclusionArea class end
 
 #endif  /* AUTOINTEGRATEEXCLUSIONAREA_JS */

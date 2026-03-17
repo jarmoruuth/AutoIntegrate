@@ -755,6 +755,9 @@ autointegrate_main(runsetuppath = null)
             errors = true;
       }
 
+      // Create dialog objects after reading parameters, so that they are available for setting initial values for the dialog controls
+      this.gui.AutoIntegrateDialog();
+
       this.dialog = this.gui;
       this.global.dialog = this.dialog;
       if (runsetuppath != null) {

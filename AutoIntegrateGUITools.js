@@ -1392,6 +1392,10 @@ getExclusionAreas()
 {
       console.writeln("Exclusion areas: " + JSON.stringify(this.global.exclusion_areas));
       var tmpname = "AutoIntegrateExclusionAreas";
+      if (this.exclusionAreasTargetImageName == tmpname) {
+            console.criticalln("Exclusion areas target image name cannot be the same as temporary image name: " + tmpname);
+            return;
+      }
       this.util.closeOneWindowById(tmpname);
       if (this.exclusionAreasTargetImageName == "Auto") {
             console.writeln("Exclusion areas target image is set to Auto, using the current image.");
@@ -1424,10 +1428,9 @@ getExclusionAreas()
       }
 
       console.writeln("Opening Exclusion Area dialog for target image: " + this.exclusionAreasTargetImageName);
-      let exclusionAreaDialog = new AutoIntegrateExclusionArea(this.util, this.engine);
-      if (exclusionAreaDialog.main(win, this.global.exclusion_areas)) {
-      
-            var exclusion_areas = exclusionAreaDialog.getExclusionAreas();
+      let exclusionArea = new AutoIntegrateExclusionArea(this.global, this.util, this.engine, win, this.global.exclusion_areas);
+      if (exclusionArea.execute()) {
+            var exclusion_areas = exclusionArea.getExclusionAreas();
             if (this.current_preview.imgWin != null) {
                   // We have saved original image window, scale exclusion areas to the original image size
                   this.global.exclusion_areas = this.util.getScaledExclusionAreas(exclusion_areas, this.current_preview.imgWin, false);
