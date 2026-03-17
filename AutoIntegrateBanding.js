@@ -59,7 +59,7 @@ class AutoIntegrateBandingEngine extends Object {
     this.dSigma=1.0;  //factor for sigma in hihglight protection
  
     /// retrieve settings from previous runs, stored in Parameters
-    this.importParameters = function() {
+    this.importParameters = () => {
        if ( Parameters.has( "amount" ) )
           this.dAmount = Parameters.getReal( "amount" );
        if ( Parameters.has( "highlightProtect" ) )
@@ -69,7 +69,7 @@ class AutoIntegrateBandingEngine extends Object {
     };
  
     /// Store current settings for use with later runs.
-    this.exportParameters = function() {
+    this.exportParameters = () => {
        Parameters.set( "amount", this.dAmount );
        Parameters.set( "highlightProtect", this.bDoHighlightProtect );
        Parameters.set( "sigma", this.dSigma );

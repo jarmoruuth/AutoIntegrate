@@ -52,6 +52,7 @@ this.SelectiveColorEngine();
 SelectiveColorData() {
    // Store adjustments for each color range
    // Each range has CMYK adjustments: [C, M, Y, K]
+   if (this.global.debug) console.writeln("SelectiveColor: SelectiveColorData");
    let data = {};
    data.adjustments = {};
    for (let i = 0; i < this.ColorRangeNames.length; i++) {
@@ -65,6 +66,7 @@ SelectiveColorData() {
 }
 
 clone() {
+   if (this.global.debug) console.writeln("SelectiveColor: clone");
    let copy = this.SelectiveColorData();
    copy.mode = this.mode;
    copy.currentRange = this.currentRange;
@@ -386,7 +388,7 @@ SelectiveColorEngine() {
         this.par.enhancements_selective_color_data.val = this.data;
     }
     this.par.enhancements_selective_color_data.def = this.SelectiveColorData();
-    this.par.enhancements_selective_color_data.is_changed_callback = function(param) {
+    this.par.enhancements_selective_color_data.is_changed_callback = (param) => {
         // Compare current data with default
         let def = param.def;
         let cur = param.val;
@@ -467,8 +469,9 @@ createSelectiveColorSizer(parent) {
 
     this.selectiveColorPresetLabel = this.guitools.newLabel(parent, "Presets", "");
     this.selectiveColorPresetComboBox = this.guitools.newComboBox(parent, this.par.enhancements_selective_color_preset, this.selective_color_preset_values, "");
-    this.selectiveColorPresetComboBox.onItemSelected = function( itemIndex )
+    this.selectiveColorPresetComboBox.onItemSelected = ( itemIndex ) =>
     {
+        if (this.global.debug) console.writeln("createSelectiveColorSizer: onItemSelected");
         switch (this.selective_color_preset_values[itemIndex]) {
                 case 'None':
                     // Reset all adjustments
@@ -515,7 +518,7 @@ createSelectiveColorSizer(parent) {
         this.colorCombo.addItem(this.ColorRangeNames[i]);
     }
     this.colorCombo.currentItem = this.data.currentRange;
-    this.colorCombo.onItemSelected = function(index) {
+    this.colorCombo.onItemSelected = (index) => {
         this.data.currentRange = index;
         this.updateAdjustmentControls();
     };
@@ -670,9 +673,10 @@ createSelectiveColorSizer(parent) {
     this.sizer.add(this.buttonsSizer);
     this.sizer.addStretch();
 
-    this.par.enhancements_selective_color_data.set_callback = function(param) {
+    this.par.enhancements_selective_color_data.set_callback = (param) => {
         if (this.global.debug) console.writeln("Selective Color data changed, updating controls");
         this.updateAllAdjustmentControls(param);
+        if (this.global.debug) console.writeln("Selective Color data changed, updating controls:end");
     }
     this.util.recordParam(this.par.enhancements_selective_color_data);
     this.updateAllAdjustmentControls(this.par.enhancements_selective_color_data);

@@ -80,6 +80,7 @@ node_get_txt(node)
 // Iterate size of the flowchart childs graph
 flowchartGraphIterateChilds(parent, font, level)
 {
+      if (this.global.debug) console.writeln("flowchartGraphIterateChilds: level " + level);
       parent.level = level;
       var list = parent.list;
       var width = 0;
@@ -114,6 +115,7 @@ flowchartGraphIterateChilds(parent, font, level)
 // Iterate size of the flowchart graph
 flowchartGraphIterate(parent, font, level)
 {
+      if (this.global.debug) console.writeln("flowchartGraphIterateChilds: level " + level);
       parent.level = level;
       var list = parent.list;
       var width = 0;
@@ -214,7 +216,7 @@ flowchartDrawText(graphics, x, y, node)
             graphics.brush = new Brush( this.flowchart_inactive_id_color );
             graphics.pen = new Pen(0xff000000, 1);       // black
       } else {
-            graphics.brush = new Brush( this.flowchart_colors[node.level % flowchart_colors.length] );
+            graphics.brush = new Brush( this.flowchart_colors[node.level % this.flowchart_colors.length] );
             graphics.pen = new Pen(drawbox ? 0xff000000 : this.flowchartLineColor(), 1);       // black
       }
       if (drawbox) {
@@ -245,6 +247,7 @@ flowchartGraphDrawChildsConnectLines(parent, pos, graphics)
 // position is the top left corner of the graph
 flowchartGraphDrawChildsLine(parent, pos, graphics, loc)
 {
+      if (this.global.debug) console.writeln("flowchartGraphDrawChildsLine");
       var p = pos;
 
       p.y += this.flowchart_line_margin / 2;
@@ -268,6 +271,7 @@ flowchartGraphDrawChildsLine(parent, pos, graphics, loc)
 // position is the middle position of the graph
 flowchartGraphDrawChilds(parent, pos, graphics)
 {
+      if (this.global.debug) console.writeln("flowchartGraphDrawChilds");
       var list = parent.list;
       var p = pos;
       // calculate child width
@@ -302,6 +306,7 @@ flowchartGraphDrawChilds(parent, pos, graphics)
 // pos is middle position of the node
 flowchartGraphDraw(parent, pos, graphics)
 {
+      if (this.global.debug) console.writeln("flowchartGraphDraw");
       var list = parent.list;
       var p = pos;
       for (var i = 0; i < list.length; i++) {
@@ -375,8 +380,8 @@ flowchartGraph(rootnode, current_preview_image, txt)
       var height = size[1] + margin;
 
       // We have " / 2" below to keep text size readable
-      width = Math.max(width, ppar.preview.side_preview_width / 2);
-      height = Math.max(height, ppar.preview.side_preview_height / 2);
+      width = Math.max(width, this.ppar.preview.side_preview_width / 2);
+      height = Math.max(height, this.ppar.preview.side_preview_height / 2);
 
       if (this.par.flowchart_debug.val || this.par.debug.val) {
             console.writeln("flowchartGraph:background bitmap " + width + "x" + height);
@@ -464,11 +469,12 @@ flowchartNewNode(type, txt)
 
 flowchartCheckOperationList(type, txt)
 {
+      if (this.global.debug) console.writeln("flowchartCheckOperationList");
       var node = null;
       var nodepos = this.global.flowchartActiveId;
       this.global.flowchartActiveId++;
-      if (this.global.this.flowchartOperationList.length > 0) {
-            if (nodepos < this.global.this.flowchartOperationList.length
+      if (this.global.flowchartOperationList.length > 0) {
+            if (nodepos < this.global.flowchartOperationList.length
                 && txt == this.global.flowchartOperationList[nodepos].txt) 
             {
                   if (this.par.flowchart_debug.val) console.writeln("flowchartCheckOperationList:match " + txt + ", this.global.flowchartOperationList[" + this.global.flowchartActiveId + "] " + this.global.flowchartOperationList[this.global.flowchartActiveId]);
@@ -609,6 +615,7 @@ flowchartChildEnd(txt)
 // Remove empty nodes
 flowchartCleanupChilds(parent)
 {
+      if (this.global.debug) console.writeln("flowchartCleanupChilds");
       var removed = false;
       var list = parent.list;
       var newlist = [];
@@ -651,6 +658,7 @@ flowchartCleanupChilds(parent)
 // Remove empty nodes
 flowchartCleanup(parent)
 {
+      if (this.global.debug) console.writeln("flowchartCleanup");
       var removed = false;
       var list = parent.list;
 
@@ -695,6 +703,7 @@ flowchartCleanup(parent)
 
 flowchartPrintList(list, indent, testmode = false)
 {
+      if (this.global.debug) console.writeln("flowchartPrintList");
       for (var i = 0; i < list.length; i++) {
             var item = list[i];
             var txt = indent + item.txt;
@@ -754,7 +763,7 @@ flowchartInit(txt)
       this.flowchartCurrent = this.flowchartNewNode("header", txt);
       this.flowchartStack = [];
       this.flowchartOperationList = [];
-      if (this.global.this.flowchartOperationList.length == 0) {
+      if (this.global.flowchartOperationList.length == 0) {
             // No previous flowchart data, use current flowchart
             console.writeln("flowchartInit, no previous flowchart data");
             this.global.flowchartData = this.flowchartCurrent;

@@ -1014,8 +1014,8 @@ shouldShowTutorial() {
       if (this.global.do_not_read_settings) {
             return true;
       } else {
-            var shown = this.util.readAndMigrateSetting("TutorialShown", "AutoIntegrate_TutorialShown", DataType.Boolean, 0);
-            return !shown;
+            var shown = Settings.read("AutoIntegrate" + "/TutorialShown", DataType.Boolean);
+            return !Settings.lastReadOK || !shown;
       }
 };
 

@@ -46,7 +46,7 @@ class AutoIntegrateSelectStarsImageDialog extends Dialog
             }
       }
 
-      this.starsImageComboBox.onItemSelected = function( itemIndex )
+      this.starsImageComboBox.onItemSelected = ( itemIndex ) =>
       {
             this.dialog.name = this.dialog.window_list[itemIndex];
       };
@@ -55,7 +55,7 @@ class AutoIntegrateSelectStarsImageDialog extends Dialog
       this.ok_Button = new PushButton( this );
       this.ok_Button.text = "OK";
       this.ok_Button.icon = this.scaledResource( ":/icons/ok.png" );
-      this.ok_Button.onClick = function()
+      this.ok_Button.onClick = () =>
       {
             this.dialog.ok();
       };
@@ -63,7 +63,7 @@ class AutoIntegrateSelectStarsImageDialog extends Dialog
       this.cancel_Button = new PushButton( this );
       this.cancel_Button.text = "Cancel";
       this.cancel_Button.icon = this.scaledResource( ":/icons/cancel.png" );
-      this.cancel_Button.onClick = function()
+      this.cancel_Button.onClick = () =>
       {
             this.dialog.cancel();
       };
@@ -95,7 +95,7 @@ class AutoIntegrateHueColors extends Frame
       this.par = par;
       this.hueColorsBitmap = new Bitmap( File.extractDrive( #__FILE__ ) + File.extractDirectory( #__FILE__ ) + "/hue.png" );
 
-      this.onPaint = function(x0, y0, x1, y1) {
+      this.onPaint = (x0, y0, x1, y1) => {
             // console.writeln("AutoIntegrateHueColors onPaint");
             var width = this.width;
             var height = this.height;
@@ -675,8 +675,7 @@ createEnhancementsControls(parent)
       this.enhancementsStarsImageSelectButton.text = "Select";
       this.enhancementsStarsImageSelectButton.icon = parent.scaledResource(":/icons/find.png");
       this.enhancementsStarsImageSelectButton.toolTip = "<p>Select stars image manually from open images.</p>";
-      this.enhancementsStarsImageSelectButton.onClick = function()
-      {
+      this.enhancementsStarsImageSelectButton.onClick = () => {
             let selectStars = new AutoIntegrateSelectStarsImageDialog(this.util);
             selectStars.windowTitle = "Select Stars Image";
             if (selectStars.execute()) {
@@ -880,8 +879,7 @@ createEnhancementsControls(parent)
       this.enhancements_signature_path_Button.toolTip = this.enhancements_signature_path_Edit.toolTip;
       this.enhancements_signature_path_Button.setScaledFixedSize( 20, 20 );
       var enhancements_signature_path_Edit = this.enhancements_signature_path_Edit;
-      this.enhancements_signature_path_Button.onClick = function()
-      {
+      this.enhancements_signature_path_Button.onClick = () => {
             var ofd = new OpenFileDialog;
             ofd.multipleSelections = false;
             if (!ofd.execute()) {
@@ -1008,8 +1006,7 @@ createEnhancementsControls(parent)
       this.enhancementsAdjustChannelDefaultsButton.icon = new Bitmap( ":/images/icons/reset.png" );
       this.enhancementsAdjustChannelDefaultsButton.toolTip = 
             "<p>Reset channel adjust values to defaults.</p>";
-      this.enhancementsAdjustChannelDefaultsButton.onClick = function()
-      {
+      this.enhancementsAdjustChannelDefaultsButton.onClick = () => {
             console.writeln("Reset channel adjust values to defaults.");
             this.par.enhancements_adjust_R.val = this.par.enhancements_adjust_R.def;
             this.par.enhancements_adjust_G.val = this.par.enhancements_adjust_G.def;
@@ -1079,8 +1076,7 @@ createEnhancementsControls(parent)
       this.enhancements_solve_image_Button.icon = parent.scaledResource(":/icons/select-file.png");
       this.enhancements_solve_image_Button.toolTip = "<p>Select file for copying astrometric solution to image.</p>";
       this.enhancements_solve_image_Button.setScaledFixedSize( 20, 20 );
-      this.enhancements_solve_image_Button.onClick = function()
-      {
+      this.enhancements_solve_image_Button.onClick = () => {
             var ofd = new OpenFileDialog;
             ofd.multipleSelections = false;
             if (!ofd.execute()) {
@@ -1477,9 +1473,9 @@ createTargetImageSizer(parent)
       var minItemCharWidthStr = "testxyz_Integration_RGB_processed_12"; // long name to have enough width for image names
       this.enhancementsImageComboBox.minItemCharWidth = minItemCharWidthStr.length;
       var self = this;
-      this.enhancementsImageComboBox.onItemSelected = function( itemIndex )
+      this.enhancementsImageComboBox.onItemSelected = ( itemIndex ) =>
       {
-            self.createTargetImageSizerOnItemSelected(self.enhancements_target_image_window_list[itemIndex]);
+            this.createTargetImageSizerOnItemSelected(this.enhancements_target_image_window_list[itemIndex]);
       };
       this.enhancements_gui_info.images_combobox = this.enhancementsImageComboBox;
 
@@ -1502,7 +1498,7 @@ createTargetImageSizer(parent)
       this.enhancementsLoadTargetImageButton.icon = parent.scaledResource(":/icons/select-file.png");
       this.enhancementsLoadTargetImageButton.toolTip = "<p>Select file as target image.</p>";
       this.enhancementsLoadTargetImageButton.setScaledFixedSize( 20, 20 );
-      this.enhancementsLoadTargetImageButton.onClick = function()
+      this.enhancementsLoadTargetImageButton.onClick = () =>
       {
             var ofd = new OpenFileDialog;
             ofd.multipleSelections = false;
@@ -1523,11 +1519,11 @@ createTargetImageSizer(parent)
             imageWindow.show();
             console.writeln("Opened image " + ofd.fileName);
 
-            self.createTargetImageSizerOnItemSelected(imageWindow.mainView.id);
+            this.createTargetImageSizerOnItemSelected(imageWindow.mainView.id);
 
-            if (self.global.debug)console.writeln("this.util.updateStatusInfoLabel");
-            self.util.updateStatusInfoLabel("Size: " + imageWindow.mainView.image.width + "x" + imageWindow.mainView.image.height);
-            self.update_enhancements_target_image_window_list(self.global.enhancements_target_image_id);
+            if (this.global.debug)console.writeln("this.util.updateStatusInfoLabel");
+            this.util.updateStatusInfoLabel("Size: " + imageWindow.mainView.image.width + "x" + imageWindow.mainView.image.height);
+            this.update_enhancements_target_image_window_list(this.global.enhancements_target_image_id);
       };
 
       var notetsaved_note = "<p>Note that edited image is not automatically saved to disk.</p>";
@@ -1536,9 +1532,9 @@ createTargetImageSizer(parent)
       this.enhancementsApplyButton.toolTip = 
             "<p>Apply enhancements edits on the copy of the selected image. Auto option is used when enhancements are done with Run or AutoContinue option.</p>" +
             notetsaved_note;
-      this.enhancementsApplyButton.onClick = function()
+      this.enhancementsApplyButton.onClick = () =>
       {
-            self.enhancementsApplyButtonOnClick();
+            this.enhancementsApplyButtonOnClick();
       };   
 
       this.enhancementsUndoButton = new ToolButton( parent );
@@ -1546,9 +1542,9 @@ createTargetImageSizer(parent)
       this.enhancementsUndoButton.toolTip = 
             "<p>Undo last enhancements edit operation.</p>" + notetsaved_note;
       this.enhancementsUndoButton.enabled = false;
-      this.enhancementsUndoButton.onClick = function()
+      this.enhancementsUndoButton.onClick = () =>
       {
-            self.apply_undo();
+            this.apply_undo();
       };
       this.enhancements_gui_info.undo_button = this.enhancementsUndoButton;
 
@@ -1557,9 +1553,8 @@ createTargetImageSizer(parent)
       this.enhancementsRedoButton.toolTip = 
             "<p>Redo last enhancements edit operation.</p>" + notetsaved_note;
       this.enhancementsRedoButton.enabled = false;
-      this.enhancementsRedoButton.onClick = function()
-      {
-            self.apply_redo();
+      this.enhancementsRedoButton.onClick = () => {
+            this.apply_redo();
       };
       this.enhancements_gui_info.redo_button = this.enhancementsRedoButton;
 
@@ -1568,9 +1563,9 @@ createTargetImageSizer(parent)
       this.enhancementsSaveButton.toolTip = 
             "<p>Save current edited image to disk as a XISF image and as a 16-bit TIFF image.</p>" + notetsaved_note;
       this.enhancementsSaveButton.enabled = false;
-      this.enhancementsSaveButton.onClick = function()
+      this.enhancementsSaveButton.onClick = () =>
       {
-            self.save_as_undo();
+            this.save_as_undo();
       };
       this.enhancements_gui_info.save_button = this.enhancementsSaveButton;
 
@@ -1578,7 +1573,7 @@ createTargetImageSizer(parent)
       this.enhancementsHistoryButton.icon = new Bitmap( ":/history-explorer/history-explorer-window-icon.png" );
       this.enhancementsHistoryButton.toolTip = "<p>Show enhancements history.</p>";
       this.enhancementsHistoryButton.enabled = true;
-      this.enhancementsHistoryButton.onClick = function()
+      this.enhancementsHistoryButton.onClick = () =>
       {
             if (this.enhancements_gui_info.undo_images.length <= 1) {
                   new MessageBox("No enhancements history", "Enhancements history", StdIcon.Information ).execute();
@@ -1605,7 +1600,7 @@ createTargetImageSizer(parent)
       this.metadataHistoryButton = new ToolButton(parent);
       this.metadataHistoryButton.icon = new Bitmap( ":/icons/document-edit.png" ); // :/toolbar/file-project-metadata.png
       this.metadataHistoryButton.toolTip = "<p>Print AutoIntegrate processing history information from image metadata to the Process Console.</p>";
-      this.metadataHistoryButton.onClick = function()
+      this.metadataHistoryButton.onClick = () =>
       {
             var win = this.util.findWindow(this.global.enhancements_target_image_id);
             if (win == null) {
@@ -1688,8 +1683,7 @@ createTargetImageSizer(parent)
       this.enhancementsHelpTips.icon = parent.scaledResource( ":/icons/help.png" );
       this.enhancementsHelpTips.setScaledFixedSize( 20, 20 );
       this.enhancementsHelpTips.toolTip = enhancementsLabeltoolTip;
-      this.enhancementsHelpTips.onClick = function()
-      {
+      this.enhancementsHelpTips.onClick = () => {
             new MessageBox(enhancementsLabeltoolTip, "Enhancements", StdIcon.Information ).execute();
       }
 

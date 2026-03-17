@@ -810,6 +810,7 @@ setMaskChecked(imgWin, maskWin)
 
 getChangedProcessingOptions()
 {
+      if (this.global.debug) console.writeln("getChangedProcessingOptions");
       var options = [];
       for (let x in this.par) {
             var param = this.par[x];
@@ -817,6 +818,7 @@ getChangedProcessingOptions()
                   options[options.length] = [ param.name, param.val ];
             }
       }
+      if (this.global.debug) console.writeln("getChangedProcessingOptions:return options " + options.length);
       return options;
 }
 
@@ -1639,6 +1641,8 @@ getProcessingInfo()
       var header = [];
       var options = [];
 
+      if (this.global.debug) console.writeln("getProcessingInfo");
+
       header.push("PixInsight version " + this.global.pixinsight_version_str);
       header.push(this.global.autointegrate_version);
       var d = new Date();
@@ -1652,6 +1656,7 @@ getProcessingInfo()
       } else {
             header.push("Using default processing options");
       }
+      if (this.global.debug) console.writeln("getProcessingInfo:end");
       return { header : header, options : options };
 }
 
@@ -1858,7 +1863,7 @@ runSuberBias(biasWin)
 /* Read FITS headers from a file and return its EXPTIME/EXPOSURE value. */
 getExptimeFromFile(filePath)
 {
-      var keywords = this.engine_end_process(filePath);
+      var keywords = this.getFileKeywords(filePath);
       for (var j = 0; j < keywords.length; j++) {
             var value = keywords[j].strippedValue.trim();
             if (keywords[j].name == "EXPTIME" || keywords[j].name == "EXPOSURE") {
@@ -2312,6 +2317,15 @@ fileNamesToEnabledPath(fileNames)
       return images;
 }
 
+fileNamesToEnabledPathSubframes(fileNames)
+{
+      var images = [];
+      for (var i = 0; i < fileNames.length; i++) {
+            images[images.length] = [ true, fileNames[i], null, null ]; // subframeEnabled, subframePath, localNormalizationDataPath, drizzlePath
+      }
+      return images;
+}
+
 fileNamesToEnabledPathFromFilearr(filearr)
 {
       var images = [];
@@ -2346,7 +2360,7 @@ getLDDgroups(fileNames)
       console.writeln("getLDDgroups");
       var groups = [];
       for (var i = 0; i < fileNames.length; i++) {
-            var keywords = this.engine_end_process(fileNames[i]);
+            var keywords = this.getFileKeywords(fileNames[i]);
             var groupname = "";
             var naxis1 = 0;
             for (var j = 0; j < keywords.length; j++) {
@@ -3034,7 +3048,7 @@ getSubframeSelectorMeasurements(fileNames, flowchart_name)
 
       var P = new SubframeSelector;
       P.nonInteractive = true;
-      P.subframes = this.fileNamesToEnabledPath(fileNames);     // [ subframeEnabled, subframePath ]
+      P.subframes = this.fileNamesToEnabledPathSubframes(fileNames);     // [ subframeEnabled, subframePath, localNormalizationDataPath, drizzlePath ]
       P.noiseLayers = 2;
       P.outputDirectory = this.global.outputRootDir + this.global.AutoOutputDir;
       P.overwriteExistingFiles = true;
@@ -3857,7 +3871,7 @@ findBestSSWEIGHT(parent, names_and_weights, filename_postfix)
       var found_user_selected_best_image_ssweight = 0;
       for (var i = 0; i < fileNames.length; i++) {
             var filePath = fileNames[i];
-            var keywords = this.engine_end_process(filePath);
+            var keywords = this.getFileKeywords(filePath);
 
             n++;
 
@@ -4132,7 +4146,7 @@ darkIsBiasCalibrated(darkPath)
       if (darkPath == null) {
             return this.par.pre_calibrate_darks.val;
       }
-      var keywords = this.engine_end_process(darkPath);
+      var keywords = this.getFileKeywords(darkPath);
       for (var i = 0; i < keywords.length; i++) {
             if (keywords[i].name == "CALSTAT") {
                   var calstat = keywords[i].strippedValue.trim().toUpperCase();
@@ -4431,7 +4445,7 @@ getFilterFiles(files, pageIndex, filename_postfix, flochart_files = false, gener
 
             /* Go through keywords in the file.
              */
-            var keywords = this.engine_end_process(filePath);
+            var keywords = this.getFileKeywords(filePath);
             n++;
             for (var j = 0; j < keywords.length; j++) {
                   var value = keywords[j].strippedValue.trim();
@@ -4656,7 +4670,7 @@ getImagetypFiles(files)
             var filePath = files[i];
             
             if (this.global.debug) console.writeln("getImagetypFiles file " +  filePath);
-            var keywords = this.engine_end_process(filePath);
+            var keywords = this.getFileKeywords(filePath);
             n++;
             for (var j = 0; j < keywords.length; j++) {
                   var value = keywords[j].strippedValue.trim();
@@ -7630,10 +7644,18 @@ runImageIntegration(channel_images, name, save_to_file, flowchartname)
                         drizzleImages[i][0] = images[i][0];      // enabled
                         drizzleImages[i][1] = images[i][1];      // path
                         drizzleImages[i][2] = images[i][1].replace(".xisf", ".xdrz"); // drizzlePath
+                        drizzleImages[i][3] = null;                                   // localNormalizationDataPath
                   }
                   var integration_images = drizzleImages;
             } else {
-                  var integration_images = images;
+                  var integration_images = [];
+                  for (var i = 0; i < images.length; i++) {
+                        integration_images[i] = [];
+                        integration_images[i][0] = images[i][0];      // enabled
+                        integration_images[i][1] = images[i][1];      // path
+                        integration_images[i][2] = null;              // drizzlePath
+                        integration_images[i][3] = null;              // localNormalizationDataPath
+                  }
             }
 
             if (this.par.use_fastintegration.val) {
@@ -12155,7 +12177,7 @@ writeTestmodeLog(text, fname)
 
 // Find window and optionally search without a prefix
 // Used to find AutoContinue images
-findWindowCheckBaseNameIf = function(id, check_base_name)
+findWindowCheckBaseNameIf(id, check_base_name)
 {
       // console.writeln("this.findWindowCheckBaseNameIf: " + id);
       var win = this.util.findWindowOrFile(this.util.ensure_win_prefix(id));

@@ -1210,24 +1210,6 @@ restoreMasterDir()
       }
 }
 
-readAndMigrateSetting(newname, oldname, type, old_interface_version)
-{
-      if (this.global.ppar.savedInterfaceVersion <= old_interface_version) {
-            // Migrate from old interface version setting
-            var val = Settings.read(oldname, type);
-            if (Settings.lastReadOK && !this.global.do_not_write_settings) {
-                  if (this.global.debug) console.writeln("AutoIntegrate: Migrate setting " + oldname + " to " + newname + "=" + val);
-                  Settings.write("AutoIntegrate" + '/' + newname, type, val);
-                  Settings.remove(oldname);   // Remove old setting
-            }
-      } else {
-            var key = "AutoIntegrate" + '/' + newname;
-            var val = Settings.read(key, type);
-            if (this.global.debug) console.writeln("AutoIntegrate: Read setting " + key + "=" + val);
-      }
-      return val;
-}
-
 readOneParameterFromPersistentModuleSettings(name, type)
 {
       name = "AutoIntegrate" + '/' + this.mapBadChars(name);
@@ -1271,6 +1253,9 @@ readParameterFromSettings(param)
       }
       if (val != null) {
             this.global.setParameterValue(param, val);
+            if (param.reset != undefined) {
+                  param.reset();
+            }
       }
 }
 
@@ -3123,7 +3108,6 @@ this.recordParam = recordParam;
 this.writeParameterToSettings = writeParameterToSettings;
 this.readParameterFromSettings = readParameterFromSettings;
 this.readParametersFromPersistentModuleSettings = readParametersFromPersistentModuleSettings
-this.readAndMigrateSetting = readAndMigrateSetting;
 
 // Character and name checking
 this.mapBadChars = mapBadChars;

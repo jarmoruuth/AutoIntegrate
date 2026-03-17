@@ -44,7 +44,7 @@ class AutoIntegrateExclusionAreaDialog extends Dialog {
    this.startDrawing_Button = this.startDrawing_Button;
    this.startDrawing_Button.text = "Start Drawing";
    this.startDrawing_Button.icon = this.scaledResource(":/icons/window-new.png");
-   this.startDrawing_Button.onClick = function() {
+   this.startDrawing_Button.onClick = () => {
       if (!this.targetView) {
          (new MessageBox("No active image. Please open an image first.", this.title, StdIcon.Error)).execute();
          return;
@@ -67,7 +67,7 @@ class AutoIntegrateExclusionAreaDialog extends Dialog {
    this.finishDrawing_Button.text = "Finish Current Polygon";
    this.finishDrawing_Button.icon = this.scaledResource(":/icons/ok.png");
    this.finishDrawing_Button.enabled = false;
-   this.finishDrawing_Button.onClick = function() {
+   this.finishDrawing_Button.onClick = () => {
       this.finishPolygon();
    };
    
@@ -76,7 +76,7 @@ class AutoIntegrateExclusionAreaDialog extends Dialog {
    this.cancelDrawing_Button.text = "Cancel Drawing";
    this.cancelDrawing_Button.icon = this.scaledResource(":/icons/cancel.png");
    this.cancelDrawing_Button.enabled = false;
-   this.cancelDrawing_Button.onClick = function() {
+   this.cancelDrawing_Button.onClick = () => {
       this.activePolygon = [];
       this.isDrawing = false;
       this.uninstallPolygonHandler();
@@ -103,7 +103,7 @@ class AutoIntegrateExclusionAreaDialog extends Dialog {
    
    this.preview_Control.backgroundcolor = 0xFF000000;
    this.preview_Control.toolTip = "Preview of exclusion areas";
-   this.preview_Control.onPaint = function() {
+   this.preview_Control.onPaint = () => {
       this.drawPreview(this);
    };
    this.previewControl = this.preview_Control;
@@ -111,7 +111,7 @@ class AutoIntegrateExclusionAreaDialog extends Dialog {
    this.clearAll_Button = new PushButton(this);
    this.clearAll_Button.text = "Clear All Areas";
    this.clearAll_Button.icon = this.scaledResource(":/icons/delete.png");
-   this.clearAll_Button.onClick = function() {
+   this.clearAll_Button.onClick = () => {
       if (this.exclusionAreaPolygons.length > 0) {
          if ((new MessageBox("Do you really want to delete all exclusion areas?",
                this.title, StdIcon.Warning, StdButton.Yes, StdButton.No)).execute() == StdButton.Yes) {
@@ -125,13 +125,13 @@ class AutoIntegrateExclusionAreaDialog extends Dialog {
    this.dialog_ok_Button = new PushButton(this);
    this.dialog_ok_Button.text = "OK";
    this.dialog_ok_Button.icon = this.scaledResource(":/icons/ok.png");
-   this.dialog_ok_Button.onClick = function() {
+   this.dialog_ok_Button.onClick = () => {
       this.dialog.ok();
    };
    this.dialog_cancel_Button = new PushButton(this);
    this.dialog_cancel_Button.text = "Cancel";
    this.dialog_cancel_Button.icon = this.scaledResource(":/icons/cancel.png");
-   this.dialog_cancel_Button.onClick = function() {
+   this.dialog_cancel_Button.onClick = () => {
       this.dialog.cancel();
    };
    
@@ -265,7 +265,7 @@ installPolygonHandler() {
    if (!this.targetWindow) return;
    
    // Mouse press handler - add points to the active polygon
-   this.previewControl.onMousePress = function(x, y, button, buttons, modifiers) {
+   this.previewControl.onMousePress = (x, y, button, buttons, modifiers) => {
       // console.writeln("Mouse Press: " + x + ", " + y);
       if (!this.isDrawing) return false;
       // if (button != MouseButton_Left) return false;
@@ -294,7 +294,7 @@ installPolygonHandler() {
    };
    
    // Mouse move handler - track mouse position for live preview
-   this.previewControl.onMouseMove = function(x, y, buttons, modifiers) {
+   this.previewControl.onMouseMove = (x, y, buttons, modifiers) => {
       if (!this.isDrawing) return false;
       
       // console.writeln("Mouse Pos: " + x + ", " + y);

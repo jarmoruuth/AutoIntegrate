@@ -80,7 +80,7 @@ class AutoIntegrateNarrowbandSelectMultipleDialog extends Dialog
             cb.toolTip = "<p>R: " + this.global.narrowBandPalettes[i].R + ", G: " + this.global.narrowBandPalettes[i].G + ", B: " + this.global.narrowBandPalettes[i].B + "</p>";
             cb.checked = checked;
             cb.index = i;
-            cb.onClick = function(checked) { 
+            cb.onClick = (checked) => { 
                   this.checked_status[this.index] = checked;
             }
 
@@ -93,8 +93,7 @@ class AutoIntegrateNarrowbandSelectMultipleDialog extends Dialog
       this.ok_Button = new PushButton( this );
       this.ok_Button.text = "OK";
       this.ok_Button.icon = this.scaledResource( ":/icons/ok.png" );
-      this.ok_Button.onClick = function()
-      {
+      this.ok_Button.onClick = () => {
             this.names = "";
             for (var i = 0; i < this.global.narrowBandPalettes.length; i++) {
                   if (this.checked_status[i]) {
@@ -111,8 +110,7 @@ class AutoIntegrateNarrowbandSelectMultipleDialog extends Dialog
       this.cancel_Button = new PushButton( this );
       this.cancel_Button.text = "Cancel";
       this.cancel_Button.icon = this.scaledResource( ":/icons/cancel.png" );
-      this.cancel_Button.onClick = function()
-      {
+      this.cancel_Button.onClick = () => {
             this.dialog.cancel();
       };
 
@@ -242,7 +240,7 @@ update_enhancements_target_image_window_list(current_item)
 
       // Exclusion area image list is kept in sync with extra_target_image_window_list
       this.guitools.exclusionAreasComboBox.clear();
-      for (var i = 0; i < exclusion_area_image_window_list.length; i++) {
+      for (var i = 0; i < this.exclusion_area_image_window_list.length; i++) {
             this.guitools.exclusionAreasComboBox.addItem( this.exclusion_area_image_window_list[i] );
       }
 }
@@ -592,7 +590,7 @@ AImodelSizer(parent, name, param, toolTip) {
       AImodelButton.icon = parent.scaledResource(":/icons/select-file.png");
       AImodelButton.toolTip = AImodelLabel.toolTip;
       AImodelButton.setScaledFixedSize( 20, 20 );
-      AImodelButton.onClick = function()
+      AImodelButton.onClick = () =>
       {
             var ofd = new OpenFileDialog;
             ofd.multipleSelections = false;
@@ -857,7 +855,7 @@ lightsOptions(parent)
       var add_manually_checkbox = this.guitools.newCheckBox(parent, "Add manually", this.par.lights_add_manually, 
             "<p>Add light files manually by selecting files for each filter.</p>" );
       this.global.rootingArr.push(add_manually_checkbox);
-      add_manually_checkbox.onClick = function(checked) { 
+      add_manually_checkbox.onClick = (checked) => { 
             add_manually_checkbox.aiParam.val = checked; 
             this.showOrHideFilterSectionBar(this.global.pages.LIGHTS);
       }
@@ -884,8 +882,7 @@ lightsOptions(parent)
                                     "given in the <i>Preprocessing / Weighting and filtering settings</i> section.</p>" +
                                     "<p>Using the mouse hover over the file name you can see the " +
                                     "filtering and weighting information for the file.</p>";
-      sortAndFilterButton.onClick = function()
-      {
+      sortAndFilterButton.onClick = () => {
             try {
                   this.util.addStatusInfo("Sorting and filtering files");
                   this.filterTreeBoxFiles(parent.dialog, parent.dialog.tabBox.currentPageIndex);
@@ -899,8 +896,7 @@ lightsOptions(parent)
       metricsVisualizerButton.text = "Metrics visualizer";
       metricsVisualizerButton.icon = parent.scaledResource(":/icons/chart.png");
       metricsVisualizerButton.toolTip = this.metricsVisualizerToolTip;
-      metricsVisualizerButton.onClick = function()
-      {
+      metricsVisualizerButton.onClick = () => {
             try {
                   this.metricsVisualizerFilters(parent);
             } catch (e) {
@@ -912,7 +908,7 @@ lightsOptions(parent)
       var exclusionAreasButton = new PushButton( parent );
       exclusionAreasButton.text = "Exclusion areas";
       exclusionAreasButton.toolTip = "<p>Select exclusion areas for DBE.</p>";
-      exclusionAreasButton.onClick = function() 
+      exclusionAreasButton.onClick = () => 
       {
             try {
                   this.guitools.getExclusionAreas();
@@ -1008,7 +1004,7 @@ flatsOptions(parent)
       var checkboxManual = this.guitools.newCheckBox(parent, "Add manually", this.par.flats_add_manually, 
             "<p>Add flat files manually by selecting files for each filter.</p>" );
       this.global.rootingArr.push(checkboxManual);
-      checkboxManual.onClick = function(checked) {
+      checkboxManual.onClick = (checked) => {
             checkboxManual.aiParam.val = checked;
             this.showOrHideFilterSectionBar(this.global.pages.FLATS);
       }
@@ -1034,7 +1030,7 @@ flatdarksOptions(parent)
       var checkboxManual = this.guitools.newCheckBox(parent, "Add manually", this.par.flatdarks_add_manually, 
             "<p>Add flat dark files manually by selecting files for each filter.</p>" );
       this.global.rootingArr.push(checkboxManual);
-      checkboxManual.onClick = function(checked) {
+      checkboxManual.onClick = (checked) => {
             checkboxManual.aiParam.val = checked;
             this.showOrHideFilterSectionBar(this.global.pages.FLAT_DARKS);
       }
@@ -1619,7 +1615,7 @@ addOutputDir(parent)
       this.outputDirEdit = new Edit( parent );
       this.outputDirEdit.text = this.global.outputRootDir;
       this.outputDirEdit.toolTip = lbl.toolTip;
-      this.outputDirEdit.onEditCompleted = function() {
+      this.outputDirEdit.onEditCompleted = () => {
             this.util.setOutputRootDir(this.util.ensurePathEndSlash(this.outputDirEdit.text.trim()));
             console.writeln("addOutputDir, set this.global.outputRootDir ", this.global.outputRootDir);
       };
@@ -1627,7 +1623,7 @@ addOutputDir(parent)
       var dirbutton = new ToolButton( parent );
       dirbutton.icon = parent.scaledResource( ":/icons/select-file.png" );
       dirbutton.toolTip = "<p>Select output root directory.</p>";
-      dirbutton.onClick = function() {
+      dirbutton.onClick = () => {
             var gdd = new GetDirectoryDialog;
             if (this.global.outputRootDir == "") {
                   gdd.initialPath = this.ppar.lastDir;
@@ -1695,7 +1691,7 @@ addWinPrefix(parent)
       var pa = this.get_win_prefix_combobox_array(this.ppar.win_prefix);
       this.guitools.addArrayToComboBox(this.windowPrefixComboBox, pa);
       this.windowPrefixComboBox.editText = this.ppar.win_prefix;
-      this.windowPrefixComboBox.onEditTextUpdated = function() {
+      this.windowPrefixComboBox.onEditTextUpdated = () => {
             // This function is called for every character edit so actions
             // are moved to function updateWindowPrefix
             this.ppar.win_prefix = this.util.validateViewIdCharacters(this.windowPrefixComboBox.editText.trim());
@@ -1708,7 +1704,7 @@ addWinPrefix(parent)
       this.windowPrefixHelpTips.icon = parent.scaledResource( ":/icons/help.png" );
       this.windowPrefixHelpTips.setScaledFixedSize( 20, 20 );
       this.windowPrefixHelpTips.toolTip = "<p>Current Window Prefixes:</p>";
-      this.windowPrefixHelpTips.onClick = function()
+      this.windowPrefixHelpTips.onClick = () =>
       {
             new MessageBox(this.windowPrefixHelpTips.toolTip, "Current Window Prefixes", StdIcon.Information ).execute();
       }
@@ -1732,7 +1728,7 @@ addAutoContinueWinPrefix(parent)
       var pa = this.get_win_prefix_combobox_array("");
       this.guitools.addArrayToComboBox(this.autoContinueWindowPrefixComboBox, pa);
       this.autoContinueWindowPrefixComboBox.editText = "";
-      this.autoContinueWindowPrefixComboBox.onEditTextUpdated = function() {
+      this.autoContinueWindowPrefixComboBox.onEditTextUpdated = () => {
             // This function is called for every character edit so actions
             // are moved to function updateWindowPrefix
             this.ppar.autocontinue_win_prefix = this.util.validateViewIdCharacters(this.autoContinueWindowPrefixComboBox.editText.trim());
@@ -3786,7 +3782,7 @@ newAdjustToContentButton(parent)
       var button = new ToolButton(parent);
       button.icon = new Bitmap( ":/toolbar/preview-reset.png" );
       button.toolTip = "<p>Adjust script window to content.</p>";
-      button.onClick = function()
+      button.onClick = () =>
       {
             parent.ensureLayoutUpdated();
             parent.adjustToContents();
@@ -3934,7 +3930,7 @@ newMinimizeDialogButton(parent)
       minDialogButton.setScaledFixedSize( 20, 20 );
       var minDialogToolTip = "Minimize dialog to a minimum size.";
       minDialogButton.toolTip = minDialogToolTip;
-      minDialogButton.onClick = function()
+      minDialogButton.onClick = () =>
       {
             if (this.dialog_mode == 2) {
                   // maximized, do nothing
@@ -5014,7 +5010,7 @@ AutoIntegrateDialog()
             this.par.skip_blink.used = false;  // Special case with no preiew.
             this.blink_checkbox = this.guitools.newCheckBoxEx(this, "No blink", this.par.skip_blink, "<p>Disable blinking of files.</p>");
             var blink_checkbox = this.blink_checkbox;
-            this.blink_checkbox.onClick = function(checked) { 
+            this.blink_checkbox.onClick = (checked) => { 
                   blink_checkbox.aiParam.val = checked;
                   if (blink_checkbox.aiParam.val) {
                         if (this.blink_window != null) {
@@ -5262,7 +5258,7 @@ AutoIntegrateDialog()
       //this.systemParamsControl.sizer.addStretch();
 
        // Create labels and edit controls for each filter
-      this.createAstrobinInput = function(parent, filterName, labelText, edit_par) {
+      this.createAstrobinInput = (parent, filterName, labelText, edit_par) => {
             var toolTip = "<p>Astrobin filter configuration for " + filterName + " filter.</p>" +
                           "<p>Give Astrobin filter number to be used in AstrobinInfo.csv file.</p>";
             var label = this.guitools.newLabel(parent, labelText, toolTip);
@@ -5522,7 +5518,7 @@ AutoIntegrateDialog()
       this.noisexterminatorIterationsEdit = this.guitools.newNumericEditPrecision(this, "Iterations", this.par.nxt_iterations, 1, 5, "Number of iterations for noise reduction.", 0);
 
       this.noisexterminatorColorSeparationCheckBox = this.guitools.newCheckBox(this, "Intensity/color separation", this.par.nxt_enable_color_separation, "<p>Depending on options: Denoise Color or Denoise HF Color</p>");
-      this.noisexterminatorColorSeparationCheckBox.onClick = function(checked) {
+      this.noisexterminatorColorSeparationCheckBox.onClick = (checked) => {
             if (checked && this.dialog.noisexterminatorFreqSeparationCheckBox.checked) {
                   this.dialog.noisexterminatorDenoiseLFColorEdit.enabled = true;
             } else {
@@ -5532,7 +5528,7 @@ AutoIntegrateDialog()
       this.noisexterminatorColorEdit = this.guitools.newNumericEdit(this, "Color", this.par.nxt_denoise_color, 0, 1, "Amount of high frequency color noise to remove.");
 
       this.noisexterminatorFreqSeparationCheckBox = this.guitools.newCheckBox(this, "Frequency separation", this.par.nxt_enable_frequency_separation, "Enable frequency separation.");
-      this.noisexterminatorFreqSeparationCheckBox.onClick = function(checked) {
+      this.noisexterminatorFreqSeparationCheckBox.onClick = (checked) => {
             if (checked && this.dialog.noisexterminatorColorSeparationCheckBox.checked) {
                   this.dialog.noisexterminatorDenoiseLFColorEdit.enabled = true;
             } else {
@@ -6601,7 +6597,7 @@ AutoIntegrateDialog()
       this.narrowbandLuminancePalette_ComboBox.addItem( "max(L, H)" );
       this.narrowbandLuminancePalette_ComboBox.toolTip = "<p>Mapping of Luminance channel with narrowband data if both RGB and narrowband data are available.</p>" +
                                                          "<p>With empty text no mapping is done.</p>";
-      this.narrowbandLuminancePalette_ComboBox.onItemSelected = function( itemIndex )
+      this.narrowbandLuminancePalette_ComboBox.onItemSelected = (itemIndex) =>
       {
             switch (itemIndex) {
                   case 0:
@@ -6895,7 +6891,7 @@ AutoIntegrateDialog()
 
       this.RGBHaPresetLabel = this.guitools.newLabel(this, "Preset", "<p>Some useful combinations to try.</p>" + RGBHa_tooltip);
       this.RGBHaPresetComboBox = this.guitools.newComboBox(this, this.par.RGBHa_preset, this.RGBHa_preset_values, this.RGBHaPresetLabel.toolTip);
-      this.RGBHaPresetComboBox.onItemSelected = function( itemIndex )
+      this.RGBHaPresetComboBox.onItemSelected = (itemIndex) =>
       {
             switch (this.RGBHa_preset_values[itemIndex]) {
                   case 'Combine Continuum Subtract':
@@ -7323,7 +7319,7 @@ AutoIntegrateDialog()
                   this.columnCountControlComboBox.currentItem = this.ppar.userColumnCount + 1;
             }
             this.columnCountControlComboBox.toolTip = this.columnCountControlLabel.toolTip;
-            this.columnCountControlComboBox.onItemSelected = function( itemIndex )
+            this.columnCountControlComboBox.onItemSelected = (itemIndex) =>
             {
                   if (itemIndex == 0) {
                         // Auto
@@ -8179,9 +8175,9 @@ shouldShowWelcome(global) {
             return true;
       }
 
-      var showOnStartup = this.util.readAndMigrateSetting("ShowWelcomeOnStartup", "AutoIntegrate_ShowWelcomeOnStartup", DataType.Boolean, 0);
+      var showOnStartup = Settings.read("AutoIntegrate" + "/ShowWelcomeOnStartup", DataType.Boolean);
       if (this.global.debug) console.writeln("Show welcome dialog on startup setting: " + showOnStartup);
-      return showOnStartup;
+      return Settings.lastReadOK && showOnStartup;
 }
 
 isExpertMode() {
@@ -8211,16 +8207,16 @@ isFirstRun() {
             if (this.global.debug) console.writeln("do_not_read_settings is true, treating as first run");
             return true;
       } else {
-            var hasRun = this.util.readAndMigrateSetting("HasRun", "AutoIntegrate_HasRun", DataType.Boolean, 0);
+            var hasRun = Settings.read("AutoIntegrate" + "/HasRun", DataType.Boolean);
             if (this.global.debug) console.writeln("Read HasRun setting: " + hasRun);
-            return !hasRun;
+            return !Settings.lastReadOK || !hasRun;
       }
 };
 
 // Mark that AutoIntegrate has been run
 markAsRun() {
       if (!this.global.do_not_write_settings) {
-            if(this.global.debug) console.writeln("Marking AutoIntegrate as run in settings");
+            if(this.global.debug) console.writeln("*** Marking AutoIntegrate as run in settings");
             Settings.write("AutoIntegrate" + "/HasRun", DataType.Boolean, true);
       } else {
             if(this.global.debug) console.writeln("do_not_write_settings is true, not marking as run in settings");
@@ -8294,7 +8290,7 @@ setupAllTutorials() {
 }
 
 // Start tutorial by ID
-startTutorialById = function(tutorialId) {
+startTutorialById = (tutorialId) => {
       var steps = this.tutorials[tutorialId];
       
       if (!steps) {

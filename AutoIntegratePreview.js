@@ -2,8 +2,8 @@
 //
 // SetImage = function(image, txt)
 // UpdateImage = function(image, txt)
-// showClippedImage = function()
-// forceRedraw = function()
+// showClippedImage = () =>
+// forceRedraw = () =>
 // setSize = function(w, h)
 
 #ifndef AUTOINTEGRATEPREVIEW_JS
@@ -280,7 +280,7 @@ class AutoIntegratePreviewControl extends Frame
       this.zoomIn_Button.icon = this.scaledResource( ":/icons/zoom-in.png" );
       this.zoomIn_Button.setScaledFixedSize( 20, 20 );
       this.zoomIn_Button.toolTip = "Zoom in";
-      this.zoomIn_Button.onClick = function()
+      this.zoomIn_Button.onClick = () =>
       {
             if (this.par.debug.val) console.writeln(this.parent.name + ":zoom-in");
             this.parent.UpdateZoom(this.parent.zoom + this.parent.zoomOutLimit);
@@ -290,7 +290,7 @@ class AutoIntegratePreviewControl extends Frame
       this.zoomOut_Button.icon = this.scaledResource( ":/icons/zoom-out.png" );
       this.zoomOut_Button.setScaledFixedSize( 20, 20 );
       this.zoomOut_Button.toolTip = "Zoom out";
-      this.zoomOut_Button.onClick = function()
+      this.zoomOut_Button.onClick = () =>
       {
             if (this.par.debug.val) console.writeln(this.parent.name + ":zoom-out");
             this.parent.UpdateZoom(this.parent.zoom - this.parent.zoomOutLimit);
@@ -300,7 +300,7 @@ class AutoIntegratePreviewControl extends Frame
       this.zoom11_Button.icon = this.scaledResource( ":/icons/zoom-1-1.png" );
       this.zoom11_Button.setScaledFixedSize( 20, 20 );
       this.zoom11_Button.toolTip = "Zoom 1:1";
-      this.zoom11_Button.onClick = function()
+      this.zoom11_Button.onClick = () =>
       {
             if (this.par.debug.val) console.writeln(this.parent.name + ":zoom-1-1");
             this.parent.UpdateZoom(1);
@@ -310,7 +310,7 @@ class AutoIntegratePreviewControl extends Frame
       this.zoomFit_Button.icon = this.scaledResource( ":/icons/zoom.png" );
       this.zoomFit_Button.setScaledFixedSize( 20, 20 );
       this.zoomFit_Button.toolTip = "Zoom fit";
-      this.zoomFit_Button.onClick = function()
+      this.zoomFit_Button.onClick = () =>
       {
             if (this.par.debug.val) console.writeln(this.parent.name + ":zoom");
             this.parent.UpdateZoom(-100);
@@ -321,7 +321,7 @@ class AutoIntegratePreviewControl extends Frame
             this.save_Button.icon = this.scaledResource( ":/icons/save-as.png" );
             this.save_Button.setScaledFixedSize( 20, 20 );
             this.save_Button.toolTip = "Save image to a file.";
-            this.save_Button.onClick = function()
+            this.save_Button.onClick = () =>
             {
                   if (!this.parent.bitmap) {
                         console.noteln("No image to save");
@@ -364,7 +364,7 @@ class AutoIntegratePreviewControl extends Frame
             this.maxPreview_Button.icon = this.scaledResource( ":/real-time-preview/full-view.png" );
             this.maxPreview_Button.setScaledFixedSize( 20, 20 );
             this.maxPreview_Button.toolTip = "Open a new dialog to view the image in (almost) full screen size.";
-            this.maxPreview_Button.onClick = function()
+            this.maxPreview_Button.onClick = () =>
             {
                   let maxPreviewDialog = new AutoIntegrateMaxPreviewDialog(this.engine, this.util, this.global, this.parent.image, this.parent.image_name_Label.text);
                   maxPreviewDialog.execute();

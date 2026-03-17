@@ -228,7 +228,7 @@ newHorizontalSizer(margin, add_stretch, items, spacing)
        if (onClick != null) {
              cb.onClick = onClick;
        } else {
-             cb.onClick = function(checked) { 
+             cb.onClick = (checked) => { 
                   cb.aiParam.val = checked;
                   if (updatedCallback != null) {
                         updatedCallback();
@@ -239,7 +239,7 @@ newHorizontalSizer(margin, add_stretch, items, spacing)
              cb.toolTip = this.util.formatToolTip(toolTip);
        }
  
-       cb.aiParam.reset = function() {
+       cb.aiParam.reset = () => {
              cb.checked = cb.aiParam.val;
        };
        this.util.recordParam(param);
@@ -306,12 +306,12 @@ newTextEdit(parent, param, tooltip)
 {
       var edt = new Edit( parent );
       edt.aiParam = param;
-      edt.onTextUpdated = function(value) { 
+      edt.onTextUpdated = (value) => { 
             edt.aiParam.val = value; 
       };
       edt.text = edt.aiParam.val;
       edt.toolTip = this.util.formatToolTip(tooltip);
-      edt.aiParam.reset = function() {
+      edt.aiParam.reset = () => {
             edt.text = edt.aiParam.val;
       };
       this.util.recordParam(param);
@@ -336,14 +336,14 @@ newNumericEditPrecision(parent, txt, param, min, max, tooltip, precision, update
       edt.real = true;
       edt.edit.setFixedWidth( 6 * parent.font.width( "0" ) );
       edt.aiParam = param;
-      edt.onValueUpdated = function(value) { 
+      edt.onValueUpdated = (value) => { 
             edt.aiParam.val = value; 
       };
       edt.setPrecision( precision );
       edt.setRange(min, max);
       edt.setValue(edt.aiParam.val);
       edt.toolTip = this.util.formatToolTip(tooltip);
-      edt.aiParam.reset = function() {
+      edt.aiParam.reset = () => {
             edt.setValue(edt.aiParam.val);
             if (updatedCallback != null) {
                   updatedCallback();
@@ -388,7 +388,7 @@ newNumericControlPrecision(parent, txt, param, min, max, tooltip, precision, upd
       }
       edt.setValue(edt.aiParam.val);
       edt.toolTip = this.util.formatToolTip(tooltip);
-      edt.aiParam.reset = function() {
+      edt.aiParam.reset = () => {
             edt.setValue(edt.aiParam.val);
             if (updatedCallback != null) {
                   updatedCallback();
@@ -427,7 +427,7 @@ newSpinBox(parent, param, min, max, tooltip)
             edt.aiParam.val = value;
       };
 
-      edt.aiParam.reset = function() {
+      edt.aiParam.reset = () => {
             edt.value = edt.aiParam.val;
       };
       this.util.recordParam(param);
@@ -470,7 +470,7 @@ newComboBox(parent, param, valarray, tooltip, updatedCallback = null)
             }
       };
 
-      cb.aiParam.reset = function() {
+      cb.aiParam.reset = () => {
             cb.currentItem = cb.aiValarray.indexOf(cb.aiParam.val);
       }
       this.util.recordParam(param);
@@ -490,7 +490,7 @@ newComboBoxIndex(parent, param, valarray, tooltip)
             cb.aiParam.val = itemIndex;
       };
 
-      cb.aiParam.reset = function() {
+      cb.aiParam.reset = () => {
             cb.currentItem = cb.aiParam.val;
       }
       this.util.recordParam(param);
@@ -510,7 +510,7 @@ newComboBoxStrvalsToInt(parent, param, valarray, tooltip)
             cb.aiParam.val = parseInt(cb.aiValarray[itemIndex]);
       };
 
-      cb.aiParam.reset = function() {
+      cb.aiParam.reset = () => {
             cb.currentItem = cb.aiValarray.indexOf(cb.aiParam.val.toString());
       }
       this.util.recordParam(param);
@@ -527,10 +527,10 @@ newComboBoxpalette(parent, param, valarray, tooltip)
       cb.aiValarray = valarray;
       this.addArrayToComboBox(cb, cb.aiValarray);
       cb.toolTip = this.util.formatToolTip(tooltip);
-      cb.onEditTextUpdated = function() { 
+      cb.onEditTextUpdated = () => { 
             cb.aiParam.val = cb.editText.trim(); 
       };
-      cb.aiParam.reset = function() {
+      cb.aiParam.reset = () => {
             cb.editText = cb.aiParam.val;
       }
       this.util.recordParam(param);
@@ -657,7 +657,7 @@ createGraXpertPathSizer(parent)
       graxpertPathButton.icon = parent.scaledResource(":/icons/select-file.png");
       graxpertPathButton.toolTip = graxpertPathLabel.toolTip;
       graxpertPathButton.setScaledFixedSize( 20, 20 );
-      graxpertPathButton.onClick = function()
+      graxpertPathButton.onClick = () =>
       {
             var ofd = new OpenFileDialog;
             ofd.multipleSelections = false;
@@ -855,8 +855,7 @@ createStrechingChoiceSizer(parent, update_parameter_dependencies_callback)
       stretchingHelpTips.icon = parent.scaledResource( ":/icons/help.png" );
       stretchingHelpTips.setScaledFixedSize( 20, 20 );
       stretchingHelpTips.toolTip = this.stretchingTootip;
-      stretchingHelpTips.onClick = function()
-      {
+      stretchingHelpTips.onClick = () => {
             new MessageBox(this.stretchingTootip, "Stretching", StdIcon.Information).execute();
       }
 
@@ -874,8 +873,7 @@ createClippedSizer(parent, preview_control)
       enhancementsSetClippedPixelsButton.icon = parent.scaledResource(":/icons/clap.png");
       enhancementsSetClippedPixelsButton.toolTip = this.clippedPixelsToolTip;
       enhancementsSetClippedPixelsButton.setScaledFixedSize( 20, 20 );
-      enhancementsSetClippedPixelsButton.onClick = function()
-      {
+      enhancementsSetClippedPixelsButton.onClick = () => {
             if (preview_control != null) {
                   preview_control.showClippedImage();
             } else if (this.preview_control != null) {
@@ -1149,7 +1147,7 @@ createStretchingSettingsSizer(parent, engine, level, preview_control = null)
       veraluxHelpTips.icon = parent.scaledResource( ":/icons/help.png" );
       veraluxHelpTips.setScaledFixedSize( 20, 20 );
       veraluxHelpTips.toolTip = engine.veralux.getHelpText();
-      veraluxHelpTips.onClick = function()
+      veraluxHelpTips.onClick = () =>
       {
             new MessageBox(engine.veralux.getHelpText(), "VeraLux help", StdIcon.Information ).execute();
       }
@@ -1258,7 +1256,7 @@ createNarrowbandCustomPaletteSizer(parent)
             this.par.custom_B_mapping.val = this.narrowbandCustomPalette_B_ComboBox.editText;
       };
       this.narrowbandCustomPalette_ComboBox = this.narrowbandCustomPalette_ComboBox;
-      this.par.narrowband_mapping.reset = function() {
+      this.par.narrowband_mapping.reset = () => {
             for (var i = 0; i < this.global.narrowBandPalettes.length; i++) {
                   if (this.global.narrowBandPalettes[i].name == this.par.narrowband_mapping.val) {
                         this.narrowbandCustomPalette_ComboBox.currentItem = i;
@@ -1342,7 +1340,7 @@ newJsonSizerObj(parent, loadJsonFileCallback, json_filename = null)
       this.jsonLoadButton.icon = parent.scaledResource(":/icons/select-file.png");
       this.jsonLoadButton.toolTip = "<p>Read script setup from a Json file.</p>";
       this.jsonLoadButton.setScaledFixedSize( 20, 20 );
-      this.jsonLoadButton.onClick = function()
+      this.jsonLoadButton.onClick = () =>
       {
             if (this.global.debug) console.writeln("AutoIntegrateGUITools::newJsonSizerObj::jsonLoadButton::onClick");
             this.loadJsonFile(parent.dialog, loadJsonFileCallback);
@@ -1353,7 +1351,7 @@ newJsonSizerObj(parent, loadJsonFileCallback, json_filename = null)
                                             "Current window prefix and output directory is also saved.</p>" + 
                                             "<p>Images names from all pages are saved including light and calibration files. Checked status for files is saved</p>";
       this.jsonSaveWithSettingsButton.setScaledFixedSize( 20, 20 );
-      this.jsonSaveWithSettingsButton.onClick = function()
+      this.jsonSaveWithSettingsButton.onClick = () =>
       {
             if (this.global.debug) console.writeln("AutoIntegrateGUITools::newJsonSizerObj::jsonSaveWithSettingsButton::onClick");
             this.util.saveJsonFile(parent.dialog, true, json_filename);
@@ -1562,8 +1560,7 @@ createGradientCorrectionSizer(parent, level = 1)
       this.exclusionAreasButton = new PushButton( parent );
       this.exclusionAreasButton.text = "Exclusion areas";
       this.exclusionAreasButton.toolTip = "<p>Select exclusion areas for DBE.</p>";
-      this.exclusionAreasButton.onClick = function()
-      {
+      this.exclusionAreasButton.onClick = () => {
             try {
                   this.getExclusionAreas();
             } catch (e) {
