@@ -190,7 +190,7 @@ class AutoIntegrateGradientCorrectionDialog extends Dialog {
     this.autoSTFCheckBox.text = "AutoSTF";
     this.autoSTFCheckBox.toolTip = "Automatically apply Screen Transfer Function (STF) to preview image.";
     this.autoSTFCheckBox.checked = true;
-    this.autoSTFCheckBox.onCheck = function(checked) {
+    this.autoSTFCheckBox.onCheck = (checked) => {
         this.autoSTF = checked;
         // Update preview
         this.setPreviewImage();
@@ -246,12 +246,12 @@ class AutoIntegrateGradientCorrectionDialog extends Dialog {
    // Target image
    // -------------------------------------------------------------------------
 
-    this.enhancements_gui.target_image_selected_callback = function(target_image_id) {
+    this.enhancements_gui.target_image_selected_callback = (target_image_id) => {
         if (this.global.debug) console.writeln("AutoIntegrateGradientCorrectionDialog:: target_image_selected_callback: target_image_id = " + target_image_id);
         this.guitools.exclusionAreasTargetImageName = target_image_id;
     }
     this.targetImageSizer = this.enhancements_gui.createTargetImageSizer(this);
-    this.enhancements_gui.apply_completed_callback = function(apply_ok) {
+    this.enhancements_gui.apply_completed_callback = (apply_ok) => {
         // We do gradient correction here so we set the value to true
         // With reset option it may have been reset to false (default)
         this.global.par.enhancements_GC.val = true;
@@ -302,16 +302,16 @@ class AutoIntegrateGradientCorrectionDialog extends Dialog {
    this.resetButton = new PushButton(this);
    this.resetButton.text = "Reset";
    this.resetButton.toolTip = "Reset all parameters to defaults.";
-   this.resetButton.onClick = function() {
+   this.resetButton.onClick = () => {
         this.util.setParameterDefaults();
    };
 
    this.closeButton = new PushButton(this);
     this.closeButton.text = "Close";
     this.closeButton.icon = this.scaledResource(":/icons/close.png");
-    this.closeButton.onClick = function() {
+    this.closeButton.onClick = () => {
         console.writeln("Closing dialog");
-        this.dialog.ok();
+        this.ok();
     };
 
     this.buttonsSizer = new HorizontalSizer;

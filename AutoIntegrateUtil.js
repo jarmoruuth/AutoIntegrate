@@ -265,7 +265,7 @@ findWindow(id)
       if (images == null || images == undefined) {
             return null;
       }
-      for (var i in images) {
+      for (var i = 0; i < images.length; i++) {
             if (images[i].mainView != null
                 && images[i].mainView != undefined
                 && images[i].mainView.id == id)
@@ -330,7 +330,7 @@ findWindowOrFile(id)
       }
       // Window not found by view id, try to find using a file name
       var found_win = null;
-      for (var i in images) {
+      for (var i = 0; i < images.length; i++) {
             if (images[i].mainView == null
                 || images[i].mainView == undefined)
             {
@@ -367,7 +367,7 @@ findWindowStartsWith(id)
       if (images == null || images == undefined) {
             return null;
       }
-      for (var i in images) {
+      for (var i = 0; i < images.length; i++) {
             if (images[i].mainView != null
                 && images[i].mainView != undefined
                 && images[i].mainView.id.startsWith(id))
@@ -387,7 +387,7 @@ findWindowRe(re)
       if (images == null || images == undefined) {
             return null;
       }
-      for (var i in images) {
+      for (var i = 0; i < images.length; i++) {
             if (images[i].mainView != null
                 && images[i].mainView != undefined
                 && images[i].mainView.id.match(re))
@@ -414,7 +414,7 @@ closeAllWindowsSubstr(id_substr)
       if (images == null || images == undefined) {
             return;
       }
-      for (var i in images) {
+      for (var i = 0; i < images.length; i++) {
             if (images[i].mainView != null
                 && images[i].mainView != undefined
                 && images[i].mainView.id.indexOf(id_substr) != -1) 
@@ -431,7 +431,7 @@ getWindowList()
       if (images == null || images == undefined) {
             return windowList;
       }
-      for (var i in images) {
+      for (var i = 0; i < images.length; i++) {
             try {
                   if (images[i].mainView == null || images[i].mainView == undefined) {
                         continue;
@@ -1443,7 +1443,7 @@ saveAllFinalImageWindows(bits)
       // a final image file
       var images = ImageWindow.windows;
       var finalimages = [];
-      for (var i in images) {
+      for (var i = 0; i < images.length; i++) {
             var imageWindow = images[i];
             var keywords = imageWindow.keywords;
             if (keywords != null && keywords != undefined) {
@@ -1688,62 +1688,42 @@ copyKeywordsFromWindow(targetWindow, imgWin)
 {
       console.writeln("copyKeywordsFromWindow from " + targetWindow.mainView.id + " to " + imgWin.mainView.id);
 
-      var source_metadata = new ImageMetadata();
-      source_metadata.ExtractMetadata(imgWin);
-      console.writeln("copyKeywordsFromWindow source metadata: " + JSON.stringify(source_metadata, null, 2));
-
-      if (1) {
-            var keyword_list = [
-                  "RADESYS",
-                  "RA",
-                  "DEC",
-                  "OBJCTRA",
-                  "OBJCTDEC",
-                  "DATE-OBS",
-                  "DATE-BEG",
-                  "DATE-END",
-                  "OBSGEO-L",
-                  "OBSGEO-B",
-                  "OBSGEO-H",
-                  "FOCALLEN",
-                  "FOCAL",
-                  "XPIXSZ",
-                  "YPIXSZ",
-                  "EXPTIME",
-                  "SITELONG",
-                  "SITELAT",
-                  "LAT-OBS",
-                  "LONG-OBS",
-                  "ALT-OBS",
-                  "TELESCOP",
-                  "INSTRUME",
-                  "OBJECT",
-                  "OBSERVER",
-                  "OWNER",
-                  "NAXIS1",
-                  "NAXIS2",
-                  "BSCALE",
-                  "BZERO",
-                  "CREATOR",
-                  "OBSERVAT",
-                  "TIMESYS"
-            ];
-            targetWindow.keywords = this.updateWindowKeywords(targetWindow.keywords, imgWin.keywords, keyword_list);
-      } else {
-            var old_target_metadata = new ImageMetadata();
-            old_target_metadata.ExtractMetadata(targetWindow);
-            console.writeln("copyKeywordsFromWindow old target metadata: " + JSON.stringify(old_target_metadata, null, 2));
-
-            source_metadata.UpdateBasicKeywords(targetWindow.keywords);
-
-            if (imgWin.astrometricSolutionSummary().length > 0) {
-                  this.copyAstrometricSolutionFromWindow(targetWindow, imgWin);
-            }
-
-      }
-      var new_target_metadata = new ImageMetadata();
-      new_target_metadata.ExtractMetadata(targetWindow);
-      console.writeln("copyKeywordsFromWindow new target metadata: " + JSON.stringify(new_target_metadata, null, 2));
+      var keyword_list = [
+            "RADESYS",
+            "RA",
+            "DEC",
+            "OBJCTRA",
+            "OBJCTDEC",
+            "DATE-OBS",
+            "DATE-BEG",
+            "DATE-END",
+            "OBSGEO-L",
+            "OBSGEO-B",
+            "OBSGEO-H",
+            "FOCALLEN",
+            "FOCAL",
+            "XPIXSZ",
+            "YPIXSZ",
+            "EXPTIME",
+            "SITELONG",
+            "SITELAT",
+            "LAT-OBS",
+            "LONG-OBS",
+            "ALT-OBS",
+            "TELESCOP",
+            "INSTRUME",
+            "OBJECT",
+            "OBSERVER",
+            "OWNER",
+            "NAXIS1",
+            "NAXIS2",
+            "BSCALE",
+            "BZERO",
+            "CREATOR",
+            "OBSERVAT",
+            "TIMESYS"
+      ];
+      targetWindow.keywords = this.updateWindowKeywords(targetWindow.keywords, imgWin.keywords, keyword_list);
 }
 
 copyKeywordsFromFile(targetId, fname)

@@ -214,16 +214,16 @@ class AutoIntegrateImageEnhancementsDialog extends Dialog {
     this.resetButton = new PushButton(this);
     this.resetButton.text = "Reset";
     this.resetButton.toolTip = "Reset all parameters to defaults.";
-    this.resetButton.onClick = function() {
+    this.resetButton.onClick = () => {
             this.util.setParameterDefaults();
     };
 
     this.closeButton = new PushButton(this);
     this.closeButton.text = "Close";
     this.closeButton.icon = this.scaledResource(":/icons/close.png");
-    this.closeButton.onClick = function() {
+    this.closeButton.onClick = () => {
         console.writeln("Closing dialog");
-        this.dialog.ok();
+        this.ok();
     };
 
     this.buttonsSizer = new HorizontalSizer;

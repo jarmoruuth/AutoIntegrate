@@ -2,6 +2,7 @@
 // SelectiveColor — Standalone Selective Color adjustment tool
 // ****************************************************************************
 
+#engine v8
 #feature-id    AutoIntegrate  > Selective Color
 #feature-info  Selective Color adjustments using AutoIntegrate tools.
 
@@ -27,26 +28,25 @@
 #ifndef AUTOINTEGRATEDUMMYFLOWCHART
 #define AUTOINTEGRATEDUMMYFLOWCHART
 
-function AutoIntegrateDummyFlowchart()
+class AutoIntegrateDummyFlowchart extends Object
 {
-    this.__base__ = Object;
-    this.__base__();
+    constructor() {
+        super();
+    }
 
-    this.flowchartOperation = function () {};
-    this.flowchartOperationEnd = function () {};
-    this.flowchartParentBegin = function () {};
-    this.flowchartParentEnd = function () {};
-    this.flowchartChildBegin = function () {};
-    this.flowchartChildEnd = function () {};
-    this.flowchartMaskBegin = function () {};
-    this.flowchartMaskEnd = function () {};
-    this.flowchartInit = function () {};
-    this.flowchartDone = function () {};
-    this.flowchartReset = function () {};
-    this.flowchartPrint = function () {};
+    flowchartOperation() {};
+    flowchartOperationEnd() {};
+    flowchartParentBegin() {};
+    flowchartParentEnd() {};
+    flowchartChildBegin() {};
+    flowchartChildEnd() {};
+    flowchartMaskBegin() {};
+    flowchartMaskEnd() {};
+    flowchartInit() {};
+    flowchartDone() {};
+    flowchartReset() {};
+    flowchartPrint() {};
 }
-
-AutoIntegrateDummyFlowchart.prototype = new Object;
 
 #endif /* AUTOINTEGRATEDUMMYFLOWCHART */
 
@@ -54,27 +54,25 @@ AutoIntegrateDummyFlowchart.prototype = new Object;
 //  DIALOG WITH PREVIEW
 // =============================================================================
 
-function AutoIntegrateSelectiveColorDialog() {
-    this.__base__ = Dialog;
-    this.__base__();
+class AutoIntegrateSelectiveColorDialog extends Dialog {
+    constructor() {
+        super();
 
     this.TITLE = "Selective Color";
     this.VERSION = "1.00";
 
     this.windowTitle = this.TITLE + " v" + this.VERSION;
-    // this.minWidth = 800;
 
     this.global = new AutoIntegrateGlobal();
 
     for (let i = 0; i < Runtime.jsArguments.length; i++) {
         if (Runtime.jsArguments[i] == "do_not_read_settings") {
             console.writeln("do_not_read_settings");
-            global.do_not_read_settings = true;
+            this.global.do_not_read_settings = true;
         }
     }
 
-    this.util = new AutoIntegrateUtil(global);
-
+    this.util = new AutoIntegrateUtil(this.global);
     this.flowchart = new AutoIntegrateDummyFlowchart();
     this.engine = new AutoIntegrateEngine(this.global, this.util, this.flowchart);
     this.guitools = new AutoIntegrateGUITools(this, this.global, this.util, this.engine);
@@ -83,6 +81,52 @@ function AutoIntegrateSelectiveColorDialog() {
     this.util.initStandalone();
 
     this.global.par.enhancements_selective_color.val = true;
+
+    this.initGUI();
+
+} // End of constructor
+
+   // -------------------------------------------------------------------------
+   // Preview functions
+   // -------------------------------------------------------------------------
+
+    setPreviewIdReset(id, keep_zoom, histogramInfo)
+    {
+        if (this.global.debug) console.writeln("AutoIntegrateSelectiveColorDialog::setPreviewIdReset: id = " + id);
+        var win = ImageWindow.windowById(id);
+        this.previewControl.SetImage(win.mainView.image, win.mainView.id + " [Preview]");
+    }
+
+    updatePreviewIdReset(id, keep_zoom, histogramInfo)
+    {
+        if (this.global.debug) console.writeln("AutoIntegrateSelectiveColorDialog::updatePreviewIdReset: id = " + id);
+        this.updatePreviewWin(ImageWindow.windowById(id));
+    }
+
+    updatePreviewNoImage()
+    {
+        if (this.global.debug) console.writeln("AutoIntegrateSelectiveColorDialog::updatePreviewNoImage");
+        this.statusLabel.text = "No image available for preview.";
+    }
+
+    updatePreviewTxt(txt)
+    {
+        if (this.global.debug) console.writeln("AutoIntegrateSelectiveColorDialog::updatePreviewTxt: " + txt);
+    }
+
+    updatePreviewWin(imgWin)
+    {
+        if (this.global.debug) console.writeln("AutoIntegrateSelectiveColorDialog::updatePreviewWin: imgWin = " + imgWin);
+        this.previewControl.UpdateImage(imgWin.mainView.image);
+    }
+
+    updatePreviewWinTxt(imgWin, txt)
+    {
+        if (this.global.debug) console.writeln("AutoIntegrateSelectiveColorDialog::updatePreviewWinTxt: imgWin = " + imgWin);
+        this.updatePreviewWin(imgWin);
+    }
+
+    initGUI() {
 
    // -------------------------------------------------------------------------
    // Status
@@ -97,57 +141,21 @@ function AutoIntegrateSelectiveColorDialog() {
    // Preview functions
    // -------------------------------------------------------------------------
 
-    function setPreviewIdReset(id, keep_zoom, histogramInfo)
-    {
-        if (debug) console.writeln("AutoIntegrateSelectiveColorDialog::setPreviewIdReset: id = " + id);
-        var win = ImageWindow.windowById(id);
-        self.previewControl.SetImage(win.mainView.image, win.mainView.id + " [Preview]");
-    }
-
-    function updatePreviewIdReset(id, keep_zoom, histogramInfo)
-    {
-        if (debug) console.writeln("AutoIntegrateSelectiveColorDialog::updatePreviewIdReset: id = " + id);
-        updatePreviewWin(ImageWindow.windowById(id));
-    }
-
-    function updatePreviewNoImage()
-    {
-        if (debug) console.writeln("AutoIntegrateSelectiveColorDialog::updatePreviewNoImage");
-        self.statusLabel.text = "No image available for preview.";
-    }
-
-    function updatePreviewTxt(txt)
-    {
-        if (debug) console.writeln("AutoIntegrateSelectiveColorDialog::updatePreviewTxt: " + txt);
-    }
-
-    function updatePreviewWin(imgWin)
-    {
-        if (debug) console.writeln("AutoIntegrateSelectiveColorDialog::updatePreviewWin: imgWin = " + imgWin);
-        self.previewControl.UpdateImage(imgWin.mainView.image);
-    }
-
-    function updatePreviewWinTxt(imgWin, txt)
-    {
-        if (debug) console.writeln("AutoIntegrateSelectiveColorDialog::updatePreviewWinTxt: imgWin = " + imgWin);
-        updatePreviewWin(imgWin);
-    }
-
     var preview_functions = {
-        setPreviewIdReset: setPreviewIdReset,
-        updatePreviewIdReset: updatePreviewIdReset,
-        updatePreviewTxt: updatePreviewTxt,
-        updatePreviewNoImage: updatePreviewNoImage,
+        setPreviewIdReset: (id, keep_zoom, histogramInfo) => this.setPreviewIdReset(id, keep_zoom, histogramInfo),
+        updatePreviewIdReset: (id, keep_zoom, histogramInfo) => this.updatePreviewIdReset(id, keep_zoom, histogramInfo),
+        updatePreviewTxt: (txt) => this.updatePreviewTxt(txt),
+        updatePreviewNoImage: () => this.updatePreviewNoImage(),
         createCombinedMosaicPreviewWin: null,
-        updatePreviewWin: updatePreviewWin,
-        updatePreviewWinTxt: updatePreviewWinTxt,
+        updatePreviewWin: (imgWin) => this.updatePreviewWin(imgWin),
+        updatePreviewWinTxt: (imgWin, txt) => this.updatePreviewWinTxt(imgWin, txt),
    };
 
    // -------------------------------------------------------------------------
    // Left Side: Preview Control
    // -------------------------------------------------------------------------
 
-   this.previewControl = new AutoIntegratePreviewControl(this, "selective_color_preview", engine, util, global, 600, 600, false);
+   this.previewControl = new AutoIntegratePreviewControl(this, "selective_color_preview", this.engine, this.util, this.global, 600, 600, false);
 
    this.leftSizer = new VerticalSizer;
    this.leftSizer.spacing = 4;
@@ -171,13 +179,13 @@ function AutoIntegrateSelectiveColorDialog() {
    // Target Image Selection
    // -------------------------------------------------------------------------
 
-    this.enhancements_gui = new AutoIntegrateEnhancementsGUI(this, self.guitools, self.util, self.global, self.engine, preview_functions);
+    this.enhancements_gui = new AutoIntegrateEnhancementsGUI(this, this.guitools, this.util, this.global, this.engine, preview_functions);
 
     this.targetImageSizer = this.enhancements_gui.createTargetImageSizer(this);
-    this.enhancements_gui.apply_completed_callback = function(apply_ok) {
+    this.enhancements_gui.apply_completed_callback = (apply_ok) => {
         // We do stretching here so we set the value to true
         // With reset option it may have been reset to false (default)
-        global.par.enhancements_selective_color.val = true;
+        this.global.par.enhancements_selective_color.val = true;
     };
     this.targetImageGroupBox = new GroupBox(this);
     this.targetImageGroupBox.title = "Target image";
@@ -187,7 +195,7 @@ function AutoIntegrateSelectiveColorDialog() {
    // Selective Color Controls
    // -------------------------------------------------------------------------
 
-    this.selectiveColor = new AutoIntegrateSelectiveColor(guitools, util, global, preview_functions);
+    this.selectiveColor = new AutoIntegrateSelectiveColor(this.guitools, this.util, this.global, preview_functions);
     this.selectiveColorSizer = this.selectiveColor.createSelectiveColorSizer(this);
 
    // -------------------------------------------------------------------------
@@ -197,8 +205,8 @@ function AutoIntegrateSelectiveColorDialog() {
     this.closeButton = new PushButton(this);
     this.closeButton.text = "Close";
     this.closeButton.icon = this.scaledResource(":/icons/close.png");
-    this.closeButton.onClick = function() {
-        self.ok();
+    this.closeButton.onClick = () => {
+        this.ok();
     };
 
     this.buttonsSizer = new HorizontalSizer;
@@ -231,9 +239,10 @@ function AutoIntegrateSelectiveColorDialog() {
    this.sizer.spacing = 8;
    this.sizer.add(this.leftSizer);
    this.sizer.add(this.rightSizer);
-}
 
-AutoIntegrateSelectiveColorDialog.prototype = new Dialog;
+} // initGUI
+
+} // AutoIntegrateSelectiveColorDialog
 
 // =============================================================================
 //  MAIN ENTRY POINT

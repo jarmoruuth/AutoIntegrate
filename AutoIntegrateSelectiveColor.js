@@ -541,7 +541,7 @@ createSelectiveColorSizer(parent) {
     this.methodCombo.currentItem = this.data.mode;
     this.methodCombo.toolTip = "<p>Relative: Adjusts based on existing color amount<br/>" +
                                 "Absolute: Direct color addition</p>";
-    this.methodCombo.onItemSelected = function(index) {
+    this.methodCombo.onItemSelected = (index) => {
         this.data.mode = index;
     };
     
@@ -576,7 +576,7 @@ createSelectiveColorSizer(parent) {
         numericControl.slider.minWidth = 250;
         numericControl.setPrecision(0);
         numericControl.setValue(0);
-        numericControl.onValueUpdated = function(value) {
+        numericControl.onValueUpdated = (value) => {
             this.data.adjustments[this.data.currentRange][channel] = value;
         };
         
@@ -625,7 +625,7 @@ createSelectiveColorSizer(parent) {
     this.resetButton = new PushButton(parent);
     this.resetButton.text = "Reset Current";
     this.resetButton.toolTip = "Reset adjustments for current color range";
-    this.resetButton.onClick = function() {
+    this.resetButton.onClick = () => {
         this.data.adjustments[this.data.currentRange] = [0, 0, 0, 0];
         this.updateAdjustmentControls();
     };
@@ -634,7 +634,7 @@ createSelectiveColorSizer(parent) {
     this.resetAllButton = new PushButton(parent);
     this.resetAllButton.text = "Reset All";
     this.resetAllButton.toolTip = "Reset all color range adjustments";
-    this.resetAllButton.onClick = function() {
+    this.resetAllButton.onClick = () => {
         for (let i = 0; i < this.ColorRangeNames.length; i++) {
             this.data.adjustments[i] = [0, 0, 0, 0];
         }
@@ -644,7 +644,7 @@ createSelectiveColorSizer(parent) {
     // Preview button
     this.previewButton = new PushButton(parent);
     this.previewButton.text = "Preview";
-    this.previewButton.onClick = function() {
+    this.previewButton.onClick = () => {
         this.selectiveColorPreview();
     };
     

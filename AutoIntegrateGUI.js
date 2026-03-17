@@ -80,8 +80,8 @@ class AutoIntegrateNarrowbandSelectMultipleDialog extends Dialog
             cb.toolTip = "<p>R: " + this.global.narrowBandPalettes[i].R + ", G: " + this.global.narrowBandPalettes[i].G + ", B: " + this.global.narrowBandPalettes[i].B + "</p>";
             cb.checked = checked;
             cb.index = i;
-            cb.onClick = (checked) => { 
-                  this.checked_status[this.index] = checked;
+            cb.onClick = (checked) => {
+                  this.checked_status[cb.index] = checked;
             }
 
             this.select_Sizer.add( cb );
@@ -867,7 +867,7 @@ lightsOptions(parent)
       var monochrome_image_CheckBox = this.guitools.newCheckBoxEx(parent, "Force monochrome", this.par.monochrome_image, 
             "<p>Force creation of a monochrome image. All images are treated as Luminance files and stacked together. " + 
             "Quite a few processing steps are skipped with this option.</p>",
-            function(checked) { 
+            (checked) => {
                   monochrome_image_CheckBox.aiParam.val = checked;
                   this.updateSectionsInTreeBox(parent.treeBox[this.global.pages.LIGHTS]);
       });
@@ -1587,12 +1587,12 @@ updateOutputDirEdit(path)
 {
       this.util.setOutputRootDir(this.util.ensurePathEndSlash(path));
       console.writeln("updateOutputDirEdit, set this.global.outputRootDir ", this.global.outputRootDir);
-      outputDirEdit.text = this.global.outputRootDir;
+      this.outputDirEdit.text = this.global.outputRootDir;
 }
 
 getOutputDirEdit()
 {
-      return outputDirEdit.text;
+      return this.outputDirEdit.text;
 }
 
 addOutputDir(parent)
@@ -3376,7 +3376,7 @@ filesTreeBox(parent, optionsSizer, pageIndex)
                         var imageWindow = imageWindows[0];
                         if (!this.global.use_preview) {
                               if (this.blink_window != null) {
-                                    imageWindow.position = blink_window.position;
+                                    imageWindow.position = this.blink_window.position;
                               } else {
                                     imageWindow.position = new Point(0, 0);
                               }
@@ -4054,7 +4054,7 @@ newPageButtonsSizer(parent, jsonSizer, actionSizer)
                         return;
                   }
                   if (this.blink_window != null) {
-                        blink_window.zoomToOptimalFit();
+                        this.blink_window.zoomToOptimalFit();
                         this.blink_zoom = false;
                   }
             };
@@ -4461,7 +4461,7 @@ exitFromDialog()
 {
       console.show();
       if (this.blink_window != null) {
-            blink_window.forceClose();
+            this.blink_window.forceClose();
             this.blink_window = null;
       }
       this.updateImageInfoLabel("");
@@ -4907,8 +4907,8 @@ AutoIntegrateDialog()
       this.autodetect_filter_CheckBox = this.guitools.newCheckBoxEx(this, "Do not use FILTER keyword", this.par.skip_autodetect_filter, 
             "<p>If selected do not try to autodetect light and flat files based on FILTER keyword.</p>" +
             "<p>Selecting this enables manual adding of filter files for lights and flats.</p>",
-            function(checked) { 
-                  this.dialog.autodetect_filter_CheckBox.aiParam.val = checked; 
+            (checked) => {
+                  this.autodetect_filter_CheckBox.aiParam.val = checked;
                   this.showOrHideFilterSectionBar(this.global.LIGHTS);
                   this.showOrHideFilterSectionBar(this.global.FLATS);
                   this.showOrHideFilterSectionBar(this.global.FLAT_DARKS);
@@ -4919,9 +4919,9 @@ AutoIntegrateDialog()
             "<p>If selected default file select pattern is all files (*.*) and not image files.</p>" );
       this.no_subdirs_CheckBox = this.guitools.newCheckBoxEx(this, "No subdirectories", this.par.no_subdirs, 
             "<p>If selected output files are not written into subdirectories</p>",
-            function(checked) { 
-                  this.dialog.no_subdirs_CheckBox.aiParam.val = checked;
-                  if (this.dialog.no_subdirs_CheckBox.aiParam.val) {
+            (checked) => {
+                  this.no_subdirs_CheckBox.aiParam.val = checked;
+                  if (this.no_subdirs_CheckBox.aiParam.val) {
                         this.util.clearDefaultDirs();
                   } else {
                         this.util.setDefaultDirs();
@@ -5014,7 +5014,7 @@ AutoIntegrateDialog()
                   blink_checkbox.aiParam.val = checked;
                   if (blink_checkbox.aiParam.val) {
                         if (this.blink_window != null) {
-                              blink_window.forceClose();
+                              this.blink_window.forceClose();
                               this.blink_window = null;
                         }
                   }

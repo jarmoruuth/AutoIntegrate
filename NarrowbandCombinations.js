@@ -351,7 +351,7 @@ class AutoIntegrateNarrowbandCombinationsDialog extends Dialog {
     this.autoSTFCheckBox.text = "AutoSTF";
     this.autoSTFCheckBox.toolTip = "Automatically apply Screen Transfer Function (STF) to preview image.";
     this.autoSTFCheckBox.checked = true;
-    this.autoSTFCheckBox.onCheck = function(checked) {
+    this.autoSTFCheckBox.onCheck = (checked) => {
         this.autoSTF = checked;
         // Update preview
         if (this.autoSTF) {
@@ -366,7 +366,7 @@ class AutoIntegrateNarrowbandCombinationsDialog extends Dialog {
     this.previewButton.text = "Update Preview";
     this.previewButton.icon = this.scaledResource(":/icons/play.png");
     this.previewButton.toolTip = "Apply narrowband combination to preview image.";
-    this.previewButton.onClick = function() {
+    this.previewButton.onClick = () => {
         this.applyPreview();
     };
 
@@ -433,7 +433,7 @@ class AutoIntegrateNarrowbandCombinationsDialog extends Dialog {
     this.resetButton = new PushButton(this);
     this.resetButton.text = "Reset";
     this.resetButton.toolTip = "Reset all parameters to defaults.";
-    this.resetButton.onClick = function() {
+    this.resetButton.onClick = () => {
             this.util.setParameterDefaults();
     };
 
@@ -441,14 +441,14 @@ class AutoIntegrateNarrowbandCombinationsDialog extends Dialog {
     this.processButton.text = "Process Final";
     this.processButton.icon = this.scaledResource(":/icons/power.png");
     this.processButton.toolTip = "Create final processed image (does not overwrite original).";
-    this.processButton.onClick = function() {
+    this.processButton.onClick = () => {
         this.processFinal();
     };
 
     this.closeButton = new PushButton(this);
     this.closeButton.text = "Close";
     this.closeButton.icon = this.scaledResource(":/icons/close.png");
-    this.closeButton.onClick = function() {
+    this.closeButton.onClick = () => {
         this.ok();
     };
 

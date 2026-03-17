@@ -2294,7 +2294,7 @@ filesForImageIntegration(fileNames)
 {
       var images = [];
       for (var i = 0; i < fileNames.length; i++) {
-            images[images.length] = [ true, fileNames[i] ]; // [ enabled, path, drizzlePath, localNormalizationDataPath ];
+            images[images.length] = [ true, fileNames[i], null, null ]; // [ enabled, path, drizzlePath, localNormalizationDataPath ];
       }
       return images;
 }
@@ -2303,7 +2303,7 @@ filesForImageIntegrationFromFilearr(filearr)
 {
       var images = [];
       for (var i = 0; i < filearr.length; i++) {
-            images[images.length] = [ true, filearr[i].name ]; // [ enabled, path, drizzlePath, localNormalizationDataPath ];
+            images[images.length] = [ true, filearr[i].name, null, null ]; // [ enabled, path, drizzlePath, localNormalizationDataPath ];
       }
       return images;
 }
@@ -7749,6 +7749,12 @@ runImageIntegrationForCrop(images)
             // we should have this.par.crop_use_rejection_low.val == false here
             var id = this.flowchartNewIntegrationImage(images[0][1], this.ppar.win_prefix + "LowRejectionMap_ALL");
             return { integrated_image_id: id, rejection_map_id: id };
+      }
+
+      // images is [ enabled, path ], convert it to [ enabled, path, drizzlePath, localNormalizationDataPath ] for ImageIntegration
+      for (var i = 0; i < images.length; i++) {
+            images[i][2] = null; // drizzlePath
+            images[i][3] = null; // localNormalizationDataPath
       }
 
       var P = new ImageIntegration;

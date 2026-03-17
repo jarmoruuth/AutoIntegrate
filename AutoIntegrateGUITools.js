@@ -1246,7 +1246,7 @@ createNarrowbandCustomPaletteSizer(parent)
             "L-eXtreme SHO palette was posted by Alessio Pariani to Astrobin forums. It is an example mapping for the L-eXtreme filter." +
             "</p>" +
             this.narrowbandToolTip;
-      this.narrowbandCustomPalette_ComboBox.onItemSelected = function( itemIndex ) {
+      this.narrowbandCustomPalette_ComboBox.onItemSelected = (itemIndex) => {
             this.narrowbandCustomPalette_R_ComboBox.editText = this.global.narrowBandPalettes[itemIndex].R;
             this.narrowbandCustomPalette_G_ComboBox.editText = this.global.narrowBandPalettes[itemIndex].G;
             this.narrowbandCustomPalette_B_ComboBox.editText = this.global.narrowBandPalettes[itemIndex].B;
@@ -1551,7 +1551,7 @@ createGradientCorrectionSizer(parent, level = 1)
       this.exclusionAreaImageLabel = this.newLabel(parent, "Image:");
       this.exclusionAreasComboBox = new ComboBox( parent );
       this.exclusionAreasComboBox.minItemCharWidth = 20;
-      this.exclusionAreasComboBox.onItemSelected = function( itemIndex )
+      this.exclusionAreasComboBox.onItemSelected = (itemIndex) =>
       {
             this.exclusionAreasTargetImageName = this.exclusion_area_image_window_list[itemIndex];
       };

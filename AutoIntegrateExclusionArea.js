@@ -82,11 +82,11 @@ class AutoIntegrateExclusionAreaDialog extends Dialog {
       this.uninstallPolygonHandler();
       this.updatePreview();
       
-      this.dialog.this.startDrawing_Button.enabled = true;
-      this.dialog.this.finishDrawing_Button.enabled = false;
-      this.dialog.this.cancelDrawing_Button.enabled = false;
+      this.startDrawing_Button.enabled = true;
+      this.finishDrawing_Button.enabled = false;
+      this.cancelDrawing_Button.enabled = false;
    };
-   
+
    this.exclusionCount_Label = new Label(this);
    this.exclusionCount_Label.text = "Exclusion areas: " + this.exclusionAreaPolygons.length;
    this.exclusionCount_Label.textAlignment = TextAlignment.Left|TextAlignment.VertCenter;
@@ -330,9 +330,9 @@ finishPolygon() {
    this.uninstallPolygonHandler();
    this.updatePreview();
    
-   this.dialog.this.startDrawing_Button.enabled = true;
-   this.dialog.this.finishDrawing_Button.enabled = false;
-   this.dialog.this.cancelDrawing_Button.enabled = false;
+   this.dialog.startDrawing_Button.enabled = true;
+   this.dialog.finishDrawing_Button.enabled = false;
+   this.dialog.cancelDrawing_Button.enabled = false;
 }
 
 // Update the exclusion count label

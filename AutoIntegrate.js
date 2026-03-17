@@ -484,7 +484,7 @@ readParametersFromProcessIcon()
 test_initialize_new()
 {
       this.global.debug = true;
-      this.global.this.par.debug.val = true;
+      this.par.debug.val = true;
 
       this.global.testmode = true;
       this.global.testmode_log = "";
@@ -500,7 +500,7 @@ test_initialize_new()
 
 test_initdebug()
 {
-      this.global.this.par.debug.val = true;
+      this.par.debug.val = true;
       this.global.ai_use_persistent_module_settings = false;  // do not read defaults from persistent module settings
 }
 
@@ -575,7 +575,7 @@ test_gui()
 
 test_nopreview()
 {
-      this.global.this.ppar.preview.use_preview = false;
+      this.ppar.preview.use_preview = false;
       this.global.use_preview = false;
 }
 

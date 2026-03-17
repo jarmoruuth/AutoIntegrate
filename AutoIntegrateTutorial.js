@@ -284,7 +284,7 @@ class AutoIntegrateWelcomeDialog extends Dialog {
         this.skipButton = new PushButton(this);
         this.skipButton.text = "Skip - Start Using AutoIntegrate";
         this.skipButton.icon = this.scaledResource(":/icons/forward.png");
-        this.skipButton.onClick = function() {
+        this.skipButton.onClick = () => {
             this.selectedTutorial = null;
             this.ok();
         };
