@@ -461,7 +461,7 @@ flowchartFilterFiles(fileNames, filetype)
       var maxsize = Math.max(flowchar_filtered_files.maxwidth, flowchar_filtered_files.maxheigth);
 
       // Pick first files for each channel, one file per exposure time group
-      console.writeln("flowchartFilterFiles, " + allfilesarr.length + " this.channels");
+      console.writeln("flowchartFilterFiles, " + allfilesarr.length + " channels");
       console.flush();
       for (var i = 0; i < allfilesarr.length; i++) {
             console.writeln("flowchartFilterFiles, " + allfilesarr[i].filter + ", " + allfilesarr[i].files.length);
@@ -1141,7 +1141,7 @@ getAdjustPoint(win, perc, channel = -1)
             pixelCount += this.countPixels(histogramMatrix, channel);
       } else {
             // Count pixels for all this.channels
-            console.writeln("getAdjustPoint, all this.channels, histogramMatrix.rows " + histogramMatrix.rows);
+            console.writeln("getAdjustPoint, all channels, histogramMatrix.rows " + histogramMatrix.rows);
             for (var i = 0; i < histogramMatrix.rows; i++) {
                   pixelCount += this.countPixels(histogramMatrix, i);
             }
@@ -2438,7 +2438,7 @@ getDefectInfo(fileNames, groupname)
             this.append_image_for_integrate(LDD_images.images, fileNames[i]);
       }
       // Run image integration as-is to make line defects more visible
-      console.writeln("getDefectInfo, this.runImageIntegration");
+      console.writeln("getDefectInfo, runImageIntegration");
 
       this.flowchart.flowchartParentBegin("Fix linear defects " + groupname);
       var LDD_id = this.runImageIntegration(LDD_images, "LDD", false, groupname ? "Group " + groupname : null);
@@ -2448,12 +2448,12 @@ getDefectInfo(fileNames, groupname)
       var defects = [];
 
       if (this.par.fix_column_defects.val) {
-            console.writeln("getDefectInfo, this.par.fix_column_defects.val");
+            console.writeln("getDefectInfo, fix_column_defects");
             var colDefects = this.getDefects(LDD_win, true);
             defects = defects.concat(colDefects);
       }
       if (this.par.fix_row_defects.val) {
-            console.writeln("getDefectInfo, this.par.fix_row_defects.val");
+            console.writeln("getDefectInfo, fix_row_defects");
             var rowDefects = this.getDefects(LDD_win, false);
             defects = defects.concat(rowDefects);
       }
@@ -2691,11 +2691,11 @@ runGradientCorrectionOnLights(fileNames)
             // Open source image window from a file
             var imageWindows = ImageWindow.open(fileNames[i]);
             if (!imageWindows || imageWindows.length == 0) {
-                  this.util.throwFatalError("*** this.runGradientCorrectionOnLights Error: imageWindows.length: " + imageWindows.length);
+                  this.util.throwFatalError("*** runGradientCorrectionOnLights Error: imageWindows.length: " + imageWindows.length);
             }
             var imageWindow = imageWindows[0];
             if (imageWindow == null) {
-                  this.util.throwFatalError("*** this.runGradientCorrectionOnLights Error: Can't read file: " + fileNames[i]);
+                  this.util.throwFatalError("*** runGradientCorrectionOnLights Error: Can't read file: " + fileNames[i]);
             }
             
             // Run gradient correction which creates a new window with postfix extension
@@ -2703,7 +2703,7 @@ runGradientCorrectionOnLights(fileNames)
             var new_id = this.runGradientCorrectionEx(imageWindow, false, postfix, true);
             var new_win = this.util.findWindow(new_id);
             if (new_win == null) {
-                  this.util.throwFatalError("*** this.runGradientCorrectionOnLights Error: could not find window: " + new_id);
+                  this.util.throwFatalError("*** runGradientCorrectionOnLights Error: could not find window: " + new_id);
             }
             
             // Source image window is not needed any more
@@ -2713,7 +2713,7 @@ runGradientCorrectionOnLights(fileNames)
 
             // Save GC window
             if (!this.writeImage(filePath, new_win)) {
-                  this.util.throwFatalError("*** this.runGradientCorrectionOnLights Error: Can't write output image: " + new_id);
+                  this.util.throwFatalError("*** runGradientCorrectionOnLights Error: Can't write output image: " + new_id);
             }
             // Close GC window
             this.util.closeOneWindow(new_win);
@@ -3475,7 +3475,7 @@ subframeSelectorMeasure(fileNames, weight_filtering, treebox_filtering, measurem
                   // We have found some measurements, but not all
                   // something went wrong, list are not compatible, generate new ones
                   console.writeln("subframeSelectorMeasure, found " + measurements.length + " measurements for " + fileNames.length + " files");
-                  console.writeln("subframeSelectorMeasure, this.global.saved_measurements[0][indexPath] " + this.global.saved_measurements[0][indexPath]);
+                  console.writeln("subframeSelectorMeasure, saved_measurements[0][indexPath] " + this.global.saved_measurements[0][indexPath]);
                   console.writeln("subframeSelectorMeasure, saved measurements not found for " + fileNames[i]);
                   console.writeln("subframeSelectorMeasure, retry measurements");
                   measurements = null;
@@ -4632,9 +4632,9 @@ getFilterFiles(files, pageIndex, filename_postfix, flochart_files = false, gener
       if (color_files && (luminance || rgb || narrowband)) {
             error_text = "Error, cannot mix color and monochrome filter files";
       } else if (rgb && (allfiles.R.length == 0 || allfiles.G.length == 0 || allfiles.B.length == 0)) {
-            error_text = "Error, with RGB files for all RGB this.channels must be given";
+            error_text = "Error, with RGB files for all RGB channels must be given";
       } else if (luminance && (!rgb && !narrowband && !this.par.monochrome_image.val)) {
-            error_text = "Error, with luminance files RGB or narrowband this.channels must be given";
+            error_text = "Error, with luminance files RGB or narrowband channels must be given";
       }
 
       return { allfilesarr : allfilesarr,
@@ -4726,7 +4726,7 @@ findLRGBchannels(parent, alignedFiles, filename_postfix)
 {
       /* Loop through aligned files and find different this.channels.
        */
-      this.util.addProcessingStepAndStatusInfo("Find L,R,G,B,H,S,O and color this.channels");
+      this.util.addProcessingStepAndStatusInfo("Find L,R,G,B,H,S,O and color channels");
 
       this.L_images = this.init_images();
       this.R_images = this.init_images();
@@ -5141,7 +5141,7 @@ runPixelMathRGBMapping(newId, idWin, mapping_R, mapping_G, mapping_B)
       console.writeln("runPixelMathRGBMapping R " + mapping_R + " G " + mapping_G + " B " + mapping_B);
 
       if (idWin == null) {
-            console.writeln("ERROR: this.runPixelMathRGBMapping, no image window found for PixelMath");
+            console.writeln("ERROR: runPixelMathRGBMapping, no image window found for PixelMath");
       }
 
       if (newId != null) {
@@ -5403,7 +5403,7 @@ findChannelFromName3(name)
       } else if (name.endsWith("_L")) {
             return 'L';
       } else {
-            console.writeln("this.findChannelFromName, unknown channel " + name);
+            console.writeln("findChannelFromName, unknown channel " + name);
             return name;
       }
 
@@ -5525,11 +5525,11 @@ findChannelsFromMappings(mappings)
             }
       }
       if (this.channels.length == 0) {
-            console.writeln("findChannelsFromMappings, no valid this.channels found");
+            console.writeln("findChannelsFromMappings, no valid channels found");
             return "";
       } else {
-            // Return this.channels as text
-            return ' (this.channels:' + this.channels.join(",") + ')';
+            // Return channels as text
+            return ' (channels:' + this.channels.join(",") + ')';
       }
 }
 
@@ -5679,17 +5679,17 @@ checkNoiseReduction(image, phase)
       let noise_reduction = false;
 
       if (this.par.skip_noise_reduction.val) {
-            console.writeln("this.checkNoiseReduction, " + image + ", " + phase, ", skip noise_reduction");
+            console.writeln("checkNoiseReduction, " + image + ", " + phase, ", skip noise_reduction");
             return false;
       }
       switch (image) {
             case 'L':
                   if (this.is_color_files) {
                         this.save_images_in_save_id_list(); // Save images so we can retur with AutoContinue
-                        this.util.throwFatalError("this.checkNoiseReduction bad combination, L+color/OSC");
+                        this.util.throwFatalError("checkNoiseReduction bad combination, L+color/OSC");
                   }
                   if (this.par.luminance_noise_reduction_strength.val == 0) {
-                        console.writeln("this.checkNoiseReduction, " + image + ", " + phase, ", luminance_noise_reduction_strength == 0");
+                        console.writeln("checkNoiseReduction, " + image + ", " + phase, ", luminance_noise_reduction_strength == 0");
                         return false;
                   }
                   switch (phase) {
@@ -5710,16 +5710,16 @@ checkNoiseReduction(image, phase)
                               noise_reduction = this.par.non_linear_noise_reduction.val;
                               break;
                         default:
-                              this.util.throwFatalError("this.checkNoiseReduction bad phase '" + phase + "' for " + image + " image");
+                              this.util.throwFatalError("checkNoiseReduction bad phase '" + phase + "' for " + image + " image");
                   }
                   break;
             case 'RGB':
                   if (this.is_color_files) {
                         this.save_images_in_save_id_list(); // Save images so we can retur with AutoContinue
-                        this.util.throwFatalError("this.checkNoiseReduction bad combination, RGB+color/OSC");
+                        this.util.throwFatalError("checkNoiseReduction bad combination, RGB+color/OSC");
                   }
                   if (this.par.noise_reduction_strength.val == 0) {
-                        console.writeln("this.checkNoiseReduction, " + image + ", " + phase, ", noise_reduction_strength == 0");
+                        console.writeln("checkNoiseReduction, " + image + ", " + phase, ", noise_reduction_strength == 0");
                         return false;
                   }
                   switch (phase) {
@@ -5759,16 +5759,16 @@ checkNoiseReduction(image, phase)
                               break;
                         default:
                               this.save_images_in_save_id_list(); // Save images so we can retur with AutoContinue
-                              this.util.throwFatalError("this.checkNoiseReduction bad phase '" + phase + "' for " + image + " image");
+                              this.util.throwFatalError("checkNoiseReduction bad phase '" + phase + "' for " + image + " image");
                   }
                   break;
             case 'color':
                   if (!this.is_color_files) {
                         this.save_images_in_save_id_list(); // Save images so we can retur with AutoContinue
-                        this.util.throwFatalError("this.checkNoiseReduction bad combination, color/OSC and nor color files");
+                        this.util.throwFatalError("checkNoiseReduction bad combination, color/OSC and nor color files");
                   }
                   if (this.par.noise_reduction_strength.val == 0) {
-                        console.writeln("this.checkNoiseReduction, " + image + ", " + phase, ", noise_reduction_strength == 0");
+                        console.writeln("checkNoiseReduction, " + image + ", " + phase, ", noise_reduction_strength == 0");
                         return false;
                   }
                   switch (phase) {
@@ -5783,13 +5783,13 @@ checkNoiseReduction(image, phase)
                               break;
                         default:
                               this.save_images_in_save_id_list(); // Save images so we can retur with AutoContinue
-                              this.util.throwFatalError("this.checkNoiseReduction bad phase '" + phase + "' for " + image + " image");
+                              this.util.throwFatalError("checkNoiseReduction bad phase '" + phase + "' for " + image + " image");
                   }
                   break;
             default:
-                  this.util.throwFatalError("this.checkNoiseReduction bad parameters, image " + image + ", phase " + phase);
+                  this.util.throwFatalError("checkNoiseReduction bad parameters, image " + image + ", phase " + phase);
       }
-      console.writeln("this.checkNoiseReduction, " + image + ", " + phase, ", noise_reduction " + noise_reduction);
+      console.writeln("checkNoiseReduction, " + image + ", " + phase, ", noise_reduction " + noise_reduction);
       return noise_reduction;
 }
 
@@ -6079,11 +6079,11 @@ removeStarsFromLights(fileNames)
             // Open source image window from a file
             var imageWindows = ImageWindow.open(fileNames[i]);
             if (!imageWindows || imageWindows.length == 0) {
-                  this.util.throwFatalError("*** this.removeStarsFromLights Error: imageWindows.length: " + imageWindows.length);
+                  this.util.throwFatalError("*** removeStarsFromLights Error: imageWindows.length: " + imageWindows.length);
             }
             var imageWindow = imageWindows[0];
             if (imageWindow == null) {
-                  this.util.throwFatalError("*** this.removeStarsFromLights Error: Can't read file: " + fileNames[i]);
+                  this.util.throwFatalError("*** removeStarsFromLights Error: Can't read file: " + fileNames[i]);
             }
 
             this.removeStars(
@@ -6100,7 +6100,7 @@ removeStarsFromLights(fileNames)
             // Save window
             console.writeln("Save starless image as " + filePath);
             if (!this.writeImage(filePath, imageWindow)) {
-                  this.util.throwFatalError("*** this.removeStarsFromLights Error: Can't write output image: " + imageWindow.mainView.id + ", file: " + filePath);
+                  this.util.throwFatalError("*** removeStarsFromLights Error: Can't write output image: " + imageWindow.mainView.id + ", file: " + filePath);
             }
             // Close window
             this.util.closeOneWindow(imageWindow);   
@@ -6238,7 +6238,7 @@ save_id_as_xisf_and_tif(id, basename)
 // Called when this.par.save_stretched_starless_channel_images.val is true
 createStarlessChannelImages(images, basenames = null)
 {
-      this.flowchart.flowchartParentBegin("Starless this.channels");
+      this.flowchart.flowchartParentBegin("Starless channels");
 
       if (basenames == null) {
             basenames = images;
@@ -6286,7 +6286,7 @@ createStarlessChannelImages(images, basenames = null)
 
             this.flowchart.flowchartChildEnd(this.findChannelFromName(basenames[i]));
       }
-      this.flowchart.flowchartParentEnd("Starless this.channels");
+      this.flowchart.flowchartParentEnd("Starless channels");
 }
 
 createStarsImageFromFinalImage(id)
@@ -6431,22 +6431,22 @@ customMapping(RGBmapping, filtered_lights)
             this.arrayAppendCheckDuplicates(images, mapping_G_images);
             this.arrayAppendCheckDuplicates(images, mapping_B_images);
 
-            if (this.par.debug.val) console.writeln('customMapping: this.copyToMapImages(images)');
+            if (this.par.debug.val) console.writeln('customMapping: copyToMapImages(images)');
             this.copyToMapImages(images);
 
-            if (this.par.debug.val) console.writeln('customMapping: this.flowchart.flowchartParentBegin("Channels")');
+            if (this.par.debug.val) console.writeln('customMapping: flowchartParentBegin("Channels")');
             this.flowchart.flowchartParentBegin("Channels");
             for (var i = 0; i < images.length; i++) {
-                  if (this.par.debug.val) console.writeln('customMapping: this.flowchart.flowchartChildBegin(this.findChannelFromName(images[i]))');
+                  if (this.par.debug.val) console.writeln('customMapping: flowchartChildBegin(findChannelFromName(images[i]))');
                   this.flowchart.flowchartChildBegin(this.findChannelFromName(images[i]));
 
                   this.cropImageIf(images[i]);
                   this.processChannelImage(images[i], false);
                   
-                  if (this.par.debug.val) console.writeln('customMapping: this.flowchart.flowchartChildEnd(this.findChannelFromName(images[i]))');
+                  if (this.par.debug.val) console.writeln('customMapping: flowchartChildEnd(findChannelFromName(images[i]))');
                   this.flowchart.flowchartChildEnd(this.findChannelFromName(images[i]));
             }
-            if (this.par.debug.val) console.writeln('customMapping: this.flowchart.flowchartParentEnd("Channels")');
+            if (this.par.debug.val) console.writeln('customMapping: flowchartParentEnd("Channels")');
             this.flowchart.flowchartParentEnd("Channels");
 
             var narrowband_linear_fit = this.par.narrowband_linear_fit.val;
@@ -6707,11 +6707,11 @@ mapLRGBchannels(RGBmapping)
       var custom_mapping = this.isCustomMapping(this.process_narrowband);
 
       if (this.H_id != null) {
-            console.writeln("mapLRGBchannels, this.H_id " + this.H_id);
+            console.writeln("mapLRGBchannels, H_id " + this.H_id);
       } else if (this.R_id != null) {
-            console.writeln("mapLRGBchannels, this.R_id " + this.R_id);
+            console.writeln("mapLRGBchannels, R_id " + this.R_id);
       } else if (this.L_id != null) {
-            console.writeln("mapLRGBchannels, this.L_id " + this.L_id);
+            console.writeln("mapLRGBchannels, L_id " + this.L_id);
       }
 
       if (rgb 
@@ -6760,7 +6760,7 @@ mapLRGBchannels(RGBmapping)
 // add as a first item, first item should be the best image
 insert_image_for_integrate(images, new_image, ssweight)
 {
-      console.writeln(" this.insert_image_for_integrate " + new_image + ", ssweight=" + ssweight);
+      console.writeln("insert_image_for_integrate " + new_image + ", ssweight=" + ssweight);
       images.unshift(new Array(2));
       images[0][0] = true;                // enabled
       images[0][1] = new_image;           // path
@@ -7039,7 +7039,7 @@ runLocalNormalization(imagetable, refImage, filter)
       var node = this.flowchart.flowchartOperation("LocalNormalization");
 
       if (imagetable.length == 1 || this.global.get_flowchart_data) {
-            console.writeln("runLocalNormalization, only one file or this.flowchart, no need for local normalization");
+            console.writeln("runLocalNormalization, only one file or flowchart, no need for local normalization");
             return;
       }
 
@@ -8684,10 +8684,10 @@ applySTF(imgView, stf, iscolor, save_process = false)
 getRgbLinked(win, iscolor)
 {
       if (this.par.STF_linking.val == 'Linked') {
-            console.writeln("RGB this.channels linked selected by user");
+            console.writeln("RGB channels linked selected by user");
             return true;  
       } else if (this.par.STF_linking.val == 'Unlinked') {
-            console.writeln("RGB this.channels unlinked selected by user");
+            console.writeln("RGB channels unlinked selected by user");
             return false;  
       } else {
             // auto, use default
@@ -8696,23 +8696,23 @@ getRgbLinked(win, iscolor)
                   let linear_fit_done = this.util.findKeywordName(win, "AutoLinearfit");
                   let spcc_color_calibration_done = this.util.findKeywordName(win, "AutoSPCC");
                   if (linear_fit_done) {
-                        console.writeln("Narrowband and linear fit done, use RGB this.channels linked");
+                        console.writeln("Narrowband and linear fit done, use RGB channels linked");
                         rgbLinked = true;
                   } else if (spcc_color_calibration_done && this.H_in_R_channel) {
-                        console.writeln("Narrowband, SPCC and H mapped into red channel, use RGB this.channels linked");
+                        console.writeln("Narrowband, SPCC and H mapped into red channel, use RGB channels linked");
                         rgbLinked = true;
                   } else {
-                        console.writeln("Default narrowband, use RGB this.channels unlinked");
+                        console.writeln("Default narrowband, use RGB channels unlinked");
                         rgbLinked = false;
                   }
             } else if (this.is_color_files && iscolor) {
                   // We have color/OSC images and a color file, we use unlinked stretch
                   // to get rid of possible color cast
-                  console.writeln("Color file, use RGB this.channels unlinked");
+                  console.writeln("Color file, use RGB channels unlinked");
                   rgbLinked = false;
             } else {
                   // Assume color calibration has balanced the this.channels, use linked stretch
-                  console.writeln("Use default RGB this.channels linked");
+                  console.writeln("Use default RGB channels linked");
                   rgbLinked = true;
             }
             return rgbLinked;
@@ -9025,7 +9025,7 @@ stretchHistogramTransformIterations(GC_win, iscolor, image_stretching, target_va
                   rgbLinked = true;
             }
       }
-      console.writeln("RGB this.channels linked " + rgbLinked);
+      console.writeln("RGB channels linked " + rgbLinked);
 
       if (target_val == null) {
             target_val = this.par.histogram_stretch_target.val;
@@ -12168,7 +12168,7 @@ writeProcessingStepsAndEndLog(alignedFiles, autocontinue, basename, iserror)
 
 writeTestmodeLog(text, fname)
 {
-      console.writeln("this.writeTestmodeLog: " + fname);
+      console.writeln("writeTestmodeLog: " + fname);
       fname = this.util.ensure_win_prefix(fname);
       var processedPath = this.util.combinePath(this.global.outputRootDir, this.global.AutoProcessedDir);
       processedPath = this.util.ensurePathEndSlash(processedPath);
@@ -12185,7 +12185,7 @@ writeTestmodeLog(text, fname)
 // Used to find AutoContinue images
 findWindowCheckBaseNameIf(id, check_base_name)
 {
-      // console.writeln("this.findWindowCheckBaseNameIf: " + id);
+      // console.writeln("findWindowCheckBaseNameIf: " + id);
       var win = this.util.findWindowOrFile(this.util.ensure_win_prefix(id));
       if (win == null && check_base_name && this.ppar.win_prefix != this.ppar.autocontinue_win_prefix) {
             // Try to find without prefix so we can autocontinue
@@ -12250,11 +12250,11 @@ findOrReadImage(fname, new_id)
       console.writeln("findOrReadImage, reading file " + fname);
       var imageWindows = ImageWindow.open(fname);
       if (!imageWindows || imageWindows.length == 0) {
-            this.util.throwFatalError("*** this.findOrReadImage Error: file " + fname + ", imageWindows.length: " + imageWindows.length);
+            this.util.throwFatalError("*** findOrReadImage Error: file " + fname + ", imageWindows.length: " + imageWindows.length);
       }
       var imageWindow = imageWindows[0];
       if (imageWindow == null) {
-            this.util.throwFatalError("*** this.findOrReadImage Error: Can't read file: " + fname);
+            this.util.throwFatalError("*** findOrReadImage Error: Can't read file: " + fname);
       }
       if (imageWindow.mainView.id != new_id) {
             console.writeln("findOrReadImage, read id " + imageWindow.mainView.id + ", renamed to " + new_id);
@@ -12484,12 +12484,12 @@ extractChannels(fileNames)
             var imageWindows = ImageWindow.open(fileNames[i]);
             if (!imageWindows || imageWindows.length == 0) {
                   this.save_images_in_save_id_list(); // Save images so we can retur with AutoContinue
-                  this.util.throwFatalError("*** this.extractChannels Error: imageWindows.length: " + imageWindows.length);
+                  this.util.throwFatalError("*** extractChannels Error: imageWindows.length: " + imageWindows.length);
             }
             var imageWindow = imageWindows[0];
             if (imageWindow == null) {
                   this.save_images_in_save_id_list(); // Save images so we can retur with AutoContinue
-                  this.util.throwFatalError("*** this.extractChannels Error: Can't read file: " + fileNames[i]);
+                  this.util.throwFatalError("*** extractChannels Error: Can't read file: " + fileNames[i]);
             }
 
             // Extract this.channels and save each channel to a separate file.
@@ -12500,7 +12500,7 @@ extractChannels(fileNames)
                   // Save window
                   if (!this.writeImage(filePath, targetWindow)) {
                         this.save_images_in_save_id_list(); // Save images so we can retur with AutoContinue
-                        this.util.throwFatalError("*** this.extractChannels Error: Can't write output image: " + filePath);
+                        this.util.throwFatalError("*** extractChannels Error: Can't write output image: " + filePath);
                   }
                   newFileNames[newFileNames.length] = filePath;
                   this.util.closeOneWindow(targetWindow);
@@ -12512,7 +12512,7 @@ extractChannels(fileNames)
             this.util.setFITSKeyword(rWin, "FILTER", channel_map[0], "AutoIntegrate extracted channel")
             if (!this.writeImage(filePath, rWin)) {
                   this.save_images_in_save_id_list(); // Save images so we can retur with AutoContinue
-                  this.util.throwFatalError("*** this.extractChannels Error: Can't write output image: " + filePath);
+                  this.util.throwFatalError("*** extractChannels Error: Can't write output image: " + filePath);
             }
             newFileNames[newFileNames.length] = filePath;
             this.util.closeOneWindow(rWin);
@@ -12523,7 +12523,7 @@ extractChannels(fileNames)
             this.util.setFITSKeyword(gWin, "FILTER", channel_map[1], "AutoIntegrate extracted channel")
             if (!this.writeImage(filePath, gWin)) {
                   this.save_images_in_save_id_list(); // Save images so we can retur with AutoContinue
-                  this.util.throwFatalError("*** this.extractChannels Error: Can't write output image: " + filePath);
+                  this.util.throwFatalError("*** extractChannels Error: Can't write output image: " + filePath);
             }
             newFileNames[newFileNames.length] = filePath;
             this.util.closeOneWindow(gWin);
@@ -12534,7 +12534,7 @@ extractChannels(fileNames)
             this.util.setFITSKeyword(bWin, "FILTER", channel_map[2], "AutoIntegrate extracted channel")
             if (!this.writeImage(filePath, bWin)) {
                   this.save_images_in_save_id_list(); // Save images so we can retur with AutoContinue
-                  this.util.throwFatalError("*** this.extractChannels Error: Can't write output image: " + filePath);
+                  this.util.throwFatalError("*** extractChannels Error: Can't write output image: " + filePath);
             }
             newFileNames[newFileNames.length] = filePath;
             this.util.closeOneWindow(bWin);
@@ -19669,7 +19669,7 @@ autointegrateProcessingEngine(parent, auto_continue, autocontinue_narrowband, tx
        console.writeln("Run Garbage Collection");
        this.util.runGarbageCollection();
  
-       if (this.global.debug) console.writeln("this.global.testmode " + this.global.testmode);
+       if (this.global.debug) console.writeln("global.testmode " + this.global.testmode);
        if (this.global.testmode) {
             this.global.testmode_log += "\n" + this.global.processing_steps;
             this.writeTestmodeLog(this.global.testmode_log, "TestMode.log");

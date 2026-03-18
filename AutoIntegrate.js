@@ -334,9 +334,9 @@ readPersistentSettings()
             }
             this.gui.fix_win_prefix_array();
       }
-      var tempSetting = Settings.read("AutoIntegrate" + "/this.global.columnCount", DataType.Int32);
+      var tempSetting = Settings.read("AutoIntegrate" + "/columnCount", DataType.Int32);
       if (Settings.lastReadOK) {
-            console.writeln("AutoIntegrate: Restored this.global.columnCount '" + tempSetting + "' from settings.");
+            console.writeln("AutoIntegrate: Restored columnCount '" + tempSetting + "' from settings.");
             this.ppar.userColumnCount = tempSetting;
       }
       if (!this.par.use_manual_icon_column.val) {

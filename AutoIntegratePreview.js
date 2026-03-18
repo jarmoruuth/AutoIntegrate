@@ -251,10 +251,10 @@ class AutoIntegratePreviewControl extends Frame
             }
             if (this.bitmap) {
                    if (this.zoom > this.zoomOutLimit) {
-                        if (this.par.debug.val) console.writeln(this.name + ":UpdateZoom:this.scale " + this.scale);
+                        if (this.par.debug.val) console.writeln(this.name + ":UpdateZoom:scale " + this.scale);
                         this.scaledBitmap = this.bitmap.scaled(this.scale);
                    } else {
-                        if (this.par.debug.val) console.writeln(this.name + ":UpdateZoom:0.98 * this.scale " + (0.98 * this.scale));
+                        if (this.par.debug.val) console.writeln(this.name + ":UpdateZoom:0.98 * scale " + (0.98 * this.scale));
                         this.scaledBitmap = this.bitmap.scaled(0.98 * this.scale);
                    }
              } else {
