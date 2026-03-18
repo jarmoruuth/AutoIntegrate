@@ -54,8 +54,9 @@
 //  PARAMETERS
 // =============================================================================
 
-class AutoIntegrateVeraLuxParameters {
+class AutoIntegrateVeraLuxParameters extends Object {
    constructor() {
+      super();
       this.DEFAULT_PROFILE = "Rec.709 (Recommended)";
       this.sensorProfile = this.DEFAULT_PROFILE;
       this.processingMode = "Ready-to-Use";  // "Ready-to-Use" or "scientific"
@@ -113,10 +114,15 @@ class AutoIntegrateVeraLuxParameters {
 //  CORE ENGINE - AutoIntegrateVeraLuxCore (Single Source of Truth)
 // =============================================================================
 
-class AutoIntegrateVeraLuxCore {
+class AutoIntegrateVeraLuxCore extends Object {
 
-// Percentile with linear interpolation
-static percentile(array, p) {
+   constructor() {
+        super();
+        this.debug = false;
+   }
+
+percentile(array, p) {
+   if (this.debug) console.writeln("percentile");
    if (!array || array.length === 0) {
       throw new Error("Array cannot be empty");
    }
@@ -136,10 +142,11 @@ static percentile(array, p) {
       return sorted[lower];
    }
    return sorted[lower] * (1 - weight) + sorted[upper] * weight;
-};
+}
 
 // Sample pixels from image using adaptive strategy
-static samplePixels(img, channel, maxSamples) {
+samplePixels(img, channel, maxSamples) {
+   if (this.debug) console.writeln("samplePixels");
    var width = img.width;
    var height = img.height;
    var totalPixels = width * height;
@@ -170,10 +177,11 @@ static samplePixels(img, channel, maxSamples) {
    }
    
    return pixels;
-};
+}
 
 // Calculate statistical anchor (black point)
-static calculateAnchor(image, weights) {
+calculateAnchor(image, weights) {
+   if (this.debug) console.writeln("calculateAnchor");
    var isColor = image.numberOfChannels >= 3;
    var maxSamples = 1000000;
 
@@ -192,17 +200,21 @@ static calculateAnchor(image, weights) {
       var floor = this.percentile(samples, 0.5);
       return Math.max(0.0, floor - 0.00025);
    }
-};
+}
 
 // Calculate adaptive anchor using histogram morphology
-static calculateAnchorAdaptive(image, weights) {
+calculateAnchorAdaptive(image, weights) {
+   if (this.debug) console.writeln("calculateAnchorAdaptive");
    var isColor = image.numberOfChannels >= 3;
    var luminanceImage;
    var maxSamples = 1000000;
 
    if (isColor) {
       // Create a temporary image for luminance calculation
-      luminanceImage = new Image(image.width, image.height, 1, ColorSpace.Gray, 32, PixelSampleType.Real);
+      if (this.debug) console.writeln("Creating temporary luminance image for adaptive anchor calculation, width: " + image.width + ", height: " + image.height   );
+      luminanceImage = new Image(image.width, image.height, 1, ColorSpace.Gray, 32, PixelSampleType.Float);
+
+      if (this.debug) console.writeln("Calculating weighted luminance for adaptive anchor");
 
       var r_w = weights[0];
       var g_w = weights[1];
@@ -225,22 +237,18 @@ static calculateAnchorAdaptive(image, weights) {
    var samples = this.samplePixels(luminanceImage, 0, maxSamples);
    var floor = this.percentile(samples, 0.5);
    
-   // Clean up temporary image if created
-   if (isColor && luminanceImage) {
-      luminanceImage.free();
-   }
-   
    return Math.max(0.0, floor - 0.00025);
-};
+}
 
 // Extract luminance from image
-static extractLuminance(image, anchor, weights) {
+extractLuminance(image, anchor, weights) {
+   if (this.debug) console.writeln("extractLuminance");
    var isColor = image.numberOfChannels >= 3;
    var width = image.width;
    var height = image.height;
 
    // Create output luminance image
-   var luminance = new Image(width, height, 1, ColorSpace.Gray, 32, PixelSampleType.Real);
+   var luminance = new Image(width, height, 1, ColorSpace.Gray, 32, PixelSampleType.Float);
 
    if (isColor) {
       var r_w = weights[0];
@@ -266,10 +274,11 @@ static extractLuminance(image, anchor, weights) {
    }
 
    return luminance;
-};
+}
 
 // Hyperbolic stretch function
-static hyperbolicStretch(value, D, b, SP) {
+hyperbolicStretch(value, D, b, SP) {
+   if (this.debug) console.writeln("hyperbolicStretch");
    if (SP === undefined) SP = 0.0;
    D = Math.max(D, 0.1);
    b = Math.max(b, 0.1);
@@ -281,10 +290,11 @@ static hyperbolicStretch(value, D, b, SP) {
    if (normFactor === 0) normFactor = 1e-6;
 
    return (term1 - term2) / normFactor;
-};
+}
 
 // Solve for optimal Log D given target median
-static solveLogD(image, targetMedian, bVal, weights, useAdaptive) {
+solveLogD(image, targetMedian, bVal, weights, useAdaptive) {
+   if (this.debug) console.writeln("solveLogD");
    // Get anchor
    var anchor;
    if (useAdaptive) {
@@ -354,10 +364,11 @@ static solveLogD(image, targetMedian, bVal, weights, useAdaptive) {
    console.writeln(format("VeraLux: Solved Log D = %.4f (Median In: %.6f)", bestLogD, medianIn));
 
    return bestLogD;
-};
+}
 
 // Apply MTF (Midtone Transfer Function)
-static applyMTF(value, m) {
+applyMTF(value, m) {
+   if (this.debug) console.writeln("applyMTF");
    var term1 = (m - 1.0) * value;
    var term2 = (2.0 * m - 1.0) * value - m;
 
@@ -365,14 +376,15 @@ static applyMTF(value, m) {
 
    var result = term1 / term2;
    return Math.max(0, Math.min(1, result));
-};
+}
 
 } // AutoIntegrateVeraLuxCore
 
 class AutoIntegrateVeraLuxHMS extends Object
 {
-    constructor() {
+    constructor(debug = false) {
         super();
+        this.debug = debug;
 
    this.SENSOR_PROFILES = {
    // --- STANDARD ---
@@ -524,11 +536,15 @@ class AutoIntegrateVeraLuxHMS extends Object
 };
 
 this.parameters = new AutoIntegrateVeraLuxParameters();
+this.core = new AutoIntegrateVeraLuxCore();
+
+// this.core.debug = this.debug; Very slow to log inside core functions, so we keep it off by default. Enable manually if needed.
 
 } // constructor
 
 // Get a list of available sensor profiles
 getSensorProfileNames(add_default = false) {
+   if (this.debug) console.writeln("Retrieving sensor profile names with add_default=" + add_default);
     var profiles = [];
     if (add_default) {
       profiles.push('Default');
@@ -548,6 +564,7 @@ getSensorProfiles() {
 // =============================================================================
 
 adaptiveOutputScaling(image, weights, targetBg, progressCallback) {
+   if (this.debug) console.writeln("Starting adaptive output scaling with target background " + targetBg.toFixed(3));
    if (progressCallback) progressCallback("Adaptive Scaling: Analyzing Dynamic Range...");
 
    var isColor = image.numberOfChannels >= 3;
@@ -654,7 +671,7 @@ adaptiveOutputScaling(image, weights, targetBg, progressCallback) {
          for (var y = 0; y < height; y++) {
             for (var x = 0; x < width; x++) {
                var val = image.sample(x, y, c);
-               val = AutoIntegrateVeraLuxCore.applyMTF(val, m);
+               val = this.core.applyMTF(val, m);
                image.setSample(val, x, y, c);
             }
          }
@@ -687,6 +704,7 @@ applySoftClip(image, threshold, rolloff, progressCallback) {
 
 // Main processing function
 processVeraLux(targetView, params, progressCallback) {
+   if (this.debug) console.writeln("Starting VeraLux HyperMetric Stretch with parameters: " + JSON.stringify(params));
    var image = targetView.image;
    var isColor = image.numberOfChannels >= 3;
    var width = image.width;
@@ -699,9 +717,9 @@ processVeraLux(targetView, params, progressCallback) {
 
    var anchor;
    if (params.useAdaptiveAnchor) {
-      anchor = AutoIntegrateVeraLuxCore.calculateAnchorAdaptive(image, weights);
+      anchor = this.core.calculateAnchorAdaptive(image, weights);
    } else {
-      anchor = AutoIntegrateVeraLuxCore.calculateAnchor(image, weights);
+      anchor = this.core.calculateAnchor(image, weights);
    }
 
    console.writeln(format("VeraLux: Anchor = %.6f", anchor));
@@ -715,6 +733,7 @@ processVeraLux(targetView, params, progressCallback) {
    var b_w = weights[2];
 
    if (isColor) {
+      if (this.debug) console.writeln("Processing color image with weights R: " + r_w.toFixed(4) + ", G: " + g_w.toFixed(4) + ", B: " + b_w.toFixed(4));
       for (var y = 0; y < height; y++) {
          if (y % 100 === 0 && progressCallback) {
             progressCallback(format("Processing row %d of %d...", y, height));
@@ -737,7 +756,7 @@ processVeraLux(targetView, params, progressCallback) {
             var b_ratio = b / L_safe;
 
             // Stretch luminance
-            var L_str = AutoIntegrateVeraLuxCore.hyperbolicStretch(L, D, params.protectB);
+            var L_str = this.core.hyperbolicStretch(L, D, params.protectB);
             L_str = Math.max(0, Math.min(1, L_str));
 
             // Color convergence (star core recovery)
@@ -755,9 +774,9 @@ processVeraLux(targetView, params, progressCallback) {
 
             if (needsHybrid) {
                // Scalar stretch
-               var r_scalar = AutoIntegrateVeraLuxCore.hyperbolicStretch(r, D, params.protectB);
-               var g_scalar = AutoIntegrateVeraLuxCore.hyperbolicStretch(g, D, params.protectB);
-               var b_scalar = AutoIntegrateVeraLuxCore.hyperbolicStretch(b, D, params.protectB);
+               var r_scalar = this.core.hyperbolicStretch(r, D, params.protectB);
+               var g_scalar = this.core.hyperbolicStretch(g, D, params.protectB);
+               var b_scalar = this.core.hyperbolicStretch(b, D, params.protectB);
 
                r_scalar = Math.max(0, Math.min(1, r_scalar));
                g_scalar = Math.max(0, Math.min(1, g_scalar));
@@ -787,6 +806,7 @@ processVeraLux(targetView, params, progressCallback) {
       }
    } else {
       // Mono image
+      if (this.debug) console.writeln("Processing monochrome image");
       for (var y = 0; y < height; y++) {
          if (y % 100 === 0 && progressCallback) {
             progressCallback(format("Processing row %d of %d...", y, height));
@@ -794,7 +814,7 @@ processVeraLux(targetView, params, progressCallback) {
 
          for (var x = 0; x < width; x++) {
             var val = Math.max(0, image.sample(x, y, 0) - anchor);
-            var L_str = AutoIntegrateVeraLuxCore.hyperbolicStretch(val, D, params.protectB);
+            var L_str = this.core.hyperbolicStretch(val, D, params.protectB);
             L_str = L_str * (1.0 - 0.005) + 0.005;
             image.setSample(Math.max(0, Math.min(1, L_str)), x, y, 0);
          }
@@ -816,6 +836,8 @@ processVeraLux(targetView, params, progressCallback) {
 
 executeVeraLux(window, global = null, util = null) {
 
+   if (this.debug) console.writeln("Executing VeraLux HyperMetric Stretch on current view");
+
     var view = window.currentView;
     var image = view.image;
 
@@ -834,7 +856,7 @@ executeVeraLux(window, global = null, util = null) {
     if (this.parameters.useAutoD) {
          console.writeln("VeraLux: Auto Log D enabled. Solving optimal Log D...");
          var weights = this.SENSOR_PROFILES[this.parameters.sensorProfile].weights;
-         var logD = AutoIntegrateVeraLuxCore.solveLogD(
+         var logD = this.core.solveLogD(
                      view.image,
                      this.parameters.targetBg,
                      this.parameters.protectB,

@@ -351,7 +351,7 @@ PartialLineDetection( detectColumns, image, layersToRemove, imageShift, threshol
                         image.numberOfChannels,
                         image.colorSpace,
                         image.bitsPerSample,
-                        PixelSampleType.Real );
+                        PixelSampleType.Float );
 
     this.SSImage.apply( image );
 
@@ -373,7 +373,7 @@ PartialLineDetection( detectColumns, image, layersToRemove, imageShift, threshol
                             image.numberOfChannels,
                             image.colorSpace,
                             image.bitsPerSample,
-                            PixelSampleType.Real );
+                            PixelSampleType.Float );
 
     clippingMask.apply( this.SSImage );
     clippingMask.binarize( clippingMask.MAD() * 5 );
@@ -460,7 +460,7 @@ PartialLineDetection( detectColumns, image, layersToRemove, imageShift, threshol
         image.height,
         image.numberOfChannels,
         image.colorSpace,
-        32, PixelSampleType.Real );
+        32, PixelSampleType.Float );
 
     shiftedSSImage.apply( this.SSImage );
     detectColumns ? shiftedSSImage.shiftBy( 0, -imageShift )
@@ -561,7 +561,7 @@ DefineWindowsAndImages( win, detectPartialLines )
             this.referenceImageWindow.mainView.image.height,
             this.referenceImageWindow.mainView.image.numberOfChannels,
             this.referenceImageWindow.mainView.image.colorSpace,
-            32, PixelSampleType.Real );
+            32, PixelSampleType.Float );
 
     this.referenceImage.apply( this.referenceImageWindow.mainView.image );
 
@@ -571,7 +571,7 @@ DefineWindowsAndImages( win, detectPartialLines )
                 this.referenceImageWindow.mainView.image.height,
                 this.referenceImageWindow.mainView.image.numberOfChannels,
                 this.referenceImageWindow.mainView.image.colorSpace,
-                32, PixelSampleType.Real );
+                32, PixelSampleType.Float );
 
         this.referenceImageCopy.apply( this.referenceImageWindow.mainView.image );
     }
@@ -580,7 +580,7 @@ DefineWindowsAndImages( win, detectPartialLines )
             this.referenceImage.height,
             this.referenceImage.numberOfChannels,
             this.referenceImage.colorSpace,
-            32, PixelSampleType.Real );
+            32, PixelSampleType.Float );
 
     this.referenceSSImage.apply( this.referenceImage );
 
@@ -593,7 +593,7 @@ DefineWindowsAndImages( win, detectPartialLines )
             this.referenceImage.height,
             this.referenceImage.numberOfChannels,
             this.referenceImage.colorSpace,
-            32, PixelSampleType.Real );
+            32, PixelSampleType.Float );
 
     this.lineDetectionWindow = new ImageWindow( this.referenceImage.width,
                     this.referenceImage.height,
@@ -604,7 +604,7 @@ DefineWindowsAndImages( win, detectPartialLines )
                 this.referenceImage.height,
                 this.referenceImage.numberOfChannels,
                 this.referenceImage.colorSpace,
-                32, PixelSampleType.Real );
+                32, PixelSampleType.Float );
 }
 
 /*

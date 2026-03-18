@@ -197,6 +197,7 @@ class AutoIntegrateSelectiveColorDialog extends Dialog {
 
     this.selectiveColor = new AutoIntegrateSelectiveColor(this.guitools, this.util, this.global, preview_functions);
     this.selectiveColorSizer = this.selectiveColor.createSelectiveColorSizer(this);
+    this.engine.selectiveColor = this.selectiveColor;
 
    // -------------------------------------------------------------------------
    // Close Button

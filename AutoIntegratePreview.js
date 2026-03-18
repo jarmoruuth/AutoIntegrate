@@ -368,7 +368,6 @@ class AutoIntegratePreviewControl extends Frame
             {
                   let maxPreviewDialog = new AutoIntegrateMaxPreviewDialog(this.engine, this.util, this.global, this.parent.image, this.parent.image_name_Label.text);
                   maxPreviewDialog.execute();
-                  // gc(false);
             };
       }
       this.image_name_Label = new Label( this );

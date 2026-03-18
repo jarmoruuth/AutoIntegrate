@@ -56,13 +56,6 @@ init_pixinsight_version()
 
 runGarbageCollection()
 {
-      var start_time = Date.now();
-      // gc();
-      var end_time = Date.now();
-      var time_sec = (end_time-start_time)/1000;
-      if (time_sec >= 1.0) {
-            console.writeln("runGarbageCollection, " + time_sec + " sec");
-      }
 }
 
 checkEvents()

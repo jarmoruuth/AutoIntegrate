@@ -7055,14 +7055,14 @@ AutoIntegrateDialog()
       // hide this section by default
       this.RGBHaMappingControl.visible = false;
 
-      var enhancementsGUIControls = this.enhancements_gui.createEnhancementsGUIControls(this);
+      this.enhancementsGUIControls = this.enhancements_gui.createEnhancementsGUIControls(this);
 
-      this.enhancementsTargetImageControl = enhancementsGUIControls.targetImageControl;
-      this.enhancementsOptionsControl = enhancementsGUIControls.optionsControl;
-      this.enhancementsGenericControl = enhancementsGUIControls.genericControl;
-      this.enhancementsNarrowbandControl = enhancementsGUIControls.narrowbandControl;
-      this.enhancementsStarsControl = enhancementsGUIControls.starsControl;
-      this.enhancementsSelectiveColorControl3 = enhancementsGUIControls.selectiveColorControl;
+      this.enhancementsTargetImageControl = this.enhancementsGUIControls.targetImageControl;
+      this.enhancementsOptionsControl = this.enhancementsGUIControls.optionsControl;
+      this.enhancementsGenericControl = this.enhancementsGUIControls.genericControl;
+      this.enhancementsNarrowbandControl = this.enhancementsGUIControls.narrowbandControl;
+      this.enhancementsStarsControl = this.enhancementsGUIControls.starsControl;
+      this.enhancementsSelectiveColorControl3 = this.enhancementsGUIControls.selectiveColorControl;
 
       this.imageToolsControl = this.guitools.createImageToolsControl(this);
       this.imageToolsControl.visible = true;

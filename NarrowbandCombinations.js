@@ -199,7 +199,7 @@ class AutoIntegrateNarrowbandCombinationsDialog extends Dialog {
     // Create [ 'channel', 'image id' ] mappings from selected images into an array
     // Skip images with <Select image> or <No images>
     generateMappingsFromSelection() {
-        var this.selectedMappings = [];
+        this.selectedMappings = [];
         var channelKeys = ['H', 'S', 'O', 'R', 'G', 'B'];
         for (var i = 0; i < this.channelComboBoxes.length; i++) {
             var comboBox = this.channelComboBoxes[i];

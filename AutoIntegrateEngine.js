@@ -126,7 +126,7 @@ this.gui = null;
 this.par = this.global.par;
 this.ppar = this.global.ppar;
 
-this.veralux = new AutoIntegrateVeraLuxHMS();
+this.veralux = new AutoIntegrateVeraLuxHMS(this.global.debug);
 
 
 // Copy of files from this.global object
@@ -138,7 +138,7 @@ this.flatFileNames = null;
 
 this.standalone_narrowband_mappings = null;
 
-this.selectiveColorEngine = null;
+this.selectiveColor = null;
 
 this.executed_processes = [];
 
@@ -10988,9 +10988,9 @@ findDBEsamples(w)
             CoreApplication.processEvents();
             for (var i = 0; i < selectedRegions.length; i++) {
                   var region = selectedRegions[i];
-                  var datarow = [ region.x / width, region.y / height ];
-                  var samplerow = [ Math.floor(region.x + region.size / 2), Math.floor(region.y + region.size / 2) ];
-                  samplerow.push(Math.floor(region.size / 2), 0, 6, 0);
+                  var datarow = [ region.x / width, region.y / height ];      // Normalize x and y to [0, 1]
+                  var samplerow = [ Math.floor(region.x + region.size / 2), Math.floor(region.y + region.size / 2) ];   // x, y
+                  samplerow.push(Math.floor(region.size / 2), 0, 6, 0);       // radius, symmetries, axialCount, isFixed
                   var rect = new Rect(region.x, region.y, region.x + region.size, region.y + region.size);
                   var min_weight_ok_count = 0;
                   for (var j = 0; j < image.numberOfChannels; j++) {
@@ -11005,8 +11005,8 @@ findDBEsamples(w)
                         if (sampleWeight >= this.par.dbe_min_weight.val) {
                               min_weight_ok_count++;
                         }
-                        datarow.push(regionStats.mean, sampleWeight);   // mean, weight
-                        samplerow.push(regionStats.mean, sampleWeight);
+                        datarow.push(regionStats.mean, sampleWeight, 0, 0, 0, 0);     // z0, w0, z1, w1, z2, w2
+                        samplerow.push(regionStats.mean, sampleWeight, 0, 0, 0, 0);   // z0, w0, z1, w1, z2, w2   
                   }
                   // console.writeln("findDBEsamples:Data row: " + datarow.toSource() + ", Sample row: " + samplerow.toSource());
                   // Check if minimum weight is reached for aby channel
@@ -16695,7 +16695,7 @@ enhancementsSHOHueShift(imgWin)
 enhancementsSelectiveColor(imgWin)
 {
       this.addEnhancementsStep("Selective Color");
-      this.selectiveColorEngine.apply(imgWin.mainView);
+      this.selectiveColor.apply(imgWin.mainView);
       this.engine_end_process(null);
 }
 

@@ -158,7 +158,7 @@ class AutoIntegrateBandingEngine extends Object {
              if ( this.targetImage.sampleType == PixelSampleType.Integer ){
                 this.convertedImage = new Image( this.targetImage.width, this.targetImage.height,
                                   this.targetImage.numberOfChannels, this.targetImage.colorSpace,
-                                  (this.targetImage.bitsPerSample < 32) ? 32 : 64, PixelSampleType.Real );
+                                  (this.targetImage.bitsPerSample < 32) ? 32 : 64, PixelSampleType.Float );
                 this.targetImage.resetSelections();
                 this.convertedImage.resetSelections()
                 this.convertedImage.assign( this.targetImage );
@@ -189,7 +189,7 @@ class AutoIntegrateBandingEngine extends Object {
  
           this.fixImage=new Image( targetImage.width, targetImage.height,
                                   targetImage.numberOfChannels, targetImage.colorSpace,
-                                  targetImage.bitsPerSample, PixelSampleType.Real );
+                                  targetImage.bitsPerSample, PixelSampleType.Float );
           var fixImage=this.fixImage;
           targetImage.resetSelections();
           fixImage.resetSelections();
@@ -252,7 +252,7 @@ class AutoIntegrateBandingEngine extends Object {
           if ( false ){
              fixImage.normalize();
              var wtmp = new ImageWindow( 1000, 1000, 3,
-                                  fixImage.bitsPerSample, fixImage.sampleType == PixelSampleType.Real, fixImage.isColor,"FixImage" );
+                                  fixImage.bitsPerSample, fixImage.sampleType == PixelSampleType.Float, fixImage.isColor,"FixImage" );
              var v = wtmp.mainView;
  
              v.beginProcess( UndoFlag.NoSwapFile );
@@ -284,7 +284,7 @@ class AutoIntegrateBandingEngine extends Object {
           }
           this.resultImage=new Image( targetImage.width, targetImage.height,
                                   targetImage.numberOfChannels, targetImage.colorSpace,
-                                  targetImage.bitsPerSample, PixelSampleType.Real );
+                                  targetImage.bitsPerSample, PixelSampleType.Float );
           targetImage.resetSelections();
           var resultImage=this.resultImage;
           this.fixImage.resetSelections();
@@ -301,7 +301,7 @@ class AutoIntegrateBandingEngine extends Object {
           //I just clip the values between 0.0 and 1.1.
           var clipImage=new Image( targetImage.width, targetImage.height,
                                   targetImage.numberOfChannels, targetImage.colorSpace,
-                                  targetImage.bitsPerSample, PixelSampleType.Real );
+                                  targetImage.bitsPerSample, PixelSampleType.Float );
           clipImage.fill(0.0);
           resultImage.apply(clipImage,ImageOp_Max);
           clipImage.fill(1.0);

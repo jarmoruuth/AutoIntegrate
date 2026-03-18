@@ -535,6 +535,7 @@ createEnhancementsControls(parent)
 
       this.selectiveColor = new AutoIntegrateSelectiveColor(this.guitools, this.util, this.global, this.preview);
       this.selectiveColorSizer = this.selectiveColor.createSelectiveColorSizer(parent);
+      this.engine.selectiveColor = this.selectiveColor;
 
       this.narrowband_leave_some_green_CheckBox = this.guitools.newCheckBox(parent, "Leave some green", this.par.leave_some_green, 
             "<p>Leave some green color on image when running SCNR. Useful with SHO color palette. </p>");
