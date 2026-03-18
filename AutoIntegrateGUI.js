@@ -558,7 +558,7 @@ savePersistentSettings(from_exit)
             Settings.write ("AutoIntegrate" + "/prefixName", DataType.String, this.ppar.win_prefix);
             Settings.write ("AutoIntegrate" + "/prefixArray", DataType.String, JSON.stringify(this.ppar.prefixArray));
             if (this.par.use_manual_icon_column.val) {
-                  Settings.write ("AutoIntegrate" + "/this.global.columnCount", DataType.Int32, this.ppar.userColumnCount);
+                  Settings.write ("AutoIntegrate" + "/columnCount", DataType.Int32, this.ppar.userColumnCount);
             }
             Settings.write ("AutoIntegrate" + "/previewSettings", DataType.String, JSON.stringify(this.ppar.preview));
             Settings.write ("AutoIntegrate" + "/useSingleColumn", DataType.Boolean, this.ppar.use_single_column);
@@ -1588,7 +1588,7 @@ createCombinedMosaicPreviewWin(imgWinArr)
 updateOutputDirEdit(path)
 {
       this.util.setOutputRootDir(this.util.ensurePathEndSlash(path));
-      console.writeln("updateOutputDirEdit, set this.global.outputRootDir ", this.global.outputRootDir);
+      console.writeln("updateOutputDirEdit, set outputRootDir ", this.global.outputRootDir);
       this.outputDirEdit.text = this.global.outputRootDir;
 }
 
@@ -1619,7 +1619,7 @@ addOutputDir(parent)
       this.outputDirEdit.toolTip = lbl.toolTip;
       this.outputDirEdit.onEditCompleted = () => {
             this.util.setOutputRootDir(this.util.ensurePathEndSlash(this.outputDirEdit.text.trim()));
-            console.writeln("addOutputDir, set this.global.outputRootDir ", this.global.outputRootDir);
+            console.writeln("addOutputDir, set outputRootDir ", this.global.outputRootDir);
       };
 
       var dirbutton = new ToolButton( parent );
@@ -1899,7 +1899,7 @@ guiSubframeSelectorMeasure(fileNames, weight_filtering, treebox_filtering, measu
 {
       console.writeln("guiSubframeSelectorMeasure: fileNames.length " +  fileNames.length +", saved_measurements.length " + (this.global.saved_measurements ? this.global.saved_measurements.length : 0));
       if (this.global.saved_measurements && fileNames.length != this.global.saved_measurements.length) {
-            console.writeln("guiSubframeSelectorMeasure: fileNames.length != this.global.saved_measurements.length, need to measure all files");
+            console.writeln("guiSubframeSelectorMeasure: fileNames.length != saved_measurements.length, need to measure all files");
             if (this.okToMeasureAllFiles(fileNames.length, this.global.saved_measurements.length)) {
                   // User confirmed, clear old measurements
                   console.writeln("guiSubframeSelectorMeasure: clearing old measurements");
@@ -2464,7 +2464,7 @@ filterTreeBoxFiles(parent, pageIndex)
       // add new filtered file list
       this.addFilesToTreeBox(parent, pageIndex, treeboxfiles);
 
-      console.writeln("filterTreeBoxFiles, this.addFilesToTreeBox done");
+      console.writeln("filterTreeBoxFiles, addFilesToTreeBox done");
 
       var checked_count = 0;
       for (var i = 0; i < treeboxfiles.length; i++) {
@@ -4828,7 +4828,7 @@ AutoIntegrateDialog()
       this.debugCheckBox = this.guitools.newCheckBox(this, "Debug", this.par.debug, 
             "<p>Print some additional debug information to the log output files.</p>" );
       this.flowchartDebugCheckBox = this.guitools.newCheckBox(this, "Flowchart debug", this.par.flowchart_debug, 
-            "<p>Print some additional debug information when generating this.flowchart.</p>" );
+            "<p>Print some additional debug information when generating flowchart.</p>" );
       this.printProcessValuesCheckBox = this.guitools.newCheckBox(this, "Print process values", this.par.print_process_values, 
             "<p>Print PixInsight process values to the console and to the AutoIntegrate log file.</p>" );
       this.GC_before_channel_combination_CheckBox = this.guitools.newCheckBox(this, "Gradient correction on channel images", this.par.GC_before_channel_combination, 
@@ -7202,7 +7202,7 @@ AutoIntegrateDialog()
                   "<p>Switch between flowchart and image view if flowchart is available.</p>" +
                   "<p>Can be checked during processing. In that case live updates to the flowchart are shown.</p>" + 
                   "<p>If Flowchart setting <i>Get flowchart data before processing</i> is checked then the live flowchart " + 
-                  "view uses full processing this.flowchart.</p>" + 
+                  "view uses full processing flowchart.</p>" + 
                   this.guitools.skip_reset_tooltip,
                   function(checked) { 
                         this.par.show_flowchart.val = checked;
@@ -7239,7 +7239,7 @@ AutoIntegrateDialog()
                   "<p>" +
                   "Flowchart information is always generated during processing. It can viewed using <i>Show Flowchart</i> " +
                   "checkbox. During processing Flowchart is updated after each step. By checking and unchecking the <i>Show Flowchart</i> " +
-                  "checkbox it is possible to switch between the current preview image and this.flowchart." +
+                  "checkbox it is possible to switch between the current preview image and flowchart." +
                   "</p>" +
                   "<p>" +
                   "Flowchart settings are in the <i>Interface</i> tab. Note that Flowchart settings are saved to persistent module settings " +
@@ -7314,7 +7314,7 @@ AutoIntegrateDialog()
                                                 "decrementing if you close all windows, " +
                                                 "and saving the value between script invocations.</p>";
             this.columnCountControlComboBox = new ComboBox( this );
-            this.guitools.this.guitools.addArrayToComboBox(this.columnCountControlComboBox, this.column_count_values);
+            this.guitools.addArrayToComboBox(this.columnCountControlComboBox, this.column_count_values);
             if (this.ppar.userColumnCount == -1) {
                   this.columnCountControlComboBox.currentItem = 0;
             } else {
@@ -7585,7 +7585,7 @@ AutoIntegrateDialog()
             "<p>If checked then the current processed image is shown in the flowchart background.</p>" +
             this.guitools.skip_reset_tooltip);
       this.flowchartTimeCheckBox = this.guitools.newCheckBox(this, "Flowchart show processing time", this.par.flowchart_time, 
-            "<p>If checked then the operation processing time is shown in the this.flowchart.</p>" +
+            "<p>If checked then the operation processing time is shown in the flowchart.</p>" +
             this.guitools.skip_reset_tooltip);
       this.flowchartSaveImageCheckBox = this.guitools.newCheckBox(this, "Flowchart save image", this.par.flowchart_saveimage, 
             "<p>If checked then the flowchart image is saved into AutoProcessed directory after processing is complete.</p>" +

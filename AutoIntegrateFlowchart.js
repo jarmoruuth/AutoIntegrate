@@ -207,7 +207,7 @@ flowchartDrawText(graphics, x, y, node)
       }
 
       if (this.par.flowchart_debug.val) {
-            console.writeln("flowchartDrawText: node.id " + node.id + ", this.global.flowchartActiveId " + this.global.flowchartActiveId);
+            console.writeln("flowchartDrawText: node.id " + node.id + ", flowchartActiveId " + this.global.flowchartActiveId);
       }
       if (check_special_color && node.id == this.global.flowchartActiveId) {
             graphics.brush = new Brush( this.flowchart_active_id_color );
@@ -477,11 +477,11 @@ flowchartCheckOperationList(type, txt)
             if (nodepos < this.global.flowchartOperationList.length
                 && txt == this.global.flowchartOperationList[nodepos].txt) 
             {
-                  if (this.par.flowchart_debug.val) console.writeln("flowchartCheckOperationList:match " + txt + ", this.global.flowchartOperationList[" + this.global.flowchartActiveId + "] " + this.global.flowchartOperationList[this.global.flowchartActiveId]);
+                  if (this.par.flowchart_debug.val) console.writeln("flowchartCheckOperationList:match " + txt + ", flowchartOperationList[" + this.global.flowchartActiveId + "] " + this.global.flowchartOperationList[this.global.flowchartActiveId]);
                   // Use previously created node
                   node = this.global.flowchartOperationList[nodepos];
             } else {
-                  if (this.par.flowchart_debug.val) console.writeln("flowchartCheckOperationList:mismatch " + txt + ", this.global.flowchartOperationList[" + this.global.flowchartActiveId + "] " + this.global.flowchartOperationList[this.global.flowchartActiveId]);
+                  if (this.par.flowchart_debug.val) console.writeln("flowchartCheckOperationList:mismatch " + txt + ", flowchartOperationList[" + this.global.flowchartActiveId + "] " + this.global.flowchartOperationList[this.global.flowchartActiveId]);
             }
       } else {
             if (this.par.flowchart_debug.val) console.writeln("flowchartCheckOperationList:flowchartOperationList is empty, txt " + txt);

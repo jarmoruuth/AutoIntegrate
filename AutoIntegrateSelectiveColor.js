@@ -438,10 +438,10 @@ apply(view) {
 selectiveColorPreview() {
     // make a copy if the current image
     if (this.global.enhancements_target_image_id == 'Auto') {
-        console.criticalln("AutoIntegrateSelectiveColor: No image open for this.preview.");
+        console.criticalln("AutoIntegrateSelectiveColor: No image open for preview.");
         return
     }
-    console.writeln("Generating Selective Color this.preview...");
+    console.writeln("Generating Selective Color preview...");
     var enhancementsWin = ImageWindow.windowById(this.global.enhancements_target_image_id);
     var originalWin = enhancementsWin;
 

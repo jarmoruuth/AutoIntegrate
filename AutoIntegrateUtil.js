@@ -2057,7 +2057,7 @@ ensureDialogFilePath(names)
             if (this.global.outputRootDir != "") {
                   this.setOutputRootDir(this.ensurePathEndSlash(this.global.outputRootDir));
             }
-            console.writeln("ensureDialogFilePath, set this.global.outputRootDir ", this.global.outputRootDir);
+            console.writeln("ensureDialogFilePath, set outputRootDir ", this.global.outputRootDir);
             return 1;
       } else {
             return 2;

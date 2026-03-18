@@ -947,7 +947,7 @@ createEnhancementsControls(parent)
 
       var smoothBackgroundTooltip = 
             "<p>Smoothen background below a given pixel value. Pixel value can be found for example " +
-            "from the this.preview image using a mouse.</p>" +
+            "from the preview image using a mouse.</p>" +
             "<p>A limit value specifies below which the smoothing is done. " + 
             "The value should be selected so that no foreground data is lost.</p>" + 
             "<p>Smoothing sets a new relative value for pixels that are below the given limit value. " +
@@ -1447,7 +1447,7 @@ createTargetImageSizerOnItemSelected(image_id)
       }
       this.close_undo_images();
       this.global.enhancements_target_image_id = image_id;
-      if (this.global.debug) console.writeln("this.global.enhancements_target_image_id " + this.global.enhancements_target_image_id);
+      if (this.global.debug) console.writeln("enhancements_target_image_id " + this.global.enhancements_target_image_id);
       if (this.target_image_selected_callback != null) {
             this.target_image_selected_callback(this.global.enhancements_target_image_id);
       }
@@ -1522,7 +1522,7 @@ createTargetImageSizer(parent)
 
             this.createTargetImageSizerOnItemSelected(imageWindow.mainView.id);
 
-            if (this.global.debug)console.writeln("this.util.updateStatusInfoLabel");
+            if (this.global.debug)console.writeln("updateStatusInfoLabel");
             this.util.updateStatusInfoLabel("Size: " + imageWindow.mainView.image.width + "x" + imageWindow.mainView.image.height);
             this.update_enhancements_target_image_window_list(this.global.enhancements_target_image_id);
       };

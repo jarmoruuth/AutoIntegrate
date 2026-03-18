@@ -648,7 +648,7 @@ class AutoIntegratePreviewControl extends Frame
              var scaleY = this.scrollbox.viewport.height/this.image.height;
              var scale = Math.min(scaleX,scaleY);
              this.zoomOutLimit = scale;
-             if (this.par.debug.val) console.writeln(this.name + ":SetZoomOutLimit:scale ", scale, ", this.zoomOutLimit ", this.zoomOutLimit);
+             if (this.par.debug.val) console.writeln(this.name + ":SetZoomOutLimit:scale ", scale, ", zoomOutLimit ", this.zoomOutLimit);
        }
  
        transform(x, y, preview)
