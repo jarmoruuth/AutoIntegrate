@@ -1835,9 +1835,16 @@ createWindowFromImage(image, name, allow_duplicate_name)
       return targetWindow;
 }
 
+printMemoryStatus(txt = "")
+{
+      let memoryStatus = System.physicalMemoryStatus();
+      console.writeln("Memory status: " + parseInt((memoryStatus.totalBytes - memoryStatus.availableBytes) / (1024 * 1024)) + " MB used" + (txt ? " - " + txt : ""));
+}
+
 addProcessingStep(txt)
 {
       console.noteln("AutoIntegrate: " + txt);
+      if (this.global.debug) this.printMemoryStatus(txt);
       this.global.processing_steps = this.global.processing_steps + "\n" + txt;
 }
 

@@ -1396,26 +1396,26 @@ openImageFiles(filetype, lights_only, json_only, filetype_is_full_caption)
             return null;
       }
 
-      if (ofd.fileNames.length < 1) {
+      if (ofd.filePaths.length < 1) {
             return null;
       }
-      this.util.saveLastDir(File.extractDrive(ofd.fileNames[0]) + File.extractDirectory(ofd.fileNames[0]));
+      this.util.saveLastDir(File.extractDrive(ofd.filePaths[0]) + File.extractDirectory(ofd.filePaths[0]));
       if (json_only) {
             // accept any single file selected
-            if (ofd.fileNames.length != 1)  {
+            if (ofd.filePaths.length != 1)  {
                   console.criticalln("Only one Json file can be loaded");
                   return null;
             }
             var is_json_file = true;
       } else {
-            var is_json_file = (ofd.fileNames.length == 1 && File.extractExtension(ofd.fileNames[0]) == ".json");
+            var is_json_file = (ofd.filePaths.length == 1 && File.extractExtension(ofd.filePaths[0]) == ".json");
       }
       if (is_json_file) {
             /* Read files from a json file.
              * If lights_only, return a simple file array of light files
              * If not lights_only, return treebox files for each page
              */
-            var pagearray = this.util.readJsonFile(ofd.fileNames[0], lights_only);
+            var pagearray = this.util.readJsonFile(ofd.filePaths[0], lights_only);
             if (lights_only) {
                   if (pagearray[this.global.pages.LIGHTS] == null) {
                         return null;
@@ -1428,10 +1428,10 @@ openImageFiles(filetype, lights_only, json_only, filetype_is_full_caption)
       } else if (!lights_only) {
             /* Returns a simple file array as the only array member
              */
-            return [ ofd.fileNames ];
+            return [ ofd.filePaths ];
       } else {
             // return a simple file array
-            return ofd.fileNames;
+            return ofd.filePaths;
       }
 }
 
@@ -2419,7 +2419,7 @@ getDefects(LDD_win, detectColumns)
       var imageShift = 50;
 
       // detect line defects
-      var detectedLines = new this.autointegrateLDD.LDDEngine( LDD_win, detectColumns, detectPartialLines,
+      var detectedLines = new autointegrateLDD.LDDEngine( LDD_win, detectColumns, detectPartialLines,
                                                           layersToRemove, rejectionLimit, imageShift,
                                                           detectionThreshold, partialLineDetectionThreshold );
       // Generate output for cosmetic correction
@@ -3632,7 +3632,7 @@ subframeSelectorMeasure(fileNames, weight_filtering, treebox_filtering, measurem
             if (isNaN(SSWEIGHT)) {
                   SSWEIGHT = 0;
             }
-            this.util.addProcessingStep("SSWEIGHT " + SSWEIGHT + ", FWHM " + FWHM + ", Ecc " + Eccentricity + ", SNR " + SNRWeight + 
+            console.writeln("SSWEIGHT " + SSWEIGHT + ", FWHM " + FWHM + ", Ecc " + Eccentricity + ", SNR " + SNRWeight + 
                               ", Stars " + measurements[i][indexStars] + ", PSFSignal " + measurements[i][indexPSFSignal] + ", PSFPower " + measurements[i][indexPSFPower] +
                               ", " + measurements[i][indexPath]);
             // set SSWEIGHT to indexWeight column
@@ -13018,7 +13018,12 @@ createChannelImages(parent, auto_continue)
 
       this.global.write_processing_log_file = true;
 
-      if (this.preprocessed_images == this.global.start_images.FINAL) {
+      if (this.par.null_processing.val) {
+            // Null processing option is selected
+            console.writeln("Null processing option is selected.");
+            return this.retval.SUCCESS;
+
+      } else if (this.preprocessed_images == this.global.start_images.FINAL) {
             return this.retval.SUCCESS;
 
       } else if (this.preprocessed_images != this.global.start_images.NONE) {
@@ -18951,6 +18956,9 @@ autointegrateProcessingEngine(parent, auto_continue, autocontinue_narrowband, tx
        }
        console.show();
 
+      console.writeln("Start AutoIntegrate processing...");
+      this.util.printMemoryStatus("Start processing");
+
        this.stepno = 1;
        this.global.subframeselector_call_count = 0;
 
@@ -19011,6 +19019,22 @@ autointegrateProcessingEngine(parent, auto_continue, autocontinue_narrowband, tx
        this.medianFWHM = null;
        this.linear_fit_rerefence_id = null;
        this.solved_imageId = null;
+
+       // V8 limitations for now
+       if (this.par.use_starxterminator.val || this.par.use_noisexterminator.val || this.par.use_blurxterminator.val) {
+            this.par.use_starxterminator.val = false;
+            this.par.use_noisexterminator.val = false;
+            this.par.use_blurxterminator.val = false;
+            this.util.addWarningStatus("Warning: RC-Astro tools disabled for V8 testing");
+       }
+       if (this.par.use_spcc.val) {
+            this.util.addWarningStatus("Warning: SPCC disabled for V8 testing");
+            this.par.use_spcc.val = false;
+       }
+       if (this.par.use_multiscalegradientcorrection.val) {
+            this.util.addWarningStatus("Warning: MultiscaleGradientCorrection disabled for V8 testing");
+            this.par.use_multiscalegradientcorrection.val = false;
+       }
  
        this.RGB_stars_win = null;        // linear combined RGB/narrowband/OSC stars
        this.RGB_stars_win_HT = null;     // stretched/non-linear RGB stars win
@@ -19083,8 +19107,9 @@ autointegrateProcessingEngine(parent, auto_continue, autocontinue_narrowband, tx
         * Crop all channel support images (the *_map images) to an area
         * covered by all source images.
         ********************************************************************/
-       if (create_channel_images_ret == this.retval.SUCCESS || 
-           (this.par.cropinfo_only.val && create_channel_images_ret == this.retval.INCOMPLETE)) 
+       if (!this.par.null_processing.val && 
+           (create_channel_images_ret == this.retval.SUCCESS || 
+            (this.par.cropinfo_only.val && create_channel_images_ret == this.retval.INCOMPLETE)))
        {
              /* If requested, we crop all channel support images (the *_map images)
               * to an area covered by all source images.
@@ -19114,7 +19139,9 @@ autointegrateProcessingEngine(parent, auto_continue, autocontinue_narrowband, tx
        ********************************************************************/
  
        var do_enhancements = false;
-       if (this.par.calibrate_only.val || this.par.generate_masters_only.val) {
+       if (this.par.null_processing.val) {
+             this.util.addProcessingStep("Null processing, skip to enhancements");
+       } else if (this.par.calibrate_only.val || this.par.generate_masters_only.val) {
              this.preprocessed_images = this.global.start_images.CALIBRATE_ONLY;
        } else if (this.preprocessed_images == this.global.start_images.FINAL) {
             /********************************************************************
@@ -19226,7 +19253,7 @@ autointegrateProcessingEngine(parent, auto_continue, autocontinue_narrowband, tx
              }
  
              if (this.par.monochrome_image.val) {
-                   console.writeln("monochrome image, rename windows")
+                   console.writeln("Monochrome image, rename windows")
                    LRGB_processed_HT_id = this.util.windowRename(this.L_processed_HT_win.mainView.id, this.ppar.win_prefix + "AutoMono");
                    this.guiUpdatePreviewId(LRGB_processed_HT_id);
                    if (flowchart_parent_begin) {
@@ -19555,7 +19582,8 @@ autointegrateProcessingEngine(parent, auto_continue, autocontinue_narrowband, tx
            && !this.par.generate_masters_only.val
            && !this.par.binning_only.val
            && !this.par.debayer_only.val
-           && !this.par.extract_channels_only.val)
+           && !this.par.extract_channels_only.val
+           && !this.par.null_processing.val)
        {
              /* Output some info of files.
              */
@@ -19592,6 +19620,7 @@ autointegrateProcessingEngine(parent, auto_continue, autocontinue_narrowband, tx
              var full_run = false;
        }
        var end_time = Date.now();
+       this.util.printMemoryStatus("End processing");
        console.noteln("======================================");
        this.util.addProcessingStepAndStatusInfo("Script completed, time "+(end_time-this.script_start_time)/1000+" sec");
        console.noteln("======================================");
@@ -19671,7 +19700,7 @@ autointegrateProcessingEngine(parent, auto_continue, autocontinue_narrowband, tx
        this.util.runGarbageCollection();
  
        if (this.global.debug) console.writeln("global.testmode " + this.global.testmode);
-       if (this.global.testmode) {
+       if (this.global.testmode || this.global.debug) {
             this.global.testmode_log += "\n" + this.global.processing_steps;
             this.writeTestmodeLog(this.global.testmode_log, "TestMode.log");
             this.global.testmode_log = "";

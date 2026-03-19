@@ -268,6 +268,7 @@ this.par = {
       keep_temporary_images: { val: false, def: false, name : "Keep temporary images", type : 'B' },
       keep_processed_images: { val: false, def: false, name : "Keep processed images", type : 'B' },
       debug: { val: true, def: true, name : "Debug", type : 'B' },
+      null_processing: { val: false, def: false, name : "Null processing", type : 'B' },
       flowchart_debug: { val: true, def: true, name : "Flowchart debug", type : 'B' },
       print_process_values: { val: false, def: false, name : "Print process values", type : 'B' },
       monochrome_image: { val: false, def: false, name : "Monochrome", type : 'B' },

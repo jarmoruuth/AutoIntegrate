@@ -2887,7 +2887,7 @@ addMastersButton(parent)
                   return;
             }
 
-            var fileNames = ofd.fileNames;
+            var fileNames = ofd.filePaths;
             if (fileNames.length == 0) {
                   return;
             }
@@ -4827,6 +4827,8 @@ AutoIntegrateDialog()
             "<p>Only images after image integration are kept. Images are not saved to disk.</p>" );
       this.debugCheckBox = this.guitools.newCheckBox(this, "Debug", this.par.debug, 
             "<p>Print some additional debug information to the log output files.</p>" );
+      this.nullProcessingCheckBox = this.guitools.newCheckBox(this, "Null processing", this.par.null_processing, 
+            "<p>Do not perform any actual processing. This is useful for testing and debugging.</p>" );
       this.flowchartDebugCheckBox = this.guitools.newCheckBox(this, "Flowchart debug", this.par.flowchart_debug, 
             "<p>Print some additional debug information when generating flowchart.</p>" );
       this.printProcessValuesCheckBox = this.guitools.newCheckBox(this, "Print process values", this.par.print_process_values, 
@@ -7620,6 +7622,7 @@ AutoIntegrateDialog()
       this.debugControl.sizer.spacing = 4;
       this.debugControl.sizer.add( this.printProcessValuesCheckBox );
       this.debugControl.sizer.add( this.debugCheckBox );
+      this.debugControl.sizer.add( this.nullProcessingCheckBox );
       this.debugControl.sizer.add( this.flowchartDebugCheckBox );
       this.debugControl.sizer.add( this.keepProcessedImagesCheckBox );
       this.debugControl.sizer.add( this.keepTemporaryImagesCheckBox );
