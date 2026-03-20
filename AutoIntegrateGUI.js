@@ -419,6 +419,8 @@ variableCleanup()
       this.previewControl = null;
       this.previewInfoLabel = null;
       this.mainTabBox = null;
+      this.treeBoxRootingArr = null;
+      this.global.rootingArr = null;
 }
 
 exitCleanup(dialog)
