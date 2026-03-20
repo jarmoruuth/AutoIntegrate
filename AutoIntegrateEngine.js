@@ -18897,6 +18897,68 @@ get_local_copies_of_parameters()
       this.local_RGBHa_combine_method = this.par.RGBHa_combine_method.val;
 }
 
+// V8 limitations for now
+check_available_processes()
+{
+      let P;
+      if (this.par.use_starxterminator.val) {
+            try {
+                  P = new StarXTerminator;
+            } catch (e) {
+                  this.util.addWarningStatus("StarXTerminator not available");
+                  this.par.use_starxterminator.val = false;
+            }
+      }
+      if (this.par.use_noisexterminator.val) {
+            try {
+                  P = new NoiseXTerminator;
+            } catch (e) {
+                  this.util.addWarningStatus("NoiseXTerminator not available");
+                  this.par.use_noisexterminator.val = false;
+            }
+      }
+      if (this.par.use_blurxterminator.val) {
+            try {
+                  P = new BlurXTerminator;
+            } catch (e) {
+                  this.util.addWarningStatus("BlurXTerminator not available");
+                  this.par.use_blurxterminator.val = false;
+            }
+      }
+      if (this.par.use_spcc.val) {
+            try {
+                  P = new SpectrophotometricColorCalibration;
+            } catch (e) {
+                  this.util.addWarningStatus("SpectrophotometricColorCalibration not available");
+                  this.par.use_spcc.val = false;
+            }
+            if (this.par.use_spcc.val) {
+                  try {
+                        P = new ImageSolver;
+                  } catch (e) {
+                        this.util.addWarningStatus("SpectrophotometricColorCalibration disabled, ImageSolver not available");
+                        this.par.use_spcc.val = false;
+                  }
+            }
+      }
+      if (this.par.use_multiscalegradientcorrection.val) {
+            try {
+                  P = new MultiscaleGradientCorrection;
+            } catch (e) {
+                  this.util.addWarningStatus("MultiscaleGradientCorrection not available");
+                  this.par.use_multiscalegradientcorrection.val = false;
+            }
+            if (this.par.use_multiscalegradientcorrection.val) {
+                  try {
+                        P = new ImageSolver;
+                  } catch (e) {
+                        this.util.addWarningStatus("MultiscaleGradientCorrection disabled, ImageSolver not available");
+                        this.par.use_multiscalegradientcorrection.val = false;
+                  }
+            }
+      }
+}
+
 /***************************************************************************
  * 
  *    autointegrateProcessingEngine
@@ -19020,21 +19082,7 @@ autointegrateProcessingEngine(parent, auto_continue, autocontinue_narrowband, tx
        this.linear_fit_rerefence_id = null;
        this.solved_imageId = null;
 
-       // V8 limitations for now
-       if (this.par.use_starxterminator.val || this.par.use_noisexterminator.val || this.par.use_blurxterminator.val) {
-            this.par.use_starxterminator.val = false;
-            this.par.use_noisexterminator.val = false;
-            this.par.use_blurxterminator.val = false;
-            this.util.addWarningStatus("Warning: RC-Astro tools disabled for V8 testing");
-       }
-       if (this.par.use_spcc.val) {
-            this.util.addWarningStatus("Warning: SPCC disabled for V8 testing");
-            this.par.use_spcc.val = false;
-       }
-       if (this.par.use_multiscalegradientcorrection.val) {
-            this.util.addWarningStatus("Warning: MultiscaleGradientCorrection disabled for V8 testing");
-            this.par.use_multiscalegradientcorrection.val = false;
-       }
+       this.check_available_processes();
  
        this.RGB_stars_win = null;        // linear combined RGB/narrowband/OSC stars
        this.RGB_stars_win_HT = null;     // stretched/non-linear RGB stars win
