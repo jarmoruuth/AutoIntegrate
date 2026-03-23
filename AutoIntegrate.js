@@ -260,6 +260,7 @@ Linear Defect Detection:
 
 #include "AutoIntegrateLDD.js"
 #include "AutoIntegrateBanding.js"
+#include "AutoIntegrateCalibrate.js"
 #include "AutoIntegrateEngine.js"
 
 #include "AutoIntegratePreview.js"

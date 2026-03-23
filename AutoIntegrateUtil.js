@@ -33,6 +33,8 @@ this.loggingEnabled = true;
 this.beginLogCallback = null;
 this.endLogCallback = null;
 
+this.executed_processes = [];
+
 }
 
 /* Set optional GUI object to update GUI components.
@@ -854,6 +856,7 @@ windowRenameKeepifEx(old_name, new_name, keepif, allow_duplicate_name)
       if (this.global.get_flowchart_data && w.mainView.id != new_name) {
             this.global.flowchartWindows[this.global.flowchartWindows.length] = w.mainView.id;
       }
+      this.addExecutedProcessScriptAction("rename", [ old_name, w.mainView.id ]);
       return w.mainView.id;
 }
 
@@ -1548,6 +1551,11 @@ copyWindowEx(sourceWindow, name, allow_duplicate_name)
 
       if (this.global.get_flowchart_data) {
             this.global.flowchartWindows[this.global.flowchartWindows.length] = targetWindow.mainView.id;
+      }
+
+      // Skip some temporary images
+      if (name.indexOf("preview_tmp") == -1) {
+            this.addExecutedProcessScriptAction("copyWindow", [ sourceWindow.mainView.id, name ]);
       }
 
       return targetWindow;
@@ -2909,6 +2917,167 @@ getScaledExclusionAreas(exclusionAreas, targetImage, rescale = true)
 
       return { polygons: scaledExclusionAreas, image_width: targetImage.mainView.image.width, image_height: targetImage.mainView.image.height };
 }
+
+addExecutedProcess(obj, txt = "", imageId = null)
+{
+      if (!this.global.get_flowchart_data
+          && this.global.is_processing != this.global.processing_state.none
+          && !this.global.creating_mask
+          && !this.global.skip_process_value_save)
+      {
+            this.executed_processes.push(
+                  { 
+                        src: obj.toSource("XPSM 1.0"), 
+                        src_js: obj.toSource(), 
+                        processId: obj.processId(),
+                        txt: txt,
+                        imageId: imageId
+                  }
+            );
+      }
+}
+
+addExecutedProcessScriptAction(action, options)
+{
+      if (!this.global.get_flowchart_data
+          && this.global.is_processing != this.global.processing_state.none
+          && !this.global.creating_mask
+          && !this.global.skip_process_value_save)
+      {
+            if (action == "rename") {
+                  action = "renameWindow('" + options[0] + "', '" + options[1] + "');";
+
+            } else if (action == "copyWindow") {
+                  action = "copyWindow('" + options[0] + "', '" + options[1] + "');\n";
+
+            } else {
+                  this.throwFatalError("addExecutedProcessScriptAction, unknown action " + action);
+                  return;
+            }
+            this.executed_processes.push(
+                  { 
+                        src: null, 
+                        src_js: null, 
+                        action: action
+                  }
+            );
+      }
+}
+
+writeExecutedProcessesToScript(filename)
+{
+      console.writeln("Write executed processes to script file " + filename);
+      var file = new File();
+      file.createForWriting(filename);
+      file.outText("// AutoIntegrate executed processes\n");
+      file.outText("// Generated on " + (new Date()).toString() + "\n");
+      file.outText("// PixInsight version " + this.global.pixinsight_version_str + "\n");
+      file.outText("// AutoIntegrate version " + this.global.autointegrate_version + "\n");
+      file.outTextLn("");
+      file.outTextLn("#engine v8");
+      file.outTextLn("");
+      file.outTextLn("function copyWindow(sourceId, targetId) {");
+      file.outTextLn("      console.writeln('Copying window: ' + sourceId + ' to ' + targetId);");
+      file.outTextLn("      var sourceWindow = ImageWindow.windowById(sourceId);");
+      file.outTextLn("      if (sourceWindow == null) {");
+      file.outTextLn("            return;");
+      file.outTextLn("      }");
+      file.outTextLn("      var targetWindow = new ImageWindow(");
+      file.outTextLn("                              sourceWindow.mainView.image.width,");
+      file.outTextLn("                              sourceWindow.mainView.image.height,");
+      file.outTextLn("                              sourceWindow.mainView.image.numberOfChannels,");
+      file.outTextLn("                              sourceWindow.mainView.window.bitsPerSample,");
+      file.outTextLn("                              sourceWindow.mainView.window.isFloatSample,");
+      file.outTextLn("                              sourceWindow.mainView.image.colorSpace != ColorSpace.Gray,");
+      file.outTextLn("                              targetId);");
+      file.outTextLn("      targetWindow.mainView.beginProcess(UndoFlag.NoSwapFile);");
+      file.outTextLn("      targetWindow.mainView.image.assign(sourceWindow.mainView.image);");
+      file.outTextLn("      targetWindow.mainView.endProcess();");
+      file.outTextLn("      targetWindow.show();");
+      file.outTextLn("}");
+      file.outTextLn("function renameWindow(oldId, newId) {");
+      file.outTextLn("      console.writeln('Renaming window: ' + oldId + ' to ' + newId);");
+      file.outTextLn("      var sourceWindow = ImageWindow.windowById(oldId);");
+      file.outTextLn("      if (sourceWindow == null) {");
+      file.outTextLn("            return;");
+      file.outTextLn("      }");
+      file.outTextLn("      sourceWindow.mainView.id = newId;");
+      file.outTextLn("}");
+      file.outTextLn("");
+
+      for (var i = 0; i < this.executed_processes.length; i++) {
+            var src_js = this.executed_processes[i].src_js;
+            if (src_js == null) {
+                  // This is a script action, write code to execute the action with options
+                  file.outTextLn(this.executed_processes[i].action);
+            } else {
+                  file.outTextLn(src_js);
+                  if (this.executed_processes[i].imageId != null) {
+                        file.outTextLn("P.executeOn(ImageWindow.windowById('" + this.executed_processes[i].imageId + "').mainView, false);");
+                  } else {
+                        file.outTextLn("P.executeGlobal();");
+                  }
+            }
+            file.outTextLn("");
+      }
+      file.close();
+}
+
+writeExecutedProcessesToXPSM(filename)
+{
+      console.writeln("Write executed processes to XPSM file " + filename);
+      var file = new File();
+      file.createForWriting(filename);
+
+      file.outTextLn('<?xml version="1.0" encoding="UTF-8"?>');
+      file.outTextLn('<!--');
+      file.outTextLn('********************************************************************');
+      file.outTextLn('PixInsight XML Process Serialization Module - XPSM 1.0');
+      file.outTextLn('AutoIntegrate processings steps');
+      file.outTextLn('********************************************************************');
+      file.outTextLn('Generated on ' + (new Date()).toString());
+      file.outTextLn('PixInsight version ' + this.global.pixinsight_version_str);
+      file.outTextLn('AutoIntegrate version ' + this.global.autointegrate_version);
+      file.outTextLn('********************************************************************');
+      file.outTextLn('-->');
+
+      file.outText('<xpsm version=\"1.0\"');
+      file.outText(' mlns="http://www.pixinsight.com/xpsm"');
+      file.outText(' xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"');
+      file.outText(' xsi:schemaLocation="http://www.pixinsight.com/xpsm');
+      file.outTextLn(' http://pixinsight.com/xpsm/xpsm-1.0.xsd">');
+
+      // Write process instances
+      for (var i = 0; i < this.executed_processes.length; i++) {
+            var src = this.executed_processes[i].src;
+            if (src == null) {
+                  continue;
+            }
+            var processId = this.executed_processes[i].processId;
+            file.outTextLn('<!-- ' + processId + (i+1) + ' -->');
+            src = src.replace(processId + "_instance", "ai_" + processId + "_instance" + (i+1));
+            src = src.replace(/Integration_([LRGBSHOC])_map/g, "Integration_$1");
+            src = src.replace(/Integration_RGB_map/g, "Integration_RGB");
+            file.outTextLn(src);
+      }
+
+      // write icons
+      for (var i = 0; i < this.executed_processes.length; i++) {
+            var processId = this.executed_processes[i].processId;
+            var txt = this.executed_processes[i].txt;
+            if (txt != "" && txt != null) {
+                  txt = '_' + txt;
+            }
+            file.outTextLn('<icon id="ai_' + processId + txt + '_' + (i+1) + '"' +
+                           ' instance="ai_' + processId + '_instance' + (i+1) + '"' +
+                           ' xpos="' + (this.global.screen_width - 600) + '" ypos="' + (5 + 32 * (i+1)) + '" workspace="Workspace01"/>');
+      }
+      file.outTextLn('</xpsm>\n');
+      file.close();
+
+      this.writeExecutedProcessesToScript(filename.replace(/\.xpsm$/, ".js"));
+}
+
 
 beginLog()
 {

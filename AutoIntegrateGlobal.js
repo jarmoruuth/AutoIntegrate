@@ -96,6 +96,8 @@ this.do_not_read_settings = false;      // do not read Settings from persistent 
 this.do_not_write_settings = false;     // do not write Settings to persistent module settings
 this.use_preview = true;
 this.is_processing = this.processing_state.none;
+this.creating_mask = false;          // flag for creating mask
+this.skip_process_value_save = false;   // flag for iterative stretching
 
 this.cancel_processing = false;
 
