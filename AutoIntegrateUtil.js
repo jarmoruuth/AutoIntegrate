@@ -884,10 +884,12 @@ closeOneWindow(w, force_close = true)
             if (!this.global.get_flowchart_data) {
                   // console.writeln("Force close " + w.mainView.id);
             }
+            this.addExecutedProcessScriptAction("closeWindow", [ w.mainView.id ]);
             w.forceClose();
       } else {
             // PixInsight will ask if file is changed but not saved
             console.writeln("Close " + w.mainView.id);
+            this.addExecutedProcessScriptAction("closeWindow", [ w.mainView.id ]);
             w.close();
       }
 }
@@ -2931,33 +2933,43 @@ addExecutedProcess(obj, txt = "", imageId = null)
                         src_js: obj.toSource(), 
                         processId: obj.processId(),
                         txt: txt,
-                        imageId: imageId
+                        imageId: imageId,
+                        action: null
                   }
             );
       }
 }
 
-addExecutedProcessScriptAction(action, options)
+addExecutedProcessScriptAction(actiontxt, options)
 {
       if (!this.global.get_flowchart_data
           && this.global.is_processing != this.global.processing_state.none
           && !this.global.creating_mask
           && !this.global.skip_process_value_save)
       {
-            if (action == "rename") {
-                  action = "renameWindow('" + options[0] + "', '" + options[1] + "');";
+            if (actiontxt == "rename") {
+                  var action = "renameWindow('" + options[0] + "', '" + options[1] + "');";
 
-            } else if (action == "copyWindow") {
-                  action = "copyWindow('" + options[0] + "', '" + options[1] + "');\n";
+            } else if (actiontxt == "copyWindow") {
+                  var action = "copyWindow('" + options[0] + "', '" + options[1] + "');\n";
+
+            } else if (actiontxt == "closeWindow") {
+                  var action = "closeWindow('" + options[0] + "');\n";
+
+            } else if (actiontxt == "newWindow") {
+                  var action = "new ImageWindow(" + options[0] + ", " + options[1] + ", " + options[2] + ", " + options[3] + ", " + options[4] + ", " + options[5] + ", '" + options[6] + "');\n";
 
             } else {
-                  this.throwFatalError("addExecutedProcessScriptAction, unknown action " + action);
+                  this.throwFatalError("addExecutedProcessScriptAction, unknown action " + actiontxt);
                   return;
             }
             this.executed_processes.push(
                   { 
                         src: null, 
                         src_js: null, 
+                        processId: 0,
+                        txt: action,
+                        imageId: null,
                         action: action
                   }
             );
@@ -2979,8 +2991,8 @@ writeExecutedProcessesToScript(filename)
       file.outTextLn("function copyWindow(sourceId, targetId) {");
       file.outTextLn("      console.writeln('Copying window: ' + sourceId + ' to ' + targetId);");
       file.outTextLn("      var sourceWindow = ImageWindow.windowById(sourceId);");
-      file.outTextLn("      if (sourceWindow == null) {");
-      file.outTextLn("            return;");
+      file.outTextLn("      if (sourceWindow == null || sourceWindow.isNull) {");
+      file.outTextLn("            throw new Error('copyWindow:Source window ' + sourceId + ' is null');");
       file.outTextLn("      }");
       file.outTextLn("      var targetWindow = new ImageWindow(");
       file.outTextLn("                              sourceWindow.mainView.image.width,");
@@ -2998,12 +3010,27 @@ writeExecutedProcessesToScript(filename)
       file.outTextLn("function renameWindow(oldId, newId) {");
       file.outTextLn("      console.writeln('Renaming window: ' + oldId + ' to ' + newId);");
       file.outTextLn("      var sourceWindow = ImageWindow.windowById(oldId);");
-      file.outTextLn("      if (sourceWindow == null) {");
-      file.outTextLn("            return;");
+      file.outTextLn("      if (sourceWindow == null || sourceWindow.isNull) {");
+      file.outTextLn("            throw new Error('renameWindow: Source window ' + oldId + ' is null');");
       file.outTextLn("      }");
       file.outTextLn("      sourceWindow.mainView.id = newId;");
       file.outTextLn("}");
+      file.outTextLn("function closeWindow(windowId) {");
+      file.outTextLn("      console.writeln('Closing window: ' + windowId);");
+      file.outTextLn("      var window = ImageWindow.windowById(windowId);");
+      file.outTextLn("      if (window == null || window.isNull) {");
+      file.outTextLn("            return;");
+      file.outTextLn("      }");
+      file.outTextLn("      window.forceClose();");
+      file.outTextLn("}");
+      file.outTextLn("function printMemoryStatus(txt = \"\") {");
+      file.outTextLn("      let memoryStatus = System.physicalMemoryStatus();");
+      file.outTextLn("      console.writeln(\"Memory status: \" + parseInt((memoryStatus.totalBytes - memoryStatus.availableBytes) / (1024 * 1024)) + \" MB used\" + (txt ? \" - \" + txt : \"\"));");
+      file.outTextLn("}");
+
       file.outTextLn("");
+      file.outTextLn("console.beginLog();");
+      file.outTextLn("printMemoryStatus('Before processing');");
 
       for (var i = 0; i < this.executed_processes.length; i++) {
             var src_js = this.executed_processes[i].src_js;
@@ -3011,15 +3038,26 @@ writeExecutedProcessesToScript(filename)
                   // This is a script action, write code to execute the action with options
                   file.outTextLn(this.executed_processes[i].action);
             } else {
+                  file.outTextLn("");
                   file.outTextLn(src_js);
                   if (this.executed_processes[i].imageId != null) {
                         file.outTextLn("P.executeOn(ImageWindow.windowById('" + this.executed_processes[i].imageId + "').mainView, false);");
                   } else {
                         file.outTextLn("P.executeGlobal();");
                   }
+                  var txt = this.executed_processes[i].txt ? " " + this.executed_processes[i].txt : "";
+                  file.outTextLn("printMemoryStatus('After " + this.executed_processes[i].processId + txt + "');");
             }
-            file.outTextLn("");
       }
+      file.outTextLn("");
+      file.outTextLn("printMemoryStatus('After processing');");
+      file.outTextLn("console.noteln('Processing completed');");
+      file.outTextLn("var logtxt = console.endLog();");
+      file.outTextLn("var file = new File();");
+      file.outTextLn("file.createForWriting('" + filename.replace(/\.js$/, ".log") + "');");
+      file.outTextLn("file.write(logtxt);");
+      file.outTextLn("file.close();");
+
       file.close();
 }
 

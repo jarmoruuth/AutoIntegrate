@@ -58,10 +58,10 @@ runImageIntegrationBiasDarks(images, name, type, exptime)
       this.util.closeOneWindowById(P.lowRejectionMapImageId);
       this.util.closeOneWindowById(P.slopeMapImageId);
 
-      var new_name = this.util.windowRename(P.integrationImageId, name);
-
       this.engine.printAndSaveProcessValues(P, type);
       this.engine.engine_end_process(node);
+
+      var new_name = this.util.windowRename(P.integrationImageId, name);
 
       this.engine.setAutoIntegrateVersionIfNeeded(this.util.findWindow(new_name));
 
@@ -90,25 +90,12 @@ runSuberBias(biasWin)
 
       var targetWindow = ImageWindow.activeWindow;
 
-      this.util.windowRenameKeepif(targetWindow.mainView.id, this.ppar.win_prefix + "AutoMasterSuperBias", true);
-
       this.engine.printAndSaveProcessValues(P, "", biasWin.mainView.id);
       this.engine.engine_end_process(node, biasWin, "Superbias", false);
 
-      return targetWindow.mainView.id
-}
+      this.util.windowRenameKeepif(targetWindow.mainView.id, this.ppar.win_prefix + "AutoMasterSuperBias", true);
 
-/* Read FITS headers from a file and return its EXPTIME/EXPOSURE value. */
-getExptimeFromFile(filePath)
-{
-      var keywords = this.engine.getFileKeywords(filePath);
-      for (var j = 0; j < keywords.length; j++) {
-            var value = keywords[j].strippedValue.trim();
-            if (keywords[j].name == "EXPTIME" || keywords[j].name == "EXPOSURE") {
-                  return parseFloat(value);
-            }
-      }
-      return 0;
+      return targetWindow.mainView.id
 }
 
 /* Group dark file paths by their exposure time.
@@ -119,7 +106,7 @@ groupDarksByExposureTime(fileNames)
 {
       var groups = {};
       for (var i = 0; i < fileNames.length; i++) {
-            var exptime = this.getExptimeFromFile(fileNames[i]);
+            var exptime = this.engine.getExptimeFromFile(fileNames[i]);
             var key = exptime.toString();
             if (!groups[key]) {
                   groups[key] = { exptime: exptime, files: [] };
@@ -164,7 +151,7 @@ selectMasterDarkForExptime(masterdarkInfoArr, targetExptime)
       }
       if (!Array.isArray(masterdarkInfoArr)) {
             // Single master dark — warn if its exposure time differs too much from the lights.
-            var darkExptime = this.getExptimeFromFile(masterdarkInfoArr);
+            var darkExptime = this.engine.getExptimeFromFile(masterdarkInfoArr);
             console.writeln("selectMasterDarkForExptime: single master dark " + masterdarkInfoArr + ", exptime " + darkExptime + "s, targetExptime " + targetExptime + "s");
             if (darkExptime > 0 && Math.abs(darkExptime - targetExptime) > 0.1 * targetExptime) {
                   this.util.addWarningStatus("Warning: Master dark exposure time " + darkExptime + "s does not closely match light exposure time " + targetExptime + "s");
@@ -398,10 +385,10 @@ runImageIntegrationFlats(images, name, filterName)
       this.util.closeOneWindowById(P.lowRejectionMapImageId);
       this.util.closeOneWindowById(P.slopeMapImageId);
 
-      var new_name = this.util.windowRename(P.integrationImageId, name);
-
       this.engine.printAndSaveProcessValues(P, "flats_" + filterName);
       this.engine.engine_end_process(node);
+
+      var new_name = this.util.windowRename(P.integrationImageId, name);
 
       this.engine.setAutoIntegrateVersionIfNeeded(this.util.findWindow(new_name));
 

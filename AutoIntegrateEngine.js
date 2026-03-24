@@ -1845,7 +1845,6 @@ imagesEnabledPathToFileList(images)
       return fileNames;
 }
 
-
 // Group files based on telescope and resolution
 getLDDgroups(fileNames)
 {
@@ -3628,6 +3627,19 @@ getFileKeywords(filePath)
       f.close();
 
       return keywords;
+}
+
+/* Read FITS headers from a file and return its EXPTIME/EXPOSURE value. */
+getExptimeFromFile(filePath)
+{
+      var keywords = this.getFileKeywords(filePath);
+      for (var j = 0; j < keywords.length; j++) {
+            var value = keywords[j].strippedValue.trim();
+            if (keywords[j].name == "EXPTIME" || keywords[j].name == "EXPOSURE") {
+                  return parseFloat(value);
+            }
+      }
+      return 0;
 }
 
 // Get filter keywpord for image. If filter is not found from FILTER keyword
@@ -13516,6 +13528,8 @@ combineRGBimageEx(target_name, images)
                         true,                               // bool color=false
                         rgb_name);                          // const IsoString &id=IsoString()
 
+      this.util.addExecutedProcessScriptAction("newWindow", [model_win.mainView.image.width, model_win.mainView.image.height, 3, 32, true, true, rgb_name]);
+      
       if (win.mainView.id != rgb_name) {
             if (this.global.get_flowchart_data) {
                   this.global.flowchartWindows[this.global.flowchartWindows.length] = win.mainView.id;
