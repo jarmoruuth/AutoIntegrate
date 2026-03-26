@@ -58,6 +58,15 @@ init_pixinsight_version()
 
 runGarbageCollection()
 {
+      if (0) {
+            var start_time = Date.now();
+            gc();
+            var end_time = Date.now();
+            var time_sec = (end_time-start_time)/1000;
+            if (time_sec >= 1.0) {
+                  console.writeln("runGarbageCollection, " + time_sec + " sec");
+            }
+      }
 }
 
 checkEvents()
@@ -1854,7 +1863,7 @@ printMemoryStatus(txt = "")
 addProcessingStep(txt)
 {
       console.noteln("AutoIntegrate: " + txt);
-      if (this.global.debug) this.printMemoryStatus(txt);
+      this.printMemoryStatus(txt);
       this.global.processing_steps = this.global.processing_steps + "\n" + txt;
 }
 
@@ -3112,10 +3121,7 @@ writeExecutedProcessesToXPSM(filename)
       }
       file.outTextLn('</xpsm>\n');
       file.close();
-
-      this.writeExecutedProcessesToScript(filename.replace(/\.xpsm$/, ".js"));
 }
-
 
 beginLog()
 {

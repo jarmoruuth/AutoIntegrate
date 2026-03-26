@@ -273,6 +273,7 @@ this.par = {
       null_processing: { val: false, def: false, name : "Null processing", type : 'B' },
       flowchart_debug: { val: true, def: true, name : "Flowchart debug", type : 'B' },
       print_process_values: { val: false, def: false, name : "Print process values", type : 'B' },
+      create_executed_processes_js: { val: false, def: false, name : "Create ExecutedProcesses.js file", type : 'B' },
       monochrome_image: { val: false, def: false, name : "Monochrome", type : 'B' },
       skip_imageintegration_clipping: { val: false, def: false, name : "No ImageIntegration clipping", type : 'B' },
       synthetic_l_image: { val: false, def: false, name : "Synthetic L", type : 'B' },

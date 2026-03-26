@@ -291,8 +291,8 @@ class AutoIntegrateBandingEngine extends Object {
           resultImage.resetSelections();
           resultImage.assign(this.fixImage);
           var dAmount=this.dAmount;
-          resultImage.apply(dAmount,ImageOp_Mul);
-          resultImage.apply(targetImage,ImageOp_Add);
+          resultImage.apply(dAmount,ImageOp.Mul);
+          resultImage.apply(targetImage,ImageOp.Add);
           // if necessary: rescale data into range from 0.0-1.0
           if(!this.statusFunction("Normalizing image",true)) return;
  
@@ -303,9 +303,9 @@ class AutoIntegrateBandingEngine extends Object {
                                   targetImage.numberOfChannels, targetImage.colorSpace,
                                   targetImage.bitsPerSample, PixelSampleType.Float );
           clipImage.fill(0.0);
-          resultImage.apply(clipImage,ImageOp_Max);
+          resultImage.apply(clipImage,ImageOp.Max);
           clipImage.fill(1.0);
-          resultImage.apply(clipImage,ImageOp_Min);
+          resultImage.apply(clipImage,ImageOp.Min);
           this.statusFunction("Fixing image done",true);
           this.bRedoResult=false;
        }  //if RedoResult

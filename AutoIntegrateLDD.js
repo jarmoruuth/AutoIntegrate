@@ -163,7 +163,7 @@ LDDEngine( win, detectColumns, detectPartialLines,
     // Transfer the resulting images to their respective windows.
     WI.lineDetectionImage.resetSelections();
     WI.lineDetectionImage.truncate( 0, 1 );
-    WI.lineModelImage.apply( WI.referenceImage.median(), ImageOp_Add );
+    WI.lineModelImage.apply( WI.referenceImage.median(), ImageOp.Add );
 
     WI.lineModelWindow.mainView.beginProcess();
     WI.lineModelWindow.mainView.image.apply( WI.lineModelImage );
@@ -207,7 +207,7 @@ MultiscaleIsolation( image, LSImage, layersToRemove )
     multiscaleTransform = image.medianWaveletTransform( layersToRemove-1, 0, scales );
     // We subtract the last layer to the image.
     // Please note that this image has negative pixel values.
-    image.apply( multiscaleTransform[layersToRemove-1], ImageOp_Sub );
+    image.apply( multiscaleTransform[layersToRemove-1], ImageOp.Sub );
     // Generate a large-scale component image
     // if the respective input image is not null.
     if ( LSImage != null )
@@ -465,7 +465,7 @@ PartialLineDetection( detectColumns, image, layersToRemove, imageShift, threshol
     shiftedSSImage.apply( this.SSImage );
     detectColumns ? shiftedSSImage.shiftBy( 0, -imageShift )
     : shiftedSSImage.shiftBy( imageShift, 0 );
-    this.SSImage.apply( shiftedSSImage, ImageOp_Sub );
+    this.SSImage.apply( shiftedSSImage, ImageOp.Sub );
     shiftedSSImage.free();
 
     // Subtract again the large-scale components
@@ -484,7 +484,7 @@ PartialLineDetection( detectColumns, image, layersToRemove, imageShift, threshol
     // Now, we subtract the binarized the clipping mask from this processed
     // small-scale component image. This removes the surviving linear structures
     // coming from bright objects in the image.
-    this.SSImage.apply( clippingMask, ImageOp_Sub );
+    this.SSImage.apply( clippingMask, ImageOp.Sub );
     this.SSImage.truncate( 0, 1 );
 
     // We apply a closure operation with the same structuring element.

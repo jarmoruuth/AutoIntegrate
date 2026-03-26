@@ -82,6 +82,7 @@ by Pleiades Astrophoto and its contributors (https://pixinsight.com/).
       - combineRGBimage - used in case of LRGB processing
 */
 
+
 #ifndef AUTOINTEGRATEENGINE_JS
 #define AUTOINTEGRATEENGINE_JS
 
@@ -1022,7 +1023,7 @@ enhancementsNormalizeImage(imgWin)
 
       if (this.par.enhancements_normalize_channels_mask.val) {
             this.util.closeOneWindowById("AutoNormalizeMask");
-            this.mask_win = this.newMaskWindow(imgWin, "AutoNormalizeMask", false, true);
+            this.setNewMaskWindow(this.newMaskWindow(imgWin, "AutoNormalizeMask", false, true));
       }
 
       console.writeln("Expressions " + expressions[0] + ", " + expressions[1] + ", " + expressions[2]);
@@ -1316,6 +1317,28 @@ newMaskWindow(sourceWindow, name, allow_duplicate_name, clip_shadows_more)
       this.runMultiscaleLinearTransformReduceNoise(targetWindow, null, 3);
 
       return targetWindow;
+}
+
+setNewMaskWindow(maskWin)
+{
+      if (maskWin != null && maskWin.isNull) {
+            maskWin = null;
+      }
+      if (this.global.debug) console.writeln("setNewMaskWindow: " + (maskWin ? maskWin.mainView.id : "null"));
+      if (this.mask_win == maskWin) {
+            return;
+      }
+      if (this.mask_win != null && !this.mask_win.isClosed && this.mask_win.mainView != null) {
+            if (this.global.debug) console.writeln("setNewMaskWindow: close old mask");
+            this.util.closeOneWindow(this.mask_win);
+      }
+      this.mask_win = maskWin;
+      if (maskWin != null) {
+            this.mask_win_id = maskWin.mainView.id;
+      } else {
+            this.mask_win_id = null;
+      }
+      if (this.global.debug) console.writeln("setNewMaskWindow: new mask set to " + (maskWin ? maskWin.mainView.id : "null"));
 }
 
 maskIsCompatible(imgWin, maskWin)
@@ -1910,7 +1933,7 @@ getDefects(LDD_win, detectColumns)
       var imageShift = 50;
 
       // detect line defects
-      var detectedLines = new autointegrateLDD.LDDEngine( LDD_win, detectColumns, detectPartialLines,
+      var detectedLines = new this.autointegrateLDD.LDDEngine( LDD_win, detectColumns, detectPartialLines,
                                                           layersToRemove, rejectionLimit, imageShift,
                                                           detectionThreshold, partialLineDetectionThreshold );
       // Generate output for cosmetic correction
@@ -4570,10 +4593,12 @@ runPixelMathSingleMappingEx(id, reason, mapping, createNewImage, symbols, rescal
             var targetFITSKeywords = this.getTargetFITSKeywordsForPixelmath(idWin);
       }
       if (reason != "from_lights") {
-            var node = this.flowchart.flowchartOperation("PixelMath:" + reason);
+            var node = this.flowchart.flowchartOperation("PixelMath:" + reason + ", createNewImage=" + createNewImage);
       } else {
             var node = null;
       }
+
+      this.util.printMemoryStatus("Before PixelMath " + reason);
 
       var P = new PixelMath;
       P.expression = mapping;
@@ -4591,6 +4616,8 @@ runPixelMathSingleMappingEx(id, reason, mapping, createNewImage, symbols, rescal
       P.executeOn(idWin.mainView);
       idWin.mainView.endProcess();
 
+      this.util.printMemoryStatus("After PixelMath " + reason);
+
       if (createNewImage) {
             var new_win = this.util.findWindow(P.newImageId);
             this.setTargetFITSKeywordsForPixelmath(new_win, targetFITSKeywords);
@@ -4604,6 +4631,8 @@ runPixelMathSingleMappingEx(id, reason, mapping, createNewImage, symbols, rescal
       this.engine_end_process(node, new_win, "PixelMath:" + reason, false);
 
       this.setAutoIntegrateVersionIfNeeded(this.util.findWindow(P.newImageId));
+
+      this.util.printMemoryStatus("End runPixelMathSingleMappingEx");
 
       return P.newImageId;
 }
@@ -12518,13 +12547,11 @@ createChannelImages(parent, auto_continue)
                   this.is_color_files = true;
             }
             if (this.par.force_new_mask.val) {
-                  this.util.closeOneWindowById(this.ppar.win_prefix + "AutoMask");
-                  this.mask_win_id = null;
+                  this.setNewMaskWindow(null);
                   this.range_mask_win = null;
             } else {
                   /* Check if we already have a mask. It can be from previous run or manually created. */
-                  this.mask_win_id = this.ppar.win_prefix + "AutoMask";
-                  this.range_mask_win = this.util.findWindow(this.mask_win_id);
+                  this.range_mask_win = this.util.findWindow(this.ppar.win_prefix + "AutoMask");
             }
             if (this.process_narrowband && this.local_narrowband_mapping == 'Auto') {
                   this.findAutoMappingForIntegratedImages(this.preprocessed_images);
@@ -13102,16 +13129,13 @@ LRGBEnsureMaskEx(L_id_for_mask, stretched)
       this.util.addProcessingStepAndStatusInfo("LRGB ensure mask");
 
       if (L_id_for_mask != null) {
-            if (this.range_mask_win != null) {
-                  console.writeln("Close old mask " + this.mask_win_id);
-            }
             this.range_mask_win = null;
-            this.util.closeOneWindowById(this.mask_win_id);
+            this.setNewMaskWindow(null);
       }
       if (this.winIsValid(this.range_mask_win)) {
             /* We already have a mask. */
             this.util.addProcessingStep("Use existing mask " + this.range_mask_win.mainView.id);
-            this.mask_win = this.range_mask_win;
+            this.setNewMaskWindow(this.range_mask_win);
       } else {
             var L_win;
             this.flowchart.flowchartMaskBegin("New mask");
@@ -13147,8 +13171,7 @@ LRGBEnsureMaskEx(L_id_for_mask, stretched)
             }
             /* Create mask.
              */
-            this.mask_win_id = this.ppar.win_prefix + "AutoMask";
-            this.mask_win = this.newMaskWindow(L_win, this.mask_win_id, false);
+            this.setNewMaskWindow(this.newMaskWindow(L_win, this.ppar.win_prefix + "AutoMask", false));
             this.util.closeOneWindowById(L_win.mainView.id);
             this.flowchart.flowchartMaskEnd("New mask");
             this.global.creating_mask = false;
@@ -13169,13 +13192,13 @@ colorEnsureMask(color_img_id, RGBstretched, force_new_mask)
 
       if (force_new_mask) {
             this.range_mask_win = null;
-            this.util.closeOneWindowById(this.mask_win_id);
+            this.setNewMaskWindow(null);
       }
 
       if (this.winIsValid(this.range_mask_win)) {
             /* We already have a mask. */
             this.util.addProcessingStep("Use existing mask " + this.range_mask_win.mainView.id);
-            this.mask_win = this.range_mask_win;
+            this.setNewMaskWindow(this.range_mask_win);
       } else {
             this.flowchart.flowchartMaskBegin("New mask");
             this.global.creating_mask = true;
@@ -13190,8 +13213,7 @@ colorEnsureMask(color_img_id, RGBstretched, force_new_mask)
 
             /* Create mask.
              */
-            this.mask_win_id = this.ppar.win_prefix + "AutoMask";
-            this.mask_win = this.newMaskWindow(color_win_copy, this.mask_win_id, false);
+            this.setNewMaskWindow(this.newMaskWindow(color_win_copy, this.ppar.win_prefix + "AutoMask", false));
             this.util.closeOneWindowById(color_win_copy.mainView.id);
             this.flowchart.flowchartMaskEnd("New mask");
             this.global.creating_mask = false;
@@ -14152,7 +14174,7 @@ RGBHa_ContinuumSubtract(nb_channel_id, rgb_channel_id, rgb_is_linear, testmode)
       /* Create HRR.
        */
       console.writeln("RGBHa_ContinuumSubtract, create HRR");
-      var hrr_win = create_HRR(nb_channel_id, rgb_channel_id);
+      var hrr_win = this.create_HRR(nb_channel_id, rgb_channel_id);
 
       var hrr_id = this.ppar.win_prefix + "Integration_HRR";
       hrr_win.mainView.id = hrr_id;
@@ -16669,7 +16691,7 @@ enhancementsRotate(imgWin)
 
 find_range_mask()
 {
-      this.mask_win = this.util.findWindow('range_mask');
+      this.setNewMaskWindow(this.util.findWindow('range_mask'));
       if (this.mask_win == null) {
             this.util.throwFatalError("Could not find range_mask");
       }
@@ -16828,21 +16850,19 @@ enhancementsProcessing(parent, id, apply_directly)
             // If we need to create a mask do it after we
             // have removed the stars
             if (this.par.enhancements_range_mask.val) {
-                  this.mask_win = this.find_range_mask();
+                  this.setNewMaskWindow(this.find_range_mask());
             } else if (this.par.enhancements_force_new_mask.val) {
-                  this.mask_win = null;
+                  this.setNewMaskWindow(null);
             } else {
-                  this.mask_win = this.maskIsCompatible(enhancementsWin, this.mask_win);
+                  this.setNewMaskWindow(this.maskIsCompatible(enhancementsWin, this.mask_win));
                   if (this.mask_win == null) {
-                        this.mask_win = this.maskIsCompatible(enhancementsWin, this.util.findWindow(this.ppar.win_prefix +"AutoMask"));
+                        this.setNewMaskWindow(this.maskIsCompatible(enhancementsWin, this.util.findWindow(this.ppar.win_prefix +"AutoMask")));
                   }
             }
             if (this.mask_win == null) {
-                  this.mask_win_id = this.ppar.win_prefix + "AutoMask";
-                  this.util.closeOneWindowById(this.mask_win_id);
                   this.flowchart.flowchartMaskBegin("New mask:enhancements");
                   this.global.creating_mask = true;
-                  this.mask_win = this.newMaskWindow(enhancementsWin, this.mask_win_id, false);
+                  this.setNewMaskWindow(this.newMaskWindow(enhancementsWin, this.ppar.win_prefix + "AutoMask", false));
                   this.flowchart.flowchartMaskEnd("New mask:enhancements");
                   this.global.creating_mask = false;
             }
@@ -17735,7 +17755,7 @@ createCropInformationEx()
             }
 
             // Make a copy of the integrated image
-            lowClipImageWindowCopy = this.util.copyWindowEx(lowClipImageWindow, this.util.ensure_win_prefix(lowClipImageName + "_tmp"), true);
+            let lowClipImageWindowCopy = this.util.copyWindowEx(lowClipImageWindow, this.util.ensure_win_prefix(lowClipImageName + "_tmp"), true);
 
             var res = this.calculate_crop_amount(lowClipImageWindowCopy.mainView.id, lowClipImageWindowCopy.mainView.id, false);
             if (!res.success) {
@@ -17851,9 +17871,7 @@ enhancementsProcessingEngine(parent, enhancements_target_image, enhancements_nar
 
        this.process_narrowband = enhancements_narrowband;
 
-       this.mask_win = null;
-       this.mask_win_id = null;
-       this.star_mask_win = null;
+       this.setNewMaskWindow(null);
        this.star_mask_win_id = null;
        this.star_fix_mask_win = null;
        this.star_fix_mask_win_id = null;
@@ -17907,6 +17925,7 @@ enhancementsProcessingEngine(parent, enhancements_target_image, enhancements_nar
 
 engineInit()
 {
+      if (this.global.debug) console.writeln("engineInit");
       this.util.init_pixinsight_version();
       if (this.global.AutoOutputDir == null) {
             this.util.setDefaultDirs();
@@ -17920,6 +17939,7 @@ engineInit()
 // Nete that checkOptions does similar things a bit later
 check_engine_processing()
 {
+      if (this.global.debug) console.writeln("check_engine_processing");
       if (this.global.enhancements_target_image_id != "Auto" && this.global.enhancements_target_image_id != null) {
             console.criticalln("Enhancements target image can be used only with Apply button!");
             return false;
@@ -17962,6 +17982,7 @@ get_local_copies_of_parameters()
 // V8 limitations for now
 check_available_processes()
 {
+      if (this.global.debug) console.writeln("check_engine_processing");
       let P;
       if (this.par.use_starxterminator.val) {
             try {
@@ -18132,7 +18153,7 @@ autointegrateProcessingEngine(parent, auto_continue, autocontinue_narrowband, tx
        this.RGB_color_id = null;
        this.RGB_win_id = null;
        this.script_start_time = Date.now();
-       this.mask_win = null;
+       this.setNewMaskWindow(null);
        this.star_mask_win = null;
        this.star_fix_mask_win = null;
        this.ssweight_set = false;
@@ -18823,10 +18844,17 @@ autointegrateProcessingEngine(parent, auto_continue, autocontinue_narrowband, tx
             console.noteln("Console output is written into file " + this.logfname);
       }
 
-      if (this.util.executed_processes.length > 0 && this.par.create_process_icons.val) {
-            let filename = this.util.ensure_win_prefix("ExecutedProcesses.xpsm");
-            console.writeln("Write executed processes as process icons");
-            this.util.writeExecutedProcessesToXPSM(this.util.ensurePathEndSlash(this.global.outputRootDir) + filename);
+      if (this.util.executed_processes.length > 0) {
+            if (this.par.create_process_icons.val) {
+                  let filename = this.util.ensure_win_prefix("ExecutedProcesses.xpsm");
+                  console.writeln("Write executed processes as process icons");
+                  this.util.writeExecutedProcessesToXPSM(this.util.ensurePathEndSlash(this.global.outputRootDir) + filename);
+            }
+            if (this.par.create_executed_processes_js.val || this.global.debug) {
+                  let filename = this.util.ensure_win_prefix("ExecutedProcesses.js");
+                  console.writeln("Write executed processes as JavaScript file");
+                  this.util.writeExecutedProcessesToScript(this.util.ensurePathEndSlash(this.global.outputRootDir) + filename);
+            }
       }
       this.global.is_processing = this.global.processing_state.none;
 

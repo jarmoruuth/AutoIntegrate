@@ -92,7 +92,7 @@ class AutoIntegratePreviewControl extends Frame
       this.standalone = false;
 #endif
 
-      this.saveNonclippedImage = null;
+      this.saveNonclippedBitmap = null;
 
       this.initGUI();
 
@@ -102,11 +102,14 @@ class AutoIntegratePreviewControl extends Frame
        SetImage(image, txt)
        {
              if (this.par.debug.val) console.writeln(this.name + ":SetImage:image " + image.width + "x" + image.height + ", txt " + txt);
-             if (this.image) {
-                  this.image.free();
-             }
-             this.image = new Image( image );
-             this.bitmap = this.image.render();
+
+             this.SetImageBitmap(image.render(), txt);
+      }
+
+      SetImageBitmap(bitmap, txt)
+      {
+             if (this.par.debug.val) console.writeln(this.name + ":SetImageBitmap:bitmap " + bitmap.width + "x" + bitmap.height + ", txt " + txt);
+             this.bitmap = bitmap;
              this.scaledBitmap = null;
              this.SetZoomOutLimit();
              this.UpdateZoom(-100);
@@ -115,21 +118,23 @@ class AutoIntegratePreviewControl extends Frame
             } else {
                   this.image_name_Label.text = "";
             }
-            this.saveNonclippedImage = null;
+            this.saveNonclippedBitmap = null;
       }
- 
+
        // Update image window and bitmap
        UpdateImage(image, txt)
        {
              if (this.par.debug.val) console.writeln(this.name + ":UpdateImage:image " + image.width + "x" + image.height + ", txt " + txt);
+             this.UpdateImageBitmap(image.render(), txt)
+       }
+
+       UpdateImageBitmap(bitmap, txt)
+       {
+             if (this.par.debug.val) console.writeln(this.name + ":UpdateImageBitmap:bitmap " + bitmap.width + "x" + bitmap.height + ", txt " + txt);
              if (this.zoom == this.zoomOutLimit) {
-                   this.SetImage(image, txt);
+                   this.SetImageBitmap(bitmap, txt);
              } else {
-                  if (this.image) {
-                        this.image.free();
-                   }
-                  this.image = new Image( image );
-                   this.bitmap = this.image.render();
+                   this.bitmap = bitmap;
                    this.scaledBitmap = null;
                    if (this.zoom == this.zoomOutLimit) {
                         var newZoom = -100;
@@ -143,15 +148,15 @@ class AutoIntegratePreviewControl extends Frame
                   } else {
                         this.image_name_Label.text = "";
                   }
-                  this.saveNonclippedImage = null;
+                  this.saveNonclippedBitmap = null;
             }
        }
 
        showClippedImage()
        {
-            if (this.saveNonclippedImage) {
+            if (this.saveNonclippedBitmap) {
                   console.writeln("showNonclippedImage");
-                  this.UpdateImage(this.saveNonclippedImage, this.image_name_Label.text);
+                  this.UpdateImageBitmap(this.saveNonclippedBitmap, this.image_name_Label.text);
                   return;
             }
 
@@ -163,7 +168,7 @@ class AutoIntegratePreviewControl extends Frame
             }
 
             // Create a new window from the image
-            imgWin = this.util.createWindowFromImage(this.image, "AutoIntegrate_preview_clipped");
+            imgWin = this.util.createWindowFromBitmap(this.bitmap, "AutoIntegrate_preview_clipped");
 
             // Show clipped pixels using PixelMath
             var P = new PixelMath;
@@ -203,19 +208,19 @@ class AutoIntegratePreviewControl extends Frame
             P.executeOn(imgWin.mainView, false);
 
             // Save the original non-clipped image
-            var saveNonclippedImage = this.image;
-            this.image = null;
+            var saveNonclippedBitmap = this.bitmap;
+            this.bitmap = null;
 
-            this.UpdateImage(imgWin.mainView.image, this.image_name_Label.text);
+            this.UpdateImageBitmap(imgWin.mainView.image.render(), this.image_name_Label.text);
 
             imgWin.forceClose();
 
-            this.saveNonclippedImage = saveNonclippedImage;
+            this.saveNonclippedBitmap = saveNonclippedBitmap;
        }
  
        UpdateZoom(newZoom, refPoint)
        {
-            if (!this.bitmap && !this.image) {
+            if (!this.bitmap) {
                   return;
             }
             if (newZoom < this.zoomOutLimit) {
@@ -258,7 +263,7 @@ class AutoIntegratePreviewControl extends Frame
                         this.scaledBitmap = this.bitmap.scaled(0.98 * this.scale);
                    }
              } else {
-                   this.scaledBitmap = {width:this.image.width * this.scale, height:this.image.height * this.scale};
+                   this.scaledBitmap = {width:this.bitmap.width * this.scale, height:this.bitmap.height * this.scale};
              }
              this.scrollbox.maxHorizontalScrollPosition = Math.max(0, this.scaledBitmap.width - this.scrollbox.viewport.width);
              this.scrollbox.maxVerticalScrollPosition = Math.max(0, this.scaledBitmap.height - this.scrollbox.viewport.height);
@@ -643,9 +648,9 @@ class AutoIntegratePreviewControl extends Frame
        SetZoomOutLimit()
        {
             if (this.par.debug.val) console.writeln(this.name + ":SetZoomOutLimit:width ", this.scrollbox.viewport.width, ", height ", this.scrollbox.viewport.height);
-            if (this.par.debug.val) console.writeln(this.name + ":SetZoomOutLimit:image.width ", this.image.width, ", image.height ", this.image.height);
-             var scaleX = this.scrollbox.viewport.width/this.image.width;
-             var scaleY = this.scrollbox.viewport.height/this.image.height;
+            if (this.par.debug.val) console.writeln(this.name + ":SetZoomOutLimit:image.width ", this.bitmap.width, ", image.height ", this.bitmap.height);
+             var scaleX = this.scrollbox.viewport.width/this.bitmap.width;
+             var scaleY = this.scrollbox.viewport.height/this.bitmap.height;
              var scale = Math.min(scaleX,scaleY);
              this.zoomOutLimit = scale;
              if (this.par.debug.val) console.writeln(this.name + ":SetZoomOutLimit:scale ", scale, ", zoomOutLimit ", this.zoomOutLimit);

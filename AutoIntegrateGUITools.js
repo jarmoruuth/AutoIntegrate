@@ -50,7 +50,7 @@ this.exclusionAreaCountLabel = null;
 this.current_preview = {
       image: null,
       txt: null,
-      image_versions: [],     // 0 = original image, 1 = stretched image
+      image_versions: [],     // 0 = original image, 1 = stretched image { image, txt, newimage }
       imgWin: null,           // Sometimes we keep preview window, but often can be null
       resampled: false
 };
@@ -1343,7 +1343,7 @@ newJsonSizerObj(parent, loadJsonFileCallback, json_filename = null)
       this.jsonLoadButton.onClick = () =>
       {
             if (this.global.debug) console.writeln("AutoIntegrateGUITools::newJsonSizerObj::jsonLoadButton::onClick");
-            this.loadJsonFile(parent.dialog, loadJsonFileCallback);
+            this.loadJsonFile(parent, loadJsonFileCallback);
       };
       this.jsonSaveWithSettingsButton = new ToolButton( parent );
       this.jsonSaveWithSettingsButton.icon = parent.scaledResource(":/toolbar/file-project-save.png");
@@ -1354,7 +1354,7 @@ newJsonSizerObj(parent, loadJsonFileCallback, json_filename = null)
       this.jsonSaveWithSettingsButton.onClick = () =>
       {
             if (this.global.debug) console.writeln("AutoIntegrateGUITools::newJsonSizerObj::jsonSaveWithSettingsButton::onClick");
-            this.util.saveJsonFile(parent.dialog, true, json_filename);
+            this.util.saveJsonFile(parent, true, json_filename);
       };
 
       this.jsonSizer = new HorizontalSizer;

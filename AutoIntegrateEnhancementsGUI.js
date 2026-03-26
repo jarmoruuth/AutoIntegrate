@@ -48,7 +48,7 @@ class AutoIntegrateSelectStarsImageDialog extends Dialog
 
       this.starsImageComboBox.onItemSelected = ( itemIndex ) =>
       {
-            this.dialog.name = this.dialog.window_list[itemIndex];
+            this.name = this.window_list[itemIndex];
       };
 
       // Common Buttons
@@ -57,7 +57,7 @@ class AutoIntegrateSelectStarsImageDialog extends Dialog
       this.ok_Button.icon = this.scaledResource( ":/icons/ok.png" );
       this.ok_Button.onClick = () =>
       {
-            this.dialog.ok();
+            this.ok();
       };
 
       this.cancel_Button = new PushButton( this );
@@ -65,7 +65,7 @@ class AutoIntegrateSelectStarsImageDialog extends Dialog
       this.cancel_Button.icon = this.scaledResource( ":/icons/cancel.png" );
       this.cancel_Button.onClick = () =>
       {
-            this.dialog.cancel();
+            this.cancel();
       };
 
       this.buttons_Sizer = new HorizontalSizer;
@@ -1408,7 +1408,7 @@ enhancementsApplyButtonOnClick()
                         this.engine.enhancementsApply = true;
                         this.global.haveIconized = 0;
 
-                        this.engine.enhancementsProcessingEngine(this.dialog, this.global.enhancements_target_image_id, this.util.is_narrowband_option());
+                        this.engine.enhancementsProcessingEngine(this, this.global.enhancements_target_image_id, this.util.is_narrowband_option());
 
                         if (this.enhancements_gui_info.undo_images.length == 0) {
                               // add first/original undo image

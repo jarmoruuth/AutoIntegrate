@@ -370,6 +370,8 @@ flowchartGraph(rootnode, current_preview_image, txt)
             return null;
       }
 
+      if (this.global.debug) console.writeln("flowchartGraph:" + (current_preview_image == null ? "no current preview image" : "current preview image " + current_preview_image.width + "x" + current_preview_image.height));
+
       var fontsize = 8;
       var font = new Font( FontFamily.SansSerif, fontsize );
 
@@ -411,6 +413,7 @@ flowchartGraph(rootnode, current_preview_image, txt)
 
       if (this.flowchart_is_background_image) {
             // Scale bitmap to image size
+            if (this.global.debug) console.writeln("flowchartGraph:draw background image");
             if (this.par.flowchart_debug.val || this.par.debug.val) {
                   console.writeln("flowchartGraph:image " + current_preview_image.width + "x" + current_preview_image.height);
             }
@@ -434,18 +437,21 @@ flowchartGraph(rootnode, current_preview_image, txt)
             var y = (current_preview_image.height - bitmap.height) / 2;
             graphics.drawBitmap(x, y, bitmap);
             graphics.end();
-            var flowchartImage = this.util.createImageFromBitmap(background_bitmap);
-            // background_image.free();
-            // background_image = null;
+            bitmap = background_bitmap
       } else {
-            var flowchartImage = this.util.createImageFromBitmap(bitmap);
+            if (this.global.debug) console.writeln("flowchartGraph:no background image");
       }
-      if (this.global.flowchart_image != null) {
-            this.global.flowchart_image.free();
-            this.global.flowchart_image = null;
-      }
-      this.global.flowchart_image = flowchartImage;
 
+      if (this.global.flowchart_image != null && this.global.flowchart_image.width == bitmap.width && this.global.flowchart_image.height == bitmap.height) {
+            if (this.global.debug) console.writeln("flowchartGraph:use existing flowchart image and blend");
+            this.global.flowchart_image.blend(bitmap);
+      } else {
+            if (this.global.debug) console.writeln("flowchartGraph:create new flowchart image");
+            if (this.global.flowchart_image != null) {
+                  this.global.flowchart_image.free();
+            }
+            this.global.flowchart_image = this.util.createImageFromBitmap(bitmap);
+      }
       if (this.flowchart_garbagecollection_ctr++ > 5) {
             this.util.runGarbageCollection();
             this.flowchart_garbagecollection_ctr = 0;
@@ -455,7 +461,7 @@ flowchartGraph(rootnode, current_preview_image, txt)
             console.writeln("flowchartGraph:end");
       }
 
-      return { image: flowchartImage, text: txt };
+      return { image: this.global.flowchart_image, text: txt };
 }
 
 // =============================================================================

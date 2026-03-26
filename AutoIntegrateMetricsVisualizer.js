@@ -436,25 +436,24 @@ class AutoIntegrateMetricsVisualizerDialog extends Dialog {
         this.statsGroupBox.sizer.add(this.data3Stats);
         this.statsGroupBox.sizer.add(this.data4Stats);
 
-        // Buttons — keep as regular functions, PI sets 'this' = the button with 'this.dialog'
         this.okButton      = new PushButton(this);
         this.okButton.text = "OK";
         this.okButton.icon = this.scaledResource(":/icons/ok.png");
-        this.okButton.onClick = function() {
+        this.okButton.onClick = () => {
             if ((new MessageBox(
-                    "Do you really want to close " + this.dialog.visualizer.WINDOW_TITLE + " and apply limits?",
-                    this.dialog.visualizer.WINDOW_TITLE,
+                    "Do you really want to close " + this.visualizer.WINDOW_TITLE + " and apply limits?",
+                    this.visualizer.WINDOW_TITLE,
                     StdIcon.Warning, StdButton.Yes, StdButton.No)).execute() === StdButton.Yes)
             {
-                this.dialog.ok();
+                this.ok();
             }
         };
 
         this.cancelButton      = new PushButton(this);
         this.cancelButton.text = "Cancel";
         this.cancelButton.icon = this.scaledResource(":/icons/cancel.png");
-        this.cancelButton.onClick = function() {
-            this.dialog.cancel();
+        this.cancelButton.onClick = () => {
+            this.cancel();
         };
 
         this.buttonsRowSizer = new HorizontalSizer;

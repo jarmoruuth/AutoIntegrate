@@ -67,7 +67,7 @@ class AutoIntegrateNarrowbandSelectMultipleDialog extends Dialog
                   continue;
             }
             var checked = false;
-            for (var j = 0; j < current_mappings.length; j++) {
+            for (var j = 0; j < this.current_mappings.length; j++) {
                   if (this.global.narrowBandPalettes[i].name == this.current_mappings[j].trim()) {
                         checked = true;
                         break;
@@ -104,14 +104,14 @@ class AutoIntegrateNarrowbandSelectMultipleDialog extends Dialog
                         }
                   }
             }
-            this.dialog.ok();
+            this.ok();
       };
 
       this.cancel_Button = new PushButton( this );
       this.cancel_Button.text = "Cancel";
       this.cancel_Button.icon = this.scaledResource( ":/icons/cancel.png" );
       this.cancel_Button.onClick = () => {
-            this.dialog.cancel();
+            this.cancel();
       };
 
       this.buttons_Sizer = new HorizontalSizer;
@@ -298,7 +298,7 @@ generateNewFlowchartData(parent)
       console.writeln("generateNewFlowchartData");
       console.flush();
 
-      this.getFilesFromTreebox(parent.dialog);
+      this.getFilesFromTreebox(parent);
 
       if (this.global.lightFileNames == null) {
             console.criticalln("No files, cannot generate flowchart data");
@@ -308,7 +308,7 @@ generateNewFlowchartData(parent)
 
       var succp = true;
       this.guitools.current_preview.image = null;
-      this.guitools.current_preview.image_versions = [];
+      this.resetCurrentPreviewImageVersions();
 
       this.flowchart.flowchartReset();
 
@@ -332,7 +332,7 @@ generateNewFlowchartData(parent)
 
       this.global.get_flowchart_data = true;
       try {
-            this.engine.autointegrateProcessingEngine(parent.dialog, false, false, "Generate flowchart data");
+            this.engine.autointegrateProcessingEngine(parent, false, false, "Generate flowchart data");
       } catch (x) {
             this.util.addCriticalStatus("generateNewFlowchartData failed calling autointegrateProcessingEngine:" + x);
             this.global.flowchartData = null;
@@ -673,9 +673,9 @@ Autorun(parent)
                         this.global.lightFileNames = this.engine.openImageFiles("Lights", true, false, false);
                   }
                   if (this.global.lightFileNames != null) {
-                        parent.dialog.treeBox[this.global.pages.LIGHTS].clear();
-                        this.addFilesToTreeBox(parent.dialog, this.global.pages.LIGHTS, this.global.lightFileNames);
-                        this.updateInfoLabel(parent.dialog);
+                        parent.treeBox[this.global.pages.LIGHTS].clear();
+                        this.addFilesToTreeBox(parent, this.global.pages.LIGHTS, this.global.lightFileNames);
+                        this.updateInfoLabel(parent);
                         this.updateExclusionAreaLabel(parent);
                   }
             }
@@ -734,9 +734,9 @@ Autorun(parent)
                   }
                   try {
                         if (batch_narrowband_palette_mode) {
-                            this.engine.autointegrateNarrowbandPaletteBatch(parent.dialog, false);
+                            this.engine.autointegrateNarrowbandPaletteBatch(parent, false);
                         } else {
-                            this.engine.autointegrateProcessingEngine(parent.dialog, false, false, "AutoRun");
+                            this.engine.autointegrateProcessingEngine(parent, false, false, "AutoRun");
                         }
                         this.update_enhancements_target_image_window_list(null);
                   } 
@@ -887,7 +887,7 @@ lightsOptions(parent)
       sortAndFilterButton.onClick = () => {
             try {
                   this.util.addStatusInfo("Sorting and filtering files");
-                  this.filterTreeBoxFiles(parent.dialog, parent.dialog.tabBox.currentPageIndex);
+                  this.filterTreeBoxFiles(parent, parent.tabBox.currentPageIndex);
             } catch (e) {
                   console.criticalln("Sorting and filtering files: " + e);
             } 
@@ -1248,7 +1248,7 @@ updatePreviewWinTxt(imgWin, txt, histogramInfo = null, run_autostf = false, imgW
             this.guitools.current_preview.resampled = resampled;
             if (this.par.debug.val || this.global.debug) console.writeln("updatePreviewWinTxt:copy_image " + copy_image);
             if (this.preview_size_changed) {
-                  previewControl.setSize(this.ppar.preview.side_preview_width, this.ppar.preview.side_preview_height);
+                  this.previewControl.setSize(this.ppar.preview.side_preview_width, this.ppar.preview.side_preview_height);
                   this.preview_size_changed = false;
             }
             run_autostf = run_autostf 
@@ -1274,10 +1274,11 @@ updatePreviewWinTxt(imgWin, txt, histogramInfo = null, run_autostf = false, imgW
             }
             if (this.par.debug.val) console.writeln("--- updatePreviewWinTxt:histogram " + (Date.now()-start_time)/1000 + " sec");
             if (this.par.debug.val) start_time = Date.now();
+            this.resetCurrentPreviewImageVersions();
             if (copy_image) {
-                  this.guitools.current_preview.image_versions[0] = { image: new Image( imgWin.mainView.image ), txt: txt };
+                  this.guitools.current_preview.image_versions[0] = { image: new Image( imgWin.mainView.image ), txt: txt, newimage: true };
             } else {
-                  this.guitools.current_preview.image_versions[0] = { image: imgWin.mainView.image, txt: txt };
+                  this.guitools.current_preview.image_versions[0] = { image: imgWin.mainView.image, txt: txt, newimage: false };
             }
             if (run_autostf) {
                   // Image is linear, run AutoSTF
@@ -1288,12 +1289,12 @@ updatePreviewWinTxt(imgWin, txt, histogramInfo = null, run_autostf = false, imgW
                         this.engine.autoStretch(copy_win);
                         imgWin = copy_win;
                         txt = txt + " (AutoSTF)";
-                        this.guitools.current_preview.image_versions[1] = { image: new Image( copy_win.mainView.image ), txt: txt };
+                        this.guitools.current_preview.image_versions[1] = { image: new Image( copy_win.mainView.image ), txt: txt, newimage: true };
                         this.guitools.current_preview.image = this.guitools.current_preview.image_versions[1].image;
                         this.guitools.current_preview.txt = this.guitools.current_preview.image_versions[1].txt;
                   } else {
                         if (this.par.debug.val) console.writeln("updatePreviewWinTxt:run_autostf, do not copy image");
-                        this.guitools.current_preview.image_versions[1] = this.guitools.current_preview.image_versions[0];
+                        this.guitools.current_preview.image_versions[1] = { image: this.guitools.current_preview.image_versions[0].image, txt: txt, newimage: false };
                         var copy_win = null;
                         this.guitools.current_preview.image = this.guitools.current_preview.image_versions[0].image;
                         this.guitools.current_preview.txt = this.guitools.current_preview.image_versions[0].txt;
@@ -1301,7 +1302,7 @@ updatePreviewWinTxt(imgWin, txt, histogramInfo = null, run_autostf = false, imgW
                   }
             } else {
                   if (this.par.debug.val) console.writeln("updatePreviewWinTxt:no autostf");
-                  this.guitools.current_preview.image_versions[1] = this.guitools.current_preview.image_versions[0];
+                  this.guitools.current_preview.image_versions[1] = { image: this.guitools.current_preview.image_versions[0].image, txt: txt, newimage: false };
                   var copy_win = null;
                   this.guitools.current_preview.image = this.guitools.current_preview.image_versions[0].image;
                   this.guitools.current_preview.txt = this.guitools.current_preview.image_versions[0].txt;
@@ -2261,9 +2262,9 @@ metricsVisualizerSSWEIGHT(parent)
                   this.par.ssweight_limit.reset();
                   this.util.updateStatusInfoLabel("Metrics visualizer, update SSWEIGHT limit to " + data[0].limit, true);
                   // Mark all light files as checked
-                  this.checkAllTreeBoxFiles(parent.dialog.treeBox[this.global.pages.LIGHTS], true);
+                  this.checkAllTreeBoxFiles(parent.treeBox[this.global.pages.LIGHTS], true);
                   // Update all treebox files with new limits
-                  this.filterTreeBoxFiles(parent.dialog, this.global.pages.LIGHTS);
+                  this.filterTreeBoxFiles(parent, this.global.pages.LIGHTS);
             } else {
                   this.util.updateStatusInfoLabel("Metrics visualizer, no changes to SSWEIGHT limit", true);
             }
@@ -2350,9 +2351,9 @@ metricsVisualizerFilters(parent)
             if (changes) {
                   this.util.updateStatusInfoLabel("Metrics visualizer, filter limits changed", true);
                   // Mark all light files as checked
-                  this.checkAllTreeBoxFiles(parent.dialog.treeBox[this.global.pages.LIGHTS], true);
+                  this.checkAllTreeBoxFiles(parent.treeBox[this.global.pages.LIGHTS], true);
                   // Update all treebox files with new limits
-                  this.filterTreeBoxFiles(parent.dialog, this.global.pages.LIGHTS);
+                  this.filterTreeBoxFiles(parent, this.global.pages.LIGHTS);
             } else {
                   this.util.updateStatusInfoLabel("Metrics visualizer, no changes to filter limits", true);
             }
@@ -2814,7 +2815,7 @@ loadJsonFileCallback = (parent, pagearray) =>
       if (this.par.show_flowchart.val && this.global.flowchartData != null) {
             this.flowchartUpdated();
       }
-      this.updateParameterDependencies(parent.dialog);
+      this.updateParameterDependencies(parent);
 }
 
 addOneFilesButton(parent, filetype, pageIndex, toolTip)
@@ -2960,7 +2961,7 @@ addTargetType(parent)
       this.global.rootingArr.push(targetTypeComboBox);
       targetTypeComboBox.onItemSelected = (itemIndex) => {
             targetTypeComboBox.aiParam.val = targetTypeComboBox.aiValarray[itemIndex];
-            this.updateParameterDependencies(this.dialog);
+            this.updateParameterDependencies(this);
       }
 
       var outputdir_Sizer = new HorizontalSizer;
@@ -3415,7 +3416,7 @@ filesTreeBox(parent, optionsSizer, pageIndex)
                               }
                               imageWindow.show();
                               if (this.blink_window != null) {
-                                    blink_window.forceClose();
+                                    this.blink_window.forceClose();
                               }
                               this.blink_window = imageWindow;
                         } else {
@@ -3570,9 +3571,9 @@ runAction(parent)
             return;
       }
       this.guitools.current_preview.image = null;
-      this.guitools.current_preview.image_versions = [];
+      this.resetCurrentPreviewImageVersions();
       this.updateWindowPrefix();
-      this.getFilesFromTreebox(parent.dialog);
+      this.getFilesFromTreebox(parent);
       this.global.haveIconized = 0;
       var index = this.findPrefixIndex(this.ppar.win_prefix);
       if (index == -1) {
@@ -3594,7 +3595,7 @@ runAction(parent)
             this.fix_win_prefix_array();
             if (this.ppar.userColumnCount != -1 && this.par.use_manual_icon_column.val) {
                   this.ppar.userColumnCount = this.global.columnCount + 1;
-                  parent.dialog.columnCountControlComboBox.currentItem = this.ppar.userColumnCount + 1;
+                  parent.columnCountControlComboBox.currentItem = this.ppar.userColumnCount + 1;
             }
             this.savePersistentSettings(false);
       }
@@ -3627,9 +3628,9 @@ newExitButton(parent, toolbutton)
             // save settings at the end
             this.savePersistentSettings(true);
             this.exitFromDialog();
-            this.exitCleanup(parent.dialog);
+            this.exitCleanup(parent);
             console.noteln("Close dialog");
-            parent.dialog.cancel();
+            parent.cancel();
       };
 
       return this.guitools.newPushOrToolButton(
@@ -3664,6 +3665,23 @@ newCancelButton(parent, toolbutton)
       );
 }
 
+resetCurrentPreviewImageVersions()
+{
+      if (this.guitools.current_preview.image_versions.length == 2) {
+            if (this.guitools.current_preview.image_versions[0] != null && this.guitools.current_preview.image_versions[0].newimage) {
+                  this.guitools.current_preview.image_versions[0].image.free();
+                  this.guitools.current_preview.image_versions[0].image = null;
+            }
+            if (this.guitools.current_preview.image_versions[1] != null && this.guitools.current_preview.image_versions[1].newimage) {
+                  this.guitools.current_preview.image_versions[1].image.free();
+                  this.guitools.current_preview.image_versions[1].image = null;
+            }
+      }
+      this.guitools.current_preview.image_versions = [];    // 0 = original image, 1 = stretched image
+      this.guitools.current_preview.image_versions[0] = null;
+      this.guitools.current_preview.image_versions[1] = null;
+}
+
 newAutoContinueButton(parent, toolbutton)
 {
       var autocontinue_action = () =>
@@ -3674,12 +3692,12 @@ newAutoContinueButton(parent, toolbutton)
             // Do not create subdirectory structure with AutoContinue
 
             this.guitools.current_preview.image = null;
-            this.guitools.current_preview.image_versions = [];
+            this.resetCurrentPreviewImageVersions();
             if (this.global.outputRootDir == "" || this.util.pathIsRelative(this.global.outputRootDir)) {
                   // If we do not have a fixed output directory then do not use subdirectories 
                   this.util.clearDefaultDirs();
             }
-            this.getFilesFromTreebox(parent.dialog);
+            this.getFilesFromTreebox(parent);
             if (this.isbatchNarrowbandPaletteMode() && this.engine.autocontinueHasNarrowband()) {
                   var batch_narrowband_palette_mode = true;
             } else {
@@ -3693,7 +3711,7 @@ newAutoContinueButton(parent, toolbutton)
                   this.global.run_auto_continue = true;
                   if (batch_narrowband_palette_mode) {
 
-                        this.engine.autointegrateNarrowbandPaletteBatch(parent.dialog, true);
+                        this.engine.autointegrateNarrowbandPaletteBatch(parent, true);
 
                   } else {
                         var index = this.findPrefixIndex(this.ppar.win_prefix);
@@ -3715,7 +3733,7 @@ newAutoContinueButton(parent, toolbutton)
                         }
                         this.flowchart.flowchartReset();
 
-                        this.engine.autointegrateProcessingEngine(parent.dialog, true, this.util.is_narrowband_option(), "AutoContinue");
+                        this.engine.autointegrateProcessingEngine(parent, true, this.util.is_narrowband_option(), "AutoContinue");
 
                   }
                   this.global.run_auto_continue = false;
@@ -3872,11 +3890,11 @@ newMaximizeDialogButton(parent)
                   console.writeln("Maximize dialog: restore");
                   maxDialogButton.icon = parent.scaledResource( ":/real-time-preview/full-view.png" );
                   maxDialogButton.toolTip = maxDialogToolTip;
-                  previewControl.setSize(this.ppar.preview.side_preview_width, this.ppar.preview.side_preview_height);
-                  previewControl.adjustToContents();
-                  parent.dialog.move(this.dialog_old_position);
+                  this.previewControl.setSize(this.ppar.preview.side_preview_width, this.ppar.preview.side_preview_height);
+                  this.previewControl.adjustToContents();
+                  parent.move(this.dialog_old_position);
                   this.dialog_mode = 1;
-                  parent.dialog.adjustToContents();
+                  parent.adjustToContents();
             } else if (this.dialog_mode == 1) {
                   // maximize
                   // calculate starting point for maximized dialog size
@@ -3885,33 +3903,33 @@ newMaximizeDialogButton(parent)
                   maxDialogButton.toolTip = "Restore dialog to a normal size.";
                   var preview_width = this.ppar.preview.side_preview_width;
                   var preview_height = this.ppar.preview.side_preview_height;
-                  var preview_control_width = previewControl.width;
-                  var preview_control_height = previewControl.height;
+                  var preview_control_width = this.previewControl.width;
+                  var preview_control_height = this.previewControl.height;
                   if (!this.ppar.preview.show_histogram) {
                         var histogram_control_height = 0;
                   } else {
-                        var histogram_control_height = histogramControl.height;
+                        var histogram_control_height = this.histogramControl.height;
                   }
 
-                  var emptyAreaHeight = mainTabBox.height - preview_control_height - histogram_control_height;
+                  var emptyAreaHeight = this.mainTabBox.height - preview_control_height - histogram_control_height;
                   if (emptyAreaHeight < 0) {
                         emptyAreaHeight = 0;
                   }
-                  var dialog_width = parent.dialog.width;
-                  var dialog_height = parent.dialog.height;
+                  var dialog_width = parent.width;
+                  var dialog_height = parent.height;
                   if (this.par.debug.val) console.writeln("DEBUG:Maximize dialog: dialog " + dialog_width + "x" + dialog_height + ", preview " + preview_width + "x" + preview_height + ", preview control " + preview_control_width + "x" + preview_control_height + ", empty area " + emptyAreaHeight);
                   var max_preview_width = preview_width + (this.screen_width - dialog_width) - 100;
                   var max_preview_height = preview_height + (this.screen_height - dialog_height) + emptyAreaHeight - 100;
 
                   var preview_size = this.util.adjustDialogToScreen(
-                                          parent.dialog, 
+                                          parent, 
                                           this.previewControl,
                                           true,       // maximize
                                           max_preview_width, 
                                           max_preview_height);
 
-                  this.dialog_old_position = parent.dialog.position;   // save old position so we can restore it
-                  parent.dialog.move(10, 10);                     // move to top left corner
+                  this.dialog_old_position = parent.position;   // save old position so we can restore it
+                  parent.move(10, 10);                     // move to top left corner
                   this.dialog_mode = 2;
 
                   // console.writeln("preview width overhead " + (preview_control_width - preview_width) + ", height overhead " + (preview_control_height - preview_height));
@@ -3919,7 +3937,7 @@ newMaximizeDialogButton(parent)
                                   ", max preview " + preview_size.width + "x" + preview_size.height);
 
             }
-            parent.dialog.adjustToContents();
+            parent.adjustToContents();
             this.util.runGarbageCollection();
       };
 
@@ -3942,45 +3960,45 @@ newMinimizeDialogButton(parent)
             }
             if (this.dialog_mode == 0) {   // restore
                   console.writeln("Minimize dialog: restore");
-                  this.dialog_min_position = parent.dialog.position;    // save old position so we can restore it
+                  this.dialog_min_position = parent.position;    // save old position so we can restore it
                   minDialogButton.icon = parent.scaledResource( ":/workspace/window-iconize.png" );
                   minDialogButton.toolTip = minDialogToolTip;
                   if (this.global.use_preview) {
-                        previewControl.show();
+                        this.previewControl.show();
                         if (this.histogramControl != null) {
-                              histogramControl.show();
+                              this.histogramControl.show();
                         }
                   }
                   parent.top2ndRowControl.show();
-                  mainTabBox.show();
-                  parent.dialog.move(this.dialog_old_position);
+                  this.mainTabBox.show();
+                  parent.move(this.dialog_old_position);
                   this.dialog_mode = 1;
-                  parent.dialog.adjustToContents();
+                  parent.adjustToContents();
             } else if (this.dialog_mode == 1) {
                   // minimize
                   console.writeln("Minimize dialog: minimize");
                   minDialogButton.icon = parent.scaledResource( ":/workspace/window-maximize.png" );
                   minDialogButton.toolTip = "Restore dialog to normal size.";
-                  this.dialog_old_position = parent.dialog.position;    // save old position so we can restore it
+                  this.dialog_old_position = parent.position;    // save old position so we can restore it
                   if (this.global.use_preview) {
-                        previewControl.hide();
+                        this.previewControl.hide();
                         if (this.histogramControl != null) {
-                              histogramControl.hide();
+                              this.histogramControl.hide();
                         }
                   }
-                  mainTabBox.hide();
+                  this.mainTabBox.hide();
                   parent.top2ndRowControl.hide();
                   if (this.dialog_min_position == null) {
-                        parent.dialog.move(Math.floor(this.screen_width / 2), Math.floor(this.screen_height / 2)); // move to center of screen
+                        parent.move(Math.floor(this.screen_width / 2), Math.floor(this.screen_height / 2)); // move to center of screen
                   } else {
-                        parent.dialog.move(this.dialog_min_position);
+                        parent.move(this.dialog_min_position);
                   }
                   this.dialog_mode = 0;
-                  parent.dialog.adjustToContents();
+                  parent.adjustToContents();
             }
             minDialogButton.aiminDialogMode = !minDialogButton.aiminDialogMode;
-            parent.dialog.ensureLayoutUpdated();
-            parent.dialog.adjustToContents();
+            parent.ensureLayoutUpdated();
+            parent.adjustToContents();
             this.util.runGarbageCollection();
       };
 
@@ -4097,7 +4115,7 @@ newPageButtonsSizer(parent, jsonSizer, actionSizer)
       currentPageCheckButton.setScaledFixedSize( 20, 20 );
       currentPageCheckButton.onClick = () =>
       {
-            this.checkAllTreeBoxFiles(parent.dialog.treeBox[parent.dialog.tabBox.currentPageIndex], true);
+            this.checkAllTreeBoxFiles(parent.treeBox[parent.tabBox.currentPageIndex], true);
       };
       var currentPageUncheckButton = new ToolButton( parent );
       this.global.rootingArr.push(currentPageUncheckButton);
@@ -4106,7 +4124,7 @@ newPageButtonsSizer(parent, jsonSizer, actionSizer)
       currentPageUncheckButton.setScaledFixedSize( 20, 20 );
       currentPageUncheckButton.onClick = () =>
       {
-            this.checkAllTreeBoxFiles(parent.dialog.treeBox[parent.dialog.tabBox.currentPageIndex], false);
+            this.checkAllTreeBoxFiles(parent.treeBox[parent.tabBox.currentPageIndex], false);
       };
       var currentPageClearButton = new ToolButton( parent );
       this.global.rootingArr.push(currentPageClearButton);
@@ -4206,7 +4224,7 @@ newPageButtonsSizer(parent, jsonSizer, actionSizer)
       currentPageCollapseButton.toolTip = "<p>Collapse all sections in the current page.</p>";
       currentPageCollapseButton.setScaledFixedSize( 20, 20 );
       currentPageCollapseButton.onClick = () => {
-            this.setExpandedTreeBoxNode(parent.dialog.treeBox[parent.dialog.tabBox.currentPageIndex], false);
+            this.setExpandedTreeBoxNode(parent.treeBox[parent.tabBox.currentPageIndex], false);
       };
       var currentPageExpandButton = new ToolButton( parent );
       this.global.rootingArr.push(currentPageExpandButton);
@@ -4214,7 +4232,7 @@ newPageButtonsSizer(parent, jsonSizer, actionSizer)
       currentPageExpandButton.toolTip = "<p>Expand all sections in the current page.</p>";
       currentPageExpandButton.setScaledFixedSize( 20, 20 );
       currentPageExpandButton.onClick = () => {
-            this.setExpandedTreeBoxNode(parent.dialog.treeBox[parent.dialog.tabBox.currentPageIndex], true);
+            this.setExpandedTreeBoxNode(parent.treeBox[parent.tabBox.currentPageIndex], true);
       };
 
       var bestImageLabel = this.guitools.newLabel( parent, "Reference images", "Selecting the reference images for star alignment, image integration and local normalization.");
@@ -4835,6 +4853,8 @@ AutoIntegrateDialog()
             "<p>Print some additional debug information when generating flowchart.</p>" );
       this.printProcessValuesCheckBox = this.guitools.newCheckBox(this, "Print process values", this.par.print_process_values, 
             "<p>Print PixInsight process values to the console and to the AutoIntegrate log file.</p>" );
+      this.createExecutedProcessesJsCheckBox = this.guitools.newCheckBox(this, "Create ExecutedProcesses.js file", this.par.create_executed_processes_js, 
+            "<p>Create a JavaScript file with executed processes. It is a runnable script that can be executed in PixInsight.</p>" );
       this.GC_before_channel_combination_CheckBox = this.guitools.newCheckBox(this, "Gradient correction on channel images", this.par.GC_before_channel_combination, 
             "<p>Use gradient correction on channel images (L,R,G,B,H,S,O) separately before channels are combined.</p>" +
             "<p>With color/OSC images this does the same thing as <i>Gradient correction on combined images</i>.</p>" );
@@ -5525,20 +5545,20 @@ AutoIntegrateDialog()
 
       this.noisexterminatorColorSeparationCheckBox = this.guitools.newCheckBox(this, "Intensity/color separation", this.par.nxt_enable_color_separation, "<p>Depending on options: Denoise Color or Denoise HF Color</p>");
       this.noisexterminatorColorSeparationCheckBox.onClick = (checked) => {
-            if (checked && this.dialog.noisexterminatorFreqSeparationCheckBox.checked) {
-                  this.dialog.noisexterminatorDenoiseLFColorEdit.enabled = true;
+            if (checked && this.noisexterminatorFreqSeparationCheckBox.checked) {
+                  this.noisexterminatorDenoiseLFColorEdit.enabled = true;
             } else {
-                  this.dialog.noisexterminatorDenoiseLFColorEdit.enabled = false;
+                  this.noisexterminatorDenoiseLFColorEdit.enabled = false;
             }
       }
       this.noisexterminatorColorEdit = this.guitools.newNumericEdit(this, "Color", this.par.nxt_denoise_color, 0, 1, "Amount of high frequency color noise to remove.");
 
       this.noisexterminatorFreqSeparationCheckBox = this.guitools.newCheckBox(this, "Frequency separation", this.par.nxt_enable_frequency_separation, "Enable frequency separation.");
       this.noisexterminatorFreqSeparationCheckBox.onClick = (checked) => {
-            if (checked && this.dialog.noisexterminatorColorSeparationCheckBox.checked) {
-                  this.dialog.noisexterminatorDenoiseLFColorEdit.enabled = true;
+            if (checked && this.noisexterminatorColorSeparationCheckBox.checked) {
+                  this.noisexterminatorDenoiseLFColorEdit.enabled = true;
             } else {
-                  this.dialog.noisexterminatorDenoiseLFColorEdit.enabled = false;
+                  this.noisexterminatorDenoiseLFColorEdit.enabled = false;
             }
       }
       this.noisexterminatorDenoiseLFEdit = this.guitools.newNumericEdit(this, "LF", this.par.nxt_denoise_lf, 0, 1, "<p>Depending on options: Denoise LF or Denoise LF Intensity.</p>");
@@ -5786,10 +5806,10 @@ AutoIntegrateDialog()
                         return;
                   }
                   console.writeln("name "+ search.object.name + ", ra " + search.object.posEq.x/15 + ", dec " + search.object.posEq.y);
-                  this.dialog.targetNameEdit.text = search.object.name;
+                  this.targetNameEdit.text = search.object.name;
                   this.par.target_name.val = search.object.name;
-                  this.dialog.targetRaDecEdit.text = (search.object.posEq.x/15).toFixed(5) + " " + search.object.posEq.y.toFixed(5);
-                  this.par.target_radec.val = this.dialog.targetRaDecEdit.text;
+                  this.targetRaDecEdit.text = (search.object.posEq.x/15).toFixed(5) + " " + search.object.posEq.y.toFixed(5);
+                  this.par.target_radec.val = this.targetRaDecEdit.text;
             }
       };
 
@@ -6028,7 +6048,7 @@ AutoIntegrateDialog()
       this.metricsVisualizerSSWEIGHTButton.onClick = () => 
       {
             try {
-                  this.metricsVisualizerSSWEIGHT(this.dialog);
+                  this.metricsVisualizerSSWEIGHT(this);
             } catch (e) {
                   console.criticalln("Metrics visualizer: " + e);
             }
@@ -6068,7 +6088,7 @@ AutoIntegrateDialog()
       this.metricsVisualizerFiltersButton.onClick = () => 
       {
             try {
-                  this.metricsVisualizerFilters(this.dialog);
+                  this.metricsVisualizerFilters(this);
             } catch (e) {
                   console.criticalln("Metrics visualizer: " + e);
             }
@@ -6607,19 +6627,19 @@ AutoIntegrateDialog()
       {
             switch (itemIndex) {
                   case 0:
-                        this.dialog.narrowbandCustomPalette_L_ComboBox.editText = "Auto";
+                        this.narrowbandCustomPalette_L_ComboBox.editText = "Auto";
                         break;
                   case 1:
-                        this.dialog.narrowbandCustomPalette_L_ComboBox.editText = "";
+                        this.narrowbandCustomPalette_L_ComboBox.editText = "";
                         break;
                   case 2:
-                        this.dialog.narrowbandCustomPalette_L_ComboBox.editText = "L";
+                        this.narrowbandCustomPalette_L_ComboBox.editText = "L";
                         break;
-                  case 2:
-                        this.dialog.narrowbandCustomPalette_L_ComboBox.editText = "max(L, H)";
+                  case 3:
+                        this.narrowbandCustomPalette_L_ComboBox.editText = "max(L, H)";
                         break;
             }
-            this.par.custom_L_mapping.val = this.dialog.narrowbandCustomPalette_L_ComboBox.editText;
+            this.par.custom_L_mapping.val = this.narrowbandCustomPalette_L_ComboBox.editText;
       };
 
       this.narrowbandCustomPalette_L_Label = new Label( this );
@@ -6662,7 +6682,7 @@ AutoIntegrateDialog()
                         return;
                   }
                   console.writeln("Selected mappings " + narrowbandSelectMultiple.names);
-                  this.dialog.narrowbandSelectMultipleEdit.text = narrowbandSelectMultiple.names;
+                  this.narrowbandSelectMultipleEdit.text = narrowbandSelectMultiple.names;
                   this.par.narrowband_multiple_mappings_list.val = narrowbandSelectMultiple.names;
             }
       };
@@ -7164,14 +7184,14 @@ AutoIntegrateDialog()
       this.welcomeButton.icon = this.scaledResource(":/icons/info.png");
       this.welcomeButton.toolTip = "Show welcome screen";
       this.welcomeButton.onClick = () => {
-            this.dialog.showWelcomeDialog(this.dialog.global);
+            this.showWelcomeDialog(this.global);
       };
     
       this.tutorialButton = new PushButton(this);
       this.tutorialButton.text = "Tutorials";
       this.tutorialButton.icon = this.scaledResource(":/icons/help.png");
       this.tutorialButton.onClick = () => {
-            this.dialog.showTutorialManager();
+            this.showTutorialManager();
       };
 
       if (this.global.use_preview) {
@@ -7194,7 +7214,7 @@ AutoIntegrateDialog()
                   }
 
                   console.noteln("New flowchart");
-                  if (this.generateNewFlowchartData(this.parent)) {
+                  if (this.generateNewFlowchartData(this)) {
                         this.flowchartUpdated();
                         console.noteln("Flowchart updated");
                   } else {
@@ -7218,7 +7238,7 @@ AutoIntegrateDialog()
                               }
                         } else {
                               if (this.guitools.current_preview.image != null) {
-                                    previewControl.SetImage(this.guitools.current_preview.image, this.guitools.current_preview.txt);
+                                    this.previewControl.SetImage(this.guitools.current_preview.image, this.guitools.current_preview.txt);
                               }
                         }
                   });
@@ -7294,7 +7314,7 @@ AutoIntegrateDialog()
                         }
                   } else {
                         if (this.guitools.current_preview.image != null) {
-                              previewControl.SetImage(this.guitools.current_preview.image, this.guitools.current_preview.txt);
+                              this.previewControl.SetImage(this.guitools.current_preview.image, this.guitools.current_preview.txt);
                         }
                   }
             });
@@ -7444,7 +7464,7 @@ AutoIntegrateDialog()
             if (!ofd.execute()) {
                   return;
             }
-            this.dialog.startup_image_name_Edit.text = ofd.fileName;
+            this.startup_image_name_Edit.text = ofd.fileName;
             this.ppar.startup_image_name = ofd.fileName;
       };
       
@@ -7608,7 +7628,7 @@ AutoIntegrateDialog()
 
       this.processDefaultsButton = new PushButton( this );
       this.processDefaultsButton.text = "Print process defaults";
-      this.processDefaultsButton.toolTip = "<p>Print process default values to the console. For debugging purposes.</p>";
+      this.processDefaultsButton.toolTip = "<p>Print PixInsight process default values to the console for those processes that are used by the script. For debugging purposes.</p>";
       this.processDefaultsButton.onClick = () => {
             this.engine.getProcessDefaultValues();
       }
@@ -7623,6 +7643,7 @@ AutoIntegrateDialog()
       this.debugControl.sizer.margin = 6;
       this.debugControl.sizer.spacing = 4;
       this.debugControl.sizer.add( this.printProcessValuesCheckBox );
+      this.debugControl.sizer.add( this.createExecutedProcessesJsCheckBox );
       this.debugControl.sizer.add( this.debugCheckBox );
       this.debugControl.sizer.add( this.nullProcessingCheckBox );
       this.debugControl.sizer.add( this.flowchartDebugCheckBox );
@@ -7640,7 +7661,7 @@ AutoIntegrateDialog()
          this.hasFocus = true;
          this.saveParametersToProcessIcon();
          this.pushed = false;
-         this.dialog.newInstance();
+         this.newInstance();
          console.noteln("New instance created");
       };
       this.savedefaults_Button = new ToolButton(this);
@@ -8112,7 +8133,7 @@ AutoIntegrateDialog()
             // preview size not set, adjust to screen
             console.noteln("Preview size not restored from settings, adjusting to screen");
             var preview_size = this.util.adjustDialogToScreen(
-                                    this.dialog, 
+                                    this,
                                     this.previewControl,
                                     false,      // maxsize
                                     this.ppar.preview.side_preview_width,
