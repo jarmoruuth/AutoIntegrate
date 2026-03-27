@@ -7228,7 +7228,7 @@ AutoIntegrateDialog()
                   "<p>If Flowchart setting <i>Get flowchart data before processing</i> is checked then the live flowchart " + 
                   "view uses full processing flowchart.</p>" + 
                   this.guitools.skip_reset_tooltip,
-                  function(checked) { 
+                  (checked) => { 
                         this.par.show_flowchart.val = checked;
                         if (checked) {
                               if (this.global.flowchartData != null) {
@@ -7295,7 +7295,7 @@ AutoIntegrateDialog()
             "Image name on top of the preview window has text AutoSTF when image is stretched for preview.</p>" + 
             "<p>When unchecked preview image is shown in original format.</p>" +
             "<p>Stretched format can be useful for visualizing the current processed image.</p>",
-            function(checked) { 
+            (checked) => { 
                   this.par.preview_autostf.val = checked;
                   if (this.guitools.current_preview.image != null) {
                         if (checked) {
@@ -7452,7 +7452,7 @@ AutoIntegrateDialog()
             "<p>Startup image name.</p>" +
             "<p>You can set your own startup image here.</p>" + 
             "<p><b>NOTE!</b> Remember to use the Save button to save the name to persistent module settings.</p>",
-            function(value) { this.ppar.startup_image_name = value; });
+            function(value) { this.dialog.ppar.startup_image_name = value; });
       this.startup_image_name_Button = new ToolButton( this );
       this.startup_image_name_Button.icon = this.scaledResource(":/icons/select-file.png");
       this.startup_image_name_Button.toolTip = this.startup_image_name_Edit.toolTip;
@@ -7496,14 +7496,14 @@ AutoIntegrateDialog()
       this.side_preview_width_label = this.guitools.newLabel(this, 'Preview width', "Preview image width.");
       this.side_preview_width_edit = this.guitools.newPparSpinBox(this, this.ppar, this.ppar.preview.side_preview_width, 100, 4000, 
             "Preview image width.",
-            function(value) { 
+            (value) => { 
                   this.updatePreviewSize(0, 0, 0, value, 0); 
             }
       );
       this.side_preview_height_label = this.guitools.newLabel(this, 'height', "Preview image height.");
       this.side_preview_height_edit = this.guitools.newPparSpinBox(this, this.ppar, this.ppar.preview.side_preview_height, 100, 4000, 
             "Preview image height.",
-            function(value) { 
+            (value) => { 
                   this.updatePreviewSize(0, 0, 0, 0, value); 
             }
       );
@@ -7511,7 +7511,7 @@ AutoIntegrateDialog()
       this.side_histogram_height_label = this.guitools.newLabel(this, 'Preview histogram height', "Image histogram height in preview.");
       this.side_histogram_height_edit = this.guitools.newPparSpinBox(this, this.ppar, this.ppar.preview.side_histogram_height, 50, 2000, 
             this.side_histogram_height_label.toolTip,
-            function(value) { 
+            (value) => { 
                   this.updatePreviewSize(0, 0, 0, 0, 0, value);
             }
       );
