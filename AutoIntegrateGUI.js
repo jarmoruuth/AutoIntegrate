@@ -307,8 +307,7 @@ generateNewFlowchartData(parent)
       }
 
       var succp = true;
-      this.guitools.current_preview.image = null;
-      this.resetCurrentPreviewImageVersions();
+      this.resetCurrentPreviewImage();
 
       this.flowchart.flowchartReset();
 
@@ -1274,12 +1273,7 @@ updatePreviewWinTxt(imgWin, txt, histogramInfo = null, run_autostf = false, imgW
             }
             if (this.par.debug.val) console.writeln("--- updatePreviewWinTxt:histogram " + (Date.now()-start_time)/1000 + " sec");
             if (this.par.debug.val) start_time = Date.now();
-            this.resetCurrentPreviewImageVersions();
-            if (copy_image) {
-                  this.guitools.current_preview.image_versions[0] = { image: new Image( imgWin.mainView.image ), txt: txt, newimage: true };
-            } else {
-                  this.guitools.current_preview.image_versions[0] = { image: imgWin.mainView.image, txt: txt, newimage: false };
-            }
+            this.resetCurrentPreviewImage();
             if (run_autostf) {
                   // Image is linear, run AutoSTF
                   if (copy_image) {
@@ -1289,23 +1283,29 @@ updatePreviewWinTxt(imgWin, txt, histogramInfo = null, run_autostf = false, imgW
                         this.engine.autoStretch(copy_win);
                         imgWin = copy_win;
                         txt = txt + " (AutoSTF)";
-                        this.guitools.current_preview.image_versions[1] = { image: new Image( copy_win.mainView.image ), txt: txt, newimage: true };
-                        this.guitools.current_preview.image = this.guitools.current_preview.image_versions[1].image;
-                        this.guitools.current_preview.txt = this.guitools.current_preview.image_versions[1].txt;
+                        this.guitools.current_preview.image = new Image( copy_win.mainView.image )
+                        this.guitools.current_preview.copy_image = true;
+                        this.guitools.current_preview.txt = txt;
                   } else {
                         if (this.par.debug.val) console.writeln("updatePreviewWinTxt:run_autostf, do not copy image");
-                        this.guitools.current_preview.image_versions[1] = { image: this.guitools.current_preview.image_versions[0].image, txt: txt, newimage: false };
                         var copy_win = null;
-                        this.guitools.current_preview.image = this.guitools.current_preview.image_versions[0].image;
-                        this.guitools.current_preview.txt = this.guitools.current_preview.image_versions[0].txt;
+                        this.guitools.current_preview.image = imgWin.mainView.image;
+                        this.guitools.current_preview.copy_image = false;
+                        this.guitools.current_preview.txt = txt;
                         this.engine.autoStretch(imgWin);
                   }
             } else {
                   if (this.par.debug.val) console.writeln("updatePreviewWinTxt:no autostf");
-                  this.guitools.current_preview.image_versions[1] = { image: this.guitools.current_preview.image_versions[0].image, txt: txt, newimage: false };
                   var copy_win = null;
-                  this.guitools.current_preview.image = this.guitools.current_preview.image_versions[0].image;
-                  this.guitools.current_preview.txt = this.guitools.current_preview.image_versions[0].txt;
+                  if (copy_image) {
+                        this.guitools.current_preview.image = new Image( imgWin.mainView.image );
+                        this.guitools.current_preview.txt = txt;
+                        this.guitools.current_preview.copy_image = true;
+                  } else {
+                        this.guitools.current_preview.image = imgWin.mainView.image;
+                        this.guitools.current_preview.copy_image = false;
+                        this.guitools.current_preview.txt = txt;
+                  }
             }
             if (this.par.debug.val) console.writeln("updatePreviewWinTxt: preview image size " + this.guitools.current_preview.image.width + "x" + this.guitools.current_preview.image.height);
             if (this.par.debug.val) console.writeln("--- updatePreviewWinTxt:autostf " + (Date.now()-start_time)/1000 + " sec");
@@ -3570,8 +3570,7 @@ runAction(parent)
             console.criticalln("Cannot use Run button with Integrated lights option, Autocontinue button must be used.");
             return;
       }
-      this.guitools.current_preview.image = null;
-      this.resetCurrentPreviewImageVersions();
+      this.resetCurrentPreviewImage();
       this.updateWindowPrefix();
       this.getFilesFromTreebox(parent);
       this.global.haveIconized = 0;
@@ -3665,21 +3664,13 @@ newCancelButton(parent, toolbutton)
       );
 }
 
-resetCurrentPreviewImageVersions()
+resetCurrentPreviewImage()
 {
-      if (this.guitools.current_preview.image_versions.length == 2) {
-            if (this.guitools.current_preview.image_versions[0] != null && this.guitools.current_preview.image_versions[0].newimage) {
-                  this.guitools.current_preview.image_versions[0].image.free();
-                  this.guitools.current_preview.image_versions[0].image = null;
-            }
-            if (this.guitools.current_preview.image_versions[1] != null && this.guitools.current_preview.image_versions[1].newimage) {
-                  this.guitools.current_preview.image_versions[1].image.free();
-                  this.guitools.current_preview.image_versions[1].image = null;
-            }
+      if (this.guitools.current_preview.copy_image) {
+            this.guitools.current_preview.image.free();
+            this.guitools.current_preview.image = null;
+            this.guitools.current_preview.copy_image = false;
       }
-      this.guitools.current_preview.image_versions = [];    // 0 = original image, 1 = stretched image
-      this.guitools.current_preview.image_versions[0] = null;
-      this.guitools.current_preview.image_versions[1] = null;
 }
 
 newAutoContinueButton(parent, toolbutton)
@@ -3691,8 +3682,7 @@ newAutoContinueButton(parent, toolbutton)
 
             // Do not create subdirectory structure with AutoContinue
 
-            this.guitools.current_preview.image = null;
-            this.resetCurrentPreviewImageVersions();
+            this.resetCurrentPreviewImage();
             if (this.global.outputRootDir == "" || this.util.pathIsRelative(this.global.outputRootDir)) {
                   // If we do not have a fixed output directory then do not use subdirectories 
                   this.util.clearDefaultDirs();
@@ -7297,26 +7287,6 @@ AutoIntegrateDialog()
             "<p>Stretched format can be useful for visualizing the current processed image.</p>",
             (checked) => { 
                   this.par.preview_autostf.val = checked;
-                  if (this.guitools.current_preview.image != null) {
-                        if (checked) {
-                              this.guitools.current_preview.image = this.guitools.current_preview.image_versions[1].image;
-                              this.guitools.current_preview.txt = this.guitools.current_preview.image_versions[1].txt;
-                        } else {
-                              this.guitools.current_preview.image = this.guitools.current_preview.image_versions[0].image;
-                              this.guitools.current_preview.txt = this.guitools.current_preview.image_versions[0].txt;
-                        }
-                  }
-                  if (this.par.show_flowchart.val) {
-                        if (this.global.flowchartData != null) {
-                              this.flowchartUpdated();
-                        } else {
-                              // console.noteln("No flowchart data available");
-                        }
-                  } else {
-                        if (this.guitools.current_preview.image != null) {
-                              this.previewControl.SetImage(this.guitools.current_preview.image, this.guitools.current_preview.txt);
-                        }
-                  }
             });
 
       this.resampleCheckBox = this.guitools.newCheckBox(this, "Resample", this.par.preview_resample, 

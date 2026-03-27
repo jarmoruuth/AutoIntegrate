@@ -1774,15 +1774,7 @@ createEmptyBitmap(width, height, fill_color)
 
 createImageFromBitmap(bitmap)
 {
-      var image = new Image(
-                        bitmap.width, 
-                        bitmap.height,
-                        3,
-                        ColorSpace.RGB);
-
-      image.blend(bitmap);
-                  
-      return image;
+      return bitmap.toImage();
 }
 
 createWindowFromBitmap(bitmap, id)

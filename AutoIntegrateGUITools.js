@@ -49,9 +49,9 @@ this.exclusionAreaCountLabel = null;
 
 this.current_preview = {
       image: null,
+      copy_image: false,      // true if image is a copy of the original image, false if it is the original image
       txt: null,
-      image_versions: [],     // 0 = original image, 1 = stretched image { image, txt, newimage }
-      imgWin: null,           // Sometimes we keep preview window, but often can be null
+      imgWin: null,           // Sometimes we keep preview window when loading image from a file, but often is null
       resampled: false
 };
 
