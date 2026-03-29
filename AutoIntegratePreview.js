@@ -101,6 +101,9 @@ class AutoIntegratePreviewControl extends Frame
        // Set image window and bitmap
        SetImage(image, txt)
        {
+             if (!this.global.interactiveMode) {
+                  return;
+             }
              if (this.par.debug.val) console.writeln(this.name + ":SetImage:image " + image.width + "x" + image.height + ", txt " + txt);
 
              this.SetImageBitmap(image.render(), txt);
@@ -124,6 +127,9 @@ class AutoIntegratePreviewControl extends Frame
        // Update image window and bitmap
        UpdateImage(image, txt)
        {
+             if (!this.global.interactiveMode) {
+                  return;
+             }
              if (this.par.debug.val) console.writeln(this.name + ":UpdateImage:image " + image.width + "x" + image.height + ", txt " + txt);
              this.UpdateImageBitmap(image.render(), txt)
        }
@@ -154,6 +160,9 @@ class AutoIntegratePreviewControl extends Frame
 
        showClippedImage()
        {
+            if (!this.global.interactiveMode) {
+                  return;
+            }
             if (this.saveNonclippedBitmap) {
                   console.writeln("showNonclippedImage");
                   this.UpdateImageBitmap(this.saveNonclippedBitmap, this.image_name_Label.text);

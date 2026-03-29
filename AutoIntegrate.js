@@ -490,6 +490,8 @@ test_initialize_new()
       this.global.testmode = true;
       this.global.testmode_log = "";
 
+      this.global.interactiveMode = false;
+
       // do not read defaults from persistent module settings
       this.global.ai_use_persistent_module_settings = false; 
       this.global.do_not_read_settings = true;
@@ -499,39 +501,9 @@ test_initialize_new()
       this.util.loggingEnabled = false;
 }
 
-test_initdebug()
+test_done()
 {
-      this.par.debug.val = true;
-      this.global.ai_use_persistent_module_settings = false;  // do not read defaults from persistent module settings
-}
-
-test_initialize()
-{
-      console.writeln("test_initialize");
-
-      this.init_pixinsight_version();
-
-      this.global.interactiveMode = false;
-      this.global.do_not_write_settings = true;
-      this.global.testmode = true;
-      this.global.testmode_log = "";
-      this.global.debug = true;
-
-      this.util.setDefaultDirs();
-
-      // Initialize ppar to the default values they have when the script is started
-      this.ppar.win_prefix = '';
-      this.ppar.prefixArray = [];
-      this.ppar.userColumnCount = -1;    
-      this.ppar.lastDir = '';  
-
-      // Hopefully remove the prefixes of a previous run
-      this.util.fixAllWindowArrays(this.ppar.win_prefix);
-
-      // Reset the parameters to the default they would have when the program is loaded
-      this.util.setParameterDefaults();
-
-      console.writeln("test_initialize done");
+      console.writeln("test_done");
 }
 
 load_setup(setup_path)
@@ -550,65 +522,21 @@ load_setup(setup_path)
       console.writeln("load_setup done");
 }
 
-test_autosetup = function(autosetup_path)
-{
-      console.writeln("test_autosetup");
-
-      this.load_setup(autosetup_path);
-
-      console.writeln("test_autosetup done");
-}
-
-test_getpar()
-{
-      return this.par;
-}
-
-test_getppar()
-{
-      return this.ppar;
-}
-
-test_gui()
-{
-      return this.gui;
-}
-
 test_nopreview()
 {
       this.ppar.preview.use_preview = false;
       this.global.use_preview = false;
 }
 
-get_run_results()
+test_get_run_results()
 {
       return this.global.run_results;
 }
 
-cancel()
+test_cancel()
 {
       console.noteln("Cancel requested...");
       this.global.cancel_processing = true;
-}
-
-get_autointegrate_version()
-{
-      return this.global.autointegrate_version;
-}
-
-set_outputRootDir(dir)
-{
-      this.util.setOutputRootDir(dir);
-}
-
-set_dialog(dialog)
-{
-      this.dialog = dialog;
-}
-
-openImageWindowFromFile(name)
-{
-      return this.util.openImageWindowFromFile(name);
 }
 
 /***************************************************************************

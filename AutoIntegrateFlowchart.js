@@ -370,6 +370,10 @@ flowchartGraph(rootnode, current_preview_image, txt)
             return null;
       }
 
+      if (!this.global.interactiveMode) {
+            return null;
+      }
+
       if (this.global.debug) console.writeln("flowchartGraph:" + (current_preview_image == null ? "no current preview image" : "current preview image " + current_preview_image.width + "x" + current_preview_image.height));
 
       var fontsize = 8;
@@ -437,12 +441,12 @@ flowchartGraph(rootnode, current_preview_image, txt)
             var y = (current_preview_image.height - bitmap.height) / 2;
             graphics.drawBitmap(x, y, bitmap);
             graphics.end();
-            bitmap = background_bitmap
+            bitmap = background_bitmap;
       } else {
             if (this.global.debug) console.writeln("flowchartGraph:no background image");
       }
 
-      if (this.global.flowchart_image != null && this.global.flowchart_image.width == bitmap.width && this.global.flowchart_image.height == bitmap.height) {
+      if (0 && this.global.flowchart_image != null && this.global.flowchart_image.width == bitmap.width && this.global.flowchart_image.height == bitmap.height) {
             if (this.global.debug) console.writeln("flowchartGraph:use existing flowchart image and blend");
             this.global.flowchart_image.blend(bitmap);
       } else {
