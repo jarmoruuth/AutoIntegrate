@@ -18,9 +18,10 @@
  */
 class AutoIntegrateMaxPreviewDialog extends Dialog
 {
-      constructor(engine, util, global, image, txt) {
-            super();
-            this.restyle();
+
+constructor(engine, util, global, image, txt) {
+      super();
+      this.restyle();
 
       let sz = util.getScreenSize(this);
 
@@ -49,7 +50,8 @@ class AutoIntegrateMaxPreviewDialog extends Dialog
       this.windowTitle = "Max preview";
       this.adjustToContents();
       this.setFixedSize();
-      } // end of constructor
+} // end of constructor
+
 }
 
 /***************************************************************************
@@ -68,33 +70,33 @@ class AutoIntegratePreviewControl extends Frame
       constructor(parentDialog, name, engine, util, global, size_x, size_y, call_from_max_preview) {
             super(parentDialog);
 
-      this.parentDialog = parentDialog;
-      this.name = name;
-      this.engine = engine;
-      this.util = util;
-      this.global = global;
+            this.parentDialog = parentDialog;
+            this.name = name;
+            this.engine = engine;
+            this.util = util;
+            this.global = global;
 
-      this.size_x = size_x;
-      this.size_y = size_y;
+            this.size_x = size_x;
+            this.size_y = size_y;
 
-      this.call_from_max_preview = call_from_max_preview;
+            this.call_from_max_preview = call_from_max_preview;
 
-       this.par = this.global.par;
+            this.par = this.global.par;
 
-       if (this.call_from_max_preview) {
-            this.normalPreview = false;
-      } else {   
-            this.normalPreview = true;
-      }
+            if (this.call_from_max_preview) {
+                  this.normalPreview = false;
+            } else {   
+                  this.normalPreview = true;
+            }
 #ifdef AUTOINTEGRATE_STANDALONE
-      this.standalone = true;
+            this.standalone = true;
 #else
-      this.standalone = false;
+            this.standalone = false;
 #endif
 
-      this.saveNonclippedBitmap = null;
+            this.saveNonclippedBitmap = null;
 
-      this.initGUI();
+            this.initGUI();
 
       } // constructor
 

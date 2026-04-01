@@ -10,42 +10,43 @@
 
 class AutoIntegrateSelectiveColor extends Object
 {
-    constructor(guitools, util, global, preview) {
-        super();
-        this.guitools = guitools;
-        this.util = util;
-        this.global = global;
-        this.preview = preview;
 
-this.par = this.global.par;
+constructor(guitools, util, global, preview) {
+   super();
+   this.guitools = guitools;
+   this.util = util;
+   this.global = global;
+   this.preview = preview;
 
-// Color ranges matching Photoshop
-this.ColorRange = {
-   REDS: 0,
-   YELLOWS: 1,
-   GREENS: 2,
-   CYANS: 3,
-   BLUES: 4,
-   MAGENTAS: 5,
-   WHITES: 6,
-   NEUTRALS: 7,
-   BLACKS: 8
-};
+   this.par = this.global.par;
 
-this.ColorRangeNames = [
-   "Reds", "Yellows", "Greens", "Cyans", "Blues", "Magentas",
-   "Whites", "Neutrals", "Blacks"
-];
+   // Color ranges matching Photoshop
+   this.ColorRange = {
+      REDS: 0,
+      YELLOWS: 1,
+      GREENS: 2,
+      CYANS: 3,
+      BLUES: 4,
+      MAGENTAS: 5,
+      WHITES: 6,
+      NEUTRALS: 7,
+      BLACKS: 8
+   };
 
-// Adjustment modes
-this.AdjustmentMode = {
-   RELATIVE: 0,
-   ABSOLUTE: 1
-};
+   this.ColorRangeNames = [
+      "Reds", "Yellows", "Greens", "Cyans", "Blues", "Magentas",
+      "Whites", "Neutrals", "Blacks"
+   ];
 
-this.selective_color_preset_values = [ 'None', 'Gold and Blue' ];
+   // Adjustment modes
+   this.AdjustmentMode = {
+      RELATIVE: 0,
+      ABSOLUTE: 1
+   };
 
-this.SelectiveColorEngine();
+   this.selective_color_preset_values = [ 'None', 'Gold and Blue' ];
+
+   this.SelectiveColorEngine();
 
 } // constructor end
 

@@ -268,21 +268,22 @@ Linear Defect Detection:
 #include "AutoIntegrateFlowchart.js"
 
 class AutoIntegrate extends Object {
-      constructor() {
-            super();
 
-this.global = new AutoIntegrateGlobal();
-this.util = new AutoIntegrateUtil(this.global);
-this.flowchart = new AutoIntegrateFlowchart(this.global, this.util);
-this.engine = new AutoIntegrateEngine(this.global, this.util, this.flowchart);
-this.gui = new AutoIntegrateGUI(this.global, this.util, this.engine, this.flowchart);
+constructor() {
+      super();
 
-this.util.setGUI(this.gui);
-this.engine.setGUI(this.gui);
-this.flowchart.setGUI(this.gui);
+      this.global = new AutoIntegrateGlobal();
+      this.util = new AutoIntegrateUtil(this.global);
+      this.flowchart = new AutoIntegrateFlowchart(this.global, this.util);
+      this.engine = new AutoIntegrateEngine(this.global, this.util, this.flowchart);
+      this.gui = new AutoIntegrateGUI(this.global, this.util, this.engine, this.flowchart);
 
-this.par = this.global.par;
-this.ppar = this.global.ppar;
+      this.util.setGUI(this.gui);
+      this.engine.setGUI(this.gui);
+      this.flowchart.setGUI(this.gui);
+
+      this.par = this.global.par;
+      this.ppar = this.global.ppar;
 
 } // constructor
 

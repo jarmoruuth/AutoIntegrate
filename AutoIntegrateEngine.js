@@ -82,7 +82,6 @@ by Pleiades Astrophoto and its contributors (https://pixinsight.com/).
       - combineRGBimage - used in case of LRGB processing
 */
 
-
 #ifndef AUTOINTEGRATEENGINE_JS
 #define AUTOINTEGRATEENGINE_JS
 
@@ -92,198 +91,199 @@ by Pleiades Astrophoto and its contributors (https://pixinsight.com/).
 
 class AutoIntegrateEngine extends Object
 {
-      constructor(global, util, flowchart) {
 
-            super();
+constructor(global, util, flowchart) {
 
-this.global = global;
-this.util = util;
-this.flowchart = flowchart;
+      super();
+
+      this.global = global;
+      this.util = util;
+      this.flowchart = flowchart;
 
 #ifdef AUTOINTEGRATE_STANDALONE
-this.autointegrateLDD = null;
+      this.autointegrateLDD = null;
 #else
-this.autointegrateLDD = new AutoIntegrateLDD(this.util);
+      this.autointegrateLDD = new AutoIntegrateLDD(this.util);
 #endif
 
-this.gui = null;
-this.par = this.global.par;
-this.ppar = this.global.ppar;
+      this.gui = null;
+      this.par = this.global.par;
+      this.ppar = this.global.ppar;
 
-this.veralux = new AutoIntegrateVeraLuxHMS(this.global.debug);
-this.calibrate = new AutoIntegrateCalibrate(this.global, this.util, this.flowchart, this);
-this.imageSolver = new AutoIntegrateImageSolver(this.global, this.util, this.flowchart, this);
+      this.veralux = new AutoIntegrateVeraLuxHMS(this.global.debug);
+      this.calibrate = new AutoIntegrateCalibrate(this.global, this.util, this.flowchart, this);
+      this.imageSolver = new AutoIntegrateImageSolver(this.global, this.util, this.flowchart, this);
 
 
-// Copy of files from this.global object
-this.lightFileNames = null;
-this.darkFileNames = null;
-this.biasFileNames = null;
-this.flatdarkFileNames = null;
-this.flatFileNames = null;
+      // Copy of files from this.global object
+      this.lightFileNames = null;
+      this.darkFileNames = null;
+      this.biasFileNames = null;
+      this.flatdarkFileNames = null;
+      this.flatFileNames = null;
 
-this.standalone_narrowband_mappings = null;
+      this.standalone_narrowband_mappings = null;
 
-this.selectiveColor = null;
+      this.selectiveColor = null;
 
-this.ssweight_set = false;
-this.H_in_R_channel = false;
-this.is_luminance_images = false;    // Do we have luminance files from autocontinue or FITS
-this.autocontinue_prefix = "";       // prefix used to find base files for autocontinue
+      this.ssweight_set = false;
+      this.H_in_R_channel = false;
+      this.is_luminance_images = false;    // Do we have luminance files from autocontinue or FITS
+      this.autocontinue_prefix = "";       // prefix used to find base files for autocontinue
 
-this.crop_truncate_amount = null;       // used when cropping channel images
-this.crop_lowClipImageName = null;      // integrated image used to calculate this.crop_truncate_amount
-this.crop_lowClipImage_changed = false; // changed flag for saving to disk
+      this.crop_truncate_amount = null;       // used when cropping channel images
+      this.crop_lowClipImageName = null;      // integrated image used to calculate this.crop_truncate_amount
+      this.crop_lowClipImage_changed = false; // changed flag for saving to disk
 
-this.save_processed_images = true;     // save processed L+RGB images to disk while they still are linear
+      this.save_processed_images = true;     // save processed L+RGB images to disk while they still are linear
 
-this.crop_suggestion_txt = "Adjust crop parameters, or adjust the crop manually and run again using AutoContinue."; 
+      this.crop_suggestion_txt = "Adjust crop parameters, or adjust the crop manually and run again using AutoContinue."; 
 
-this.enhancementsApply = false;
+      this.enhancementsApply = false;
 
-this.firstDateFileInfo = null;
-this.lastDateFileInfo = null;
+      this.firstDateFileInfo = null;
+      this.lastDateFileInfo = null;
 
-this.medianFWHM = null;
+      this.medianFWHM = null;
 
-// List of images used in processing
-// Images is an array of objects with properties (see init_images):
-//   images : array of image ids
-//   best_image: image id
-//   best_ssweight: ssweight value
-//   exptime: exposure time
-this.L_images = [];
-this.R_images = [];
-this.G_images = [];
-this.B_images = [];
-this.H_images = [];
-this.S_images = [];
-this.O_images = [];
-this.C_images = [];
+      // List of images used in processing
+      // Images is an array of objects with properties (see init_images):
+      //   images : array of image ids
+      //   best_image: image id
+      //   best_ssweight: ssweight value
+      //   exptime: exposure time
+      this.L_images = [];
+      this.R_images = [];
+      this.G_images = [];
+      this.B_images = [];
+      this.H_images = [];
+      this.S_images = [];
+      this.O_images = [];
+      this.C_images = [];
 
-this.astrobin_info = null; // Astrobin info for the generating CSV information
+      this.astrobin_info = null; // Astrobin info for the generating CSV information
 
-// SPCC parameters that may be changed with spcc_auto_narrowband
-// so they are used from here.
-this.spcc_params = {
-      wavelengths: [],        // R, G, B
-      bandhwidths: [],        // R, G, B
-      white_reference: "",
-      narrowband_mode: false
-};
+      // SPCC parameters that may be changed with spcc_auto_narrowband
+      // so they are used from here.
+      this.spcc_params = {
+            wavelengths: [],        // R, G, B
+            bandhwidths: [],        // R, G, B
+            white_reference: "",
+            narrowband_mode: false
+      };
 
-this.process_narrowband = false;
+      this.process_narrowband = false;
 
-this.logfname = null;
-this.alignedFiles = null;
+      this.logfname = null;
+      this.alignedFiles = null;
 
-/* Variable used during processing images.
- */
-this.mask_win = null;
-this.mask_win_id = null;
-this.star_mask_win = null;
-this.star_mask_win_id = null;
-this.star_fix_mask_win = null;
-this.star_fix_mask_win_id = null;
+      /* Variable used during processing images.
+      */
+      this.mask_win = null;
+      this.mask_win_id = null;
+      this.star_mask_win = null;
+      this.star_mask_win_id = null;
+      this.star_fix_mask_win = null;
+      this.star_fix_mask_win_id = null;
 
-this.RGB_win = null;
-this.RGB_win_id = null;
-this.L_processed_id = null;
-this.L_processed_HT_win = null;
-this.L_processed_HT_id = null;
-this.RGB_processed_id = null;
+      this.RGB_win = null;
+      this.RGB_win_id = null;
+      this.L_processed_id = null;
+      this.L_processed_HT_win = null;
+      this.L_processed_HT_id = null;
+      this.RGB_processed_id = null;
 
-this.is_color_files = false;    // Are we processing color/OSC files
-this.is_rgb_files = false;
-this.is_narrowband_files = false;
-this.preprocessed_images = null;
+      this.is_color_files = false;    // Are we processing color/OSC files
+      this.is_rgb_files = false;
+      this.is_narrowband_files = false;
+      this.preprocessed_images = null;
 
-this.save_id_list = []; // list of images to save to disk
+      this.save_id_list = []; // list of images to save to disk
 
-this.luminance_id = null;      // These are working images and copies of 
-this.red_id = null;            // original integrated images
-this.green_id = null;
-this.blue_id = null;
+      this.luminance_id = null;      // These are working images and copies of 
+      this.red_id = null;            // original integrated images
+      this.green_id = null;
+      this.blue_id = null;
 
-this.luminance_crop_id = null; // Not used for now, use Save cropped images
+      this.luminance_crop_id = null; // Not used for now, use Save cropped images
 
-this.L_id = null;                     // Original integrated images
-this.R_id = null;                     // We make copies of these images during processing
-this.G_id = null;
-this.B_id = null;
-this.H_id = null;
-this.S_id = null;
-this.O_id = null;
-this.RGB_color_id = null;              // Integrated RGB from OSC/DSLR data
+      this.L_id = null;                     // Original integrated images
+      this.R_id = null;                     // We make copies of these images during processing
+      this.G_id = null;
+      this.B_id = null;
+      this.H_id = null;
+      this.S_id = null;
+      this.O_id = null;
+      this.RGB_color_id = null;              // Integrated RGB from OSC/DSLR data
 
-this.RGBHa_H_enhanced_info = {  // Ha RGB image info
-                              nb_channel_id: null,    // Enhanced Ha channel image id
-                              starless: false, 
-                              mapping_done: false
-                         };    
+      this.RGBHa_H_enhanced_info = {  // Ha RGB image info
+                                    nb_channel_id: null,    // Enhanced Ha channel image id
+                                    starless: false, 
+                                    mapping_done: false
+                              };    
 
-this.iconized_image_ids = [];        // Random images that are iconized at the end of processing
-this.iconized_debug_image_ids = [];  // Random images that are iconized or closed at the end of processing
+      this.iconized_image_ids = [];        // Random images that are iconized at the end of processing
+      this.iconized_debug_image_ids = [];  // Random images that are iconized or closed at the end of processing
 
-this.RGB_stars_win = null;           // linear combined RGB/narrowband/OSC stars
-this.RGB_stars_win_HT = null;        // stretched/non-linear RGB stars win
-this.RGB_stars_channel_ids = [];     // linear RGB channel star image ids
+      this.RGB_stars_win = null;           // linear combined RGB/narrowband/OSC stars
+      this.RGB_stars_win_HT = null;        // stretched/non-linear RGB stars win
+      this.RGB_stars_channel_ids = [];     // linear RGB channel star image ids
 
-// Local copies of parameter that may be changed during processing
-this.local_RGB_stars = false;
-this.local_narrowband_mapping = "";
-this.local_L_mapping = "";
-this.local_R_mapping = "";
-this.local_G_mapping = "";
-this.local_B_mapping = "";
-this.local_image_stretching = "";
-this.local_debayer_pattern = "";
-this.local_RGBHa_prepare_method = "";
-this.local_RGBHa_combine_method = "";
+      // Local copies of parameter that may be changed during processing
+      this.local_RGB_stars = false;
+      this.local_narrowband_mapping = "";
+      this.local_L_mapping = "";
+      this.local_R_mapping = "";
+      this.local_G_mapping = "";
+      this.local_B_mapping = "";
+      this.local_image_stretching = "";
+      this.local_debayer_pattern = "";
+      this.local_RGBHa_prepare_method = "";
+      this.local_RGBHa_combine_method = "";
 
-this.script_start_time = null;
+      this.script_start_time = null;
 
-this.L_GC_start_win = null;           // Gradient corrected and integrated start images for AutoContinue
-this.R_GC_start_win = null;
-this.G_GC_start_win = null;
-this.B_GC_start_win = null;
-this.H_GC_start_win = null;
-this.S_GC_start_win = null;
-this.O_GC_start_win = null;
-this.RGB_GC_start_win = null;
+      this.L_GC_start_win = null;           // Gradient corrected and integrated start images for AutoContinue
+      this.R_GC_start_win = null;
+      this.G_GC_start_win = null;
+      this.B_GC_start_win = null;
+      this.H_GC_start_win = null;
+      this.S_GC_start_win = null;
+      this.O_GC_start_win = null;
+      this.RGB_GC_start_win = null;
 
-this.L_HT_start_win = null;           // HT images for AutoContinue
-this.RGB_HT_start_win = null;
+      this.L_HT_start_win = null;           // HT images for AutoContinue
+      this.RGB_HT_start_win = null;
 
-this.range_mask_win = null;
-this.final_win = null;
-this.linear_fit_rerefence_id = null;
+      this.range_mask_win = null;
+      this.final_win = null;
+      this.linear_fit_rerefence_id = null;
 
-this.stepno = 1;
+      this.stepno = 1;
 
-this.retval = {
-      ERROR : 0,
-      SUCCESS : 1,
-      INCOMPLETE: 2
-};
+      this.retval = {
+            ERROR : 0,
+            SUCCESS : 1,
+            INCOMPLETE: 2
+      };
 
-this.channels = {
-      L: 0,
-      R: 1,
-      G: 2,
-      B: 3,
-      H: 4,
-      S: 5,
-      O: 6,
-      C: 7
-};
+      this.channels = {
+            L: 0,
+            R: 1,
+            G: 2,
+            B: 3,
+            H: 4,
+            S: 5,
+            O: 6,
+            C: 7
+      };
 
-this.GraXpertCmd = {
-      background: 0,
-      denoise: 1,
-      deconvolution_stars: 2,
-      deconvolution_object: 3,
-};
+      this.GraXpertCmd = {
+            background: 0,
+            denoise: 1,
+            deconvolution_stars: 2,
+            deconvolution_object: 3,
+      };
 
 } // constructor
 

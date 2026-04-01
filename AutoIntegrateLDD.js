@@ -53,10 +53,10 @@ Copyright (c) 2019 Vicent Peris (OAUV). All Rights Reserved.
 
 class AutoIntegrateLDD extends Object
 {
-    constructor(util) {
-        super();
-        this.util = util;
-    }
+constructor(util) {
+    super();
+    this.util = util;
+}
 
 LDDEngine( win, detectColumns, detectPartialLines,
     layersToRemove, rejectionLimit, imageShift,

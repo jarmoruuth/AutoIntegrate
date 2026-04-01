@@ -21,115 +21,116 @@ by Pleiades Astrophoto and its contributors (https://pixinsight.com/).
 
 class AutoIntegrateGUITools extends Object
 {
-    constructor(parent, global, util, engine) {
-        super();
 
-this.parent = parent;
-if (global.debug) console.writeln("AutoIntegrateGUITools");
-this.global = global;
-this.par = global.par;
-this.util = util;
-this.engine = engine;
+constructor(parent, global, util, engine) {
+      super();
 
-this.preview_control = null;
+      this.parent = parent;
+      if (global.debug) console.writeln("AutoIntegrateGUITools");
+      this.global = global;
+      this.par = global.par;
+      this.util = util;
+      this.engine = engine;
 
-this.starless_and_stars_combine_values = [ 'Add', 'Screen', 'Lighten' ];
-this.histogram_stretch_type_values = [ 'Median', 'Peak' ];
-this.STF_linking_values = [ 'Auto', 'Linked', 'Unlinked' ];
-this.adjust_shadows_values = [ 'none', 'before', 'after', 'both' ];
-this.graxpert_correction_values = [ 'Subtraction', 'Division' ];
-this.ABE_correction_values = [ 'Subtraction', 'Division' ];
-this.mgc_scale_valuestxt = [ '128', '192', '256', '384', '512', '768', '1024', '1536', '2048', '3072', '4096', '6144', '8192' ];
-this.mas_scale_valuestxt = [ '8', '16', '32', '64', '128', '192', '256', '384', '512', '768', '1024' ];
+      this.preview_control = null;
 
-this.exclusionAreasComboBox = null;             // For updating exclusion image list
-this.exclusionAreasTargetImageName = "Auto";    // Current exclusion image
-this.exclusion_area_image_window_list = null;
-this.exclusionAreaCountLabel = null;
+      this.starless_and_stars_combine_values = [ 'Add', 'Screen', 'Lighten' ];
+      this.histogram_stretch_type_values = [ 'Median', 'Peak' ];
+      this.STF_linking_values = [ 'Auto', 'Linked', 'Unlinked' ];
+      this.adjust_shadows_values = [ 'none', 'before', 'after', 'both' ];
+      this.graxpert_correction_values = [ 'Subtraction', 'Division' ];
+      this.ABE_correction_values = [ 'Subtraction', 'Division' ];
+      this.mgc_scale_valuestxt = [ '128', '192', '256', '384', '512', '768', '1024', '1536', '2048', '3072', '4096', '6144', '8192' ];
+      this.mas_scale_valuestxt = [ '8', '16', '32', '64', '128', '192', '256', '384', '512', '768', '1024' ];
 
-this.current_preview = {
-      image: null,
-      copy_image: false,      // true if image is a copy of the original image, false if it is the original image
-      txt: null,
-      imgWin: null,           // Sometimes we keep preview window when loading image from a file, but often is null
-      resampled: false
-};
+      this.exclusionAreasComboBox = null;             // For updating exclusion image list
+      this.exclusionAreasTargetImageName = "Auto";    // Current exclusion image
+      this.exclusion_area_image_window_list = null;
+      this.exclusionAreaCountLabel = null;
 
-this.Foraxx_credit = "Foraxx and Dynamic palettes, credit https://thecoldestnights.com/2020/06/PixInsight-dynamic-narrowband-combinations-with-pixelmath/";
-this.unscreen_tooltip = "<p>Use unscreen method to get stars image as described by Russell Croman.</p>" +
-                        "<p>Unscreen method usually keeps star colors more correct than simple star removal. It is " + 
-                        "recommended to use Screen method when combining star and starless images back together.<p>";
-this.stars_combine_operations_Tooltip =    "<p>Possible combine operations are:</p>" +
-                                          "<ul>" + 
-                                          "<li>Add - Use stars+starless formula in Pixelmath</li>" +
-                                          "<li>Screen - Similar to screen in Photoshop</li>" +
-                                          "<li>Lighten - Similar to lighten in Photoshop</li>" +
-                                          "</ul>";
-this. noiseReductionToolTipCommon = "<p>AI based noise reduction using NoiseXTerminator, GraXpert denoise or DeepSNR do not use a mask.</p> " +
-                                    "<p>Default noise reduction using MultiscaleLinerTransform is done using a luminance mask to target noise " + 
-                                    "reduction on darker areas of the image.</p>";
-this. ACDNR_StdDev_tooltip =  "<p>A mild ACDNR noise reduction with StdDev value between 1.0 and 2.0 can be useful to smooth image and reduce black spots " + 
-                              "left from previous noise reduction.</p>";
-this.adjust_type_toolTip = "<ul>" +
-                              "<li>Lights adjust only light parts of the image.</li>" +
-                              "<li>Darks adjust only dark parts of the image.</li>" +
-                              "<li>All adjust the whole image.</li>" +
-                              "</ul>";
-this.clippedPixelsToolTip = "<p>Show clipped pixels in the preview image.</p>" + 
-                            "<p>Pixels with value 0 are shown as black, pixels with value 1 are shown as white. Other pixels are shown as gray.</p>" +
-                            "<p>This tool is useful to see which pixels are clipped when adjusting shadows or highlights.</p>" +
-                            "<p>You can get back to normal preview by clicking the button again.</p>";
+      this.current_preview = {
+            image: null,
+            copy_image: false,      // true if image is a copy of the original image, false if it is the original image
+            txt: null,
+            imgWin: null,           // Sometimes we keep preview window when loading image from a file, but often is null
+            resampled: false
+      };
+
+      this.Foraxx_credit = "Foraxx and Dynamic palettes, credit https://thecoldestnights.com/2020/06/PixInsight-dynamic-narrowband-combinations-with-pixelmath/";
+      this.unscreen_tooltip = "<p>Use unscreen method to get stars image as described by Russell Croman.</p>" +
+                              "<p>Unscreen method usually keeps star colors more correct than simple star removal. It is " + 
+                              "recommended to use Screen method when combining star and starless images back together.<p>";
+      this.stars_combine_operations_Tooltip =    "<p>Possible combine operations are:</p>" +
+                                                "<ul>" + 
+                                                "<li>Add - Use stars+starless formula in Pixelmath</li>" +
+                                                "<li>Screen - Similar to screen in Photoshop</li>" +
+                                                "<li>Lighten - Similar to lighten in Photoshop</li>" +
+                                                "</ul>";
+      this. noiseReductionToolTipCommon = "<p>AI based noise reduction using NoiseXTerminator, GraXpert denoise or DeepSNR do not use a mask.</p> " +
+                                          "<p>Default noise reduction using MultiscaleLinerTransform is done using a luminance mask to target noise " + 
+                                          "reduction on darker areas of the image.</p>";
+      this. ACDNR_StdDev_tooltip =  "<p>A mild ACDNR noise reduction with StdDev value between 1.0 and 2.0 can be useful to smooth image and reduce black spots " + 
+                                    "left from previous noise reduction.</p>";
+      this.adjust_type_toolTip = "<ul>" +
+                                    "<li>Lights adjust only light parts of the image.</li>" +
+                                    "<li>Darks adjust only dark parts of the image.</li>" +
+                                    "<li>All adjust the whole image.</li>" +
+                                    "</ul>";
+      this.clippedPixelsToolTip = "<p>Show clipped pixels in the preview image.</p>" + 
+                              "<p>Pixels with value 0 are shown as black, pixels with value 1 are shown as white. Other pixels are shown as gray.</p>" +
+                              "<p>This tool is useful to see which pixels are clipped when adjusting shadows or highlights.</p>" +
+                              "<p>You can get back to normal preview by clicking the button again.</p>";
 
 #ifdef AUTOINTEGRATE_STANDALONE
-this.MGCToolTip =  "<p>When MultiscaleGradientCorrection is selected, image must be plate solved. Optionally SpectrophotometricFluxCalibration is run automatically for the image.</p>" +
-                   "<p>MultiscaleGradientCorrection may fail if the image is not part of the sky area in the MARS database. " + 
-                   "</p>";
+      this.MGCToolTip =  "<p>When MultiscaleGradientCorrection is selected, image must be plate solved. Optionally SpectrophotometricFluxCalibration is run automatically for the image.</p>" +
+                        "<p>MultiscaleGradientCorrection may fail if the image is not part of the sky area in the MARS database. " + 
+                        "</p>";
 #else
-this.MGCToolTip =  "<p>When MultiscaleGradientCorrection is selected, image solving and SpectrophotometricFluxCalibration are run automatically for the image.</p>" +
-                   "<p>MultiscaleGradientCorrection may fail if the image is not part of the sky area in the MARS database. " + 
-                   "In that case the script reverts to another gradient correction method. If other gradient correction methods " + 
-                   "are checked then they are selected in the following order: GraXpert, ABE, DBE, GradientCorrection." + 
-                   "</p>";
+      this.MGCToolTip =  "<p>When MultiscaleGradientCorrection is selected, image solving and SpectrophotometricFluxCalibration are run automatically for the image.</p>" +
+                        "<p>MultiscaleGradientCorrection may fail if the image is not part of the sky area in the MARS database. " + 
+                        "In that case the script reverts to another gradient correction method. If other gradient correction methods " + 
+                        "are checked then they are selected in the following order: GraXpert, ABE, DBE, GradientCorrection." + 
+                        "</p>";
 #endif
 
-this.BXT_no_PSF_tip = "Sometimes on starless images PSF value can not be calculated. Then a manual value should be given or BlurXTerminator should not be used.";
-this.skip_reset_tooltip = "<p>Note that this parameter is not reset or saved to Json file.</p>";   
+      this.BXT_no_PSF_tip = "Sometimes on starless images PSF value can not be calculated. Then a manual value should be given or BlurXTerminator should not be used.";
+      this.skip_reset_tooltip = "<p>Note that this parameter is not reset or saved to Json file.</p>";   
 
-this.adjustShadowsToolTip = "<p>Select if shadows are adjusted before, after or before and after stretch.</p>" +
-                           "<p>Value zero just moves the histogram to the left without clipping any pixels.</p>";
-this.narrowbandToolTip = 
-      "<p>" +
-      "Color palette used to map SII, Ha and OIII to R, G and B" +
-      "</p><p>" +
-      "There is a list of predefined mapping that can be used, some examples are below. For more details " +
-      "see the tooltip for palette combo box." +
-      "</p><p>" +
-      "SHO - SII=R, Ha=G, OIII=B  (Hubble)<br>" +
-      "HOS - Ha=R, OIII=G, SII=B (CFHT)<br>" +
-      "HOO - Ha=R, OIII=G, OIII=B (if there is SII it is ignored)" +
-      "</p><p>" +
-      "Mapping formulas are editable and other palettes can use any combination of channel images." +
-      "</p><p>" +
-      "Special keywords H, S, O, R, G and B are recognized and replaced " +
-      "with corresponding channel image names. Otherwise these formulas " +
-      "are passed directly to the PixelMath process." +
-      "</p><p>" +
-      "Option All runs all narrowband palettes in a batch mode and creates images with names Auto_+palette-name. You can use " +
-      "enhancements options, then also images with name Auto_+palette-name+_enh are created. Images are saved as .xisf files. " +
-      "Use Save batch result files buttons to save them all in a different format. " + 
-      "To use All option all HSO filters must be available." +
-      "</p>";
+      this.adjustShadowsToolTip = "<p>Select if shadows are adjusted before, after or before and after stretch.</p>" +
+                              "<p>Value zero just moves the histogram to the left without clipping any pixels.</p>";
+      this.narrowbandToolTip = 
+            "<p>" +
+            "Color palette used to map SII, Ha and OIII to R, G and B" +
+            "</p><p>" +
+            "There is a list of predefined mapping that can be used, some examples are below. For more details " +
+            "see the tooltip for palette combo box." +
+            "</p><p>" +
+            "SHO - SII=R, Ha=G, OIII=B  (Hubble)<br>" +
+            "HOS - Ha=R, OIII=G, SII=B (CFHT)<br>" +
+            "HOO - Ha=R, OIII=G, OIII=B (if there is SII it is ignored)" +
+            "</p><p>" +
+            "Mapping formulas are editable and other palettes can use any combination of channel images." +
+            "</p><p>" +
+            "Special keywords H, S, O, R, G and B are recognized and replaced " +
+            "with corresponding channel image names. Otherwise these formulas " +
+            "are passed directly to the PixelMath process." +
+            "</p><p>" +
+            "Option All runs all narrowband palettes in a batch mode and creates images with names Auto_+palette-name. You can use " +
+            "enhancements options, then also images with name Auto_+palette-name+_enh are created. Images are saved as .xisf files. " +
+            "Use Save batch result files buttons to save them all in a different format. " + 
+            "To use All option all HSO filters must be available." +
+            "</p>";
 
 #ifdef AUTOINTEGRATE_STANDALONE
-this.postprocessing_section = "";
+      this.postprocessing_section = "";
 #else
-this.postprocessing_section = "Postprocessing / ";
+      this.postprocessing_section = "Postprocessing / ";
 #endif                               
 
-this.histogramStretchToolTip = "Using a simple histogram transformation to get histogram median or peak to the target value. " + 
-                               "Works best with images that are processed with the Crop to common area option.";
+      this.histogramStretchToolTip = "Using a simple histogram transformation to get histogram median or peak to the target value. " + 
+                                    "Works best with images that are processed with the Crop to common area option.";
 
-this.stretchingTootip = 
+      this.stretchingTootip = 
             "<p>Select how image is stretched from linear to non-linear.</p>" +
             "<ul>" +
             "<li><p>Auto STF - Use Auto Screen Transfer Function to stretch image to non-linear.<br>" + 

@@ -21,8 +21,10 @@ by Pleiades Astrophoto and its contributors (https://pixinsight.com/).
 
 class AutoIntegrateGlobal extends Object
 {
-    constructor() {
-        super();
+
+constructor() {
+
+super();
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */

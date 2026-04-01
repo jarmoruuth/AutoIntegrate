@@ -16,7 +16,8 @@
 // ============================================================================
 
 class AutoIntegrateCreditsDialog extends Dialog {
-    constructor(global) {
+
+constructor(global) {
         super();
 
         this.global = global;
@@ -100,15 +101,18 @@ class AutoIntegrateCreditsDialog extends Dialog {
         this.sizer.add(buttonSizer);
         
         this.adjustToContents();
-      } // constructor
-}
+
+} // constructor
+
+} // AutoIntegrateCreditsDialog class end
 
 // ============================================================================
 // Welcome Dialog
 // ============================================================================
 
 class AutoIntegrateWelcomeDialog extends Dialog {
-    constructor(global) {
+
+constructor(global) {
         super();
 
         this.global = global;
@@ -320,7 +324,7 @@ class AutoIntegrateWelcomeDialog extends Dialog {
         
         // Store selected tutorial
         this.selectedTutorial = null;
-      } // constructor
+} // constructor
 
 saveShowOnStartup() {
         if (!this.global.do_not_write_settings) {
@@ -338,8 +342,9 @@ saveShowOnStartup() {
 // ============================================================================
 
 class AutoIntegrateTutorialManagerDialog extends Dialog {
-    constructor(parentDialog, global) {
-        super();
+
+constructor(parentDialog, global) {
+      super();
       
       this.parentDialog = parentDialog;
       this.windowTitle = "AutoIntegrate Tutorials";
@@ -619,12 +624,13 @@ launchSelectedTutorial() {
 // ============================================================================
 
 class AutoIntegrateTutorialSystem {
-      constructor(dialog, global, util) {
-            this.dialog = dialog;
-            this.global = global;
-            this.util = util;
-            this.currentStep = 0;
-            this.isActive = false;
+
+constructor(dialog, global, util) {
+      this.dialog = dialog;
+      this.global = global;
+      this.util = util;
+      this.currentStep = 0;
+      this.isActive = false;
       this.steps = [];
 
       var self = this;
@@ -656,12 +662,12 @@ class AutoIntegrateTutorialSystem {
       this.tooltipControl.setMinHeight(10 * font.height);
       this.tooltipTextBox.readOnly = true;
       this.tooltipTextBox.styleSheet = 
-      "QTextEdit { " +
-      "  color: #FFFFFF; " +
-      "  background-color: transparent; " +
-      "  border: none; " +
-      "  padding: 10px; " +
-      "}";
+            "QTextEdit { " +
+            "  color: #FFFFFF; " +
+            "  background-color: transparent; " +
+            "  border: none; " +
+            "  padding: 10px; " +
+            "}";
 
       this.tooltipTitle = new Label(this.tooltipControl);
       this.tooltipTitle.styleSheet = "QLabel { color: #FFFFFF; font-weight: bold; font-size: 12px; padding: 10px; background: #0066CC; }";

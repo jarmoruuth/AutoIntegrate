@@ -26,30 +26,30 @@ by Pleiades Astrophoto and its contributors (https://pixinsight.com/).
 
 class AutoIntegrateImageSolver extends Object
 {
-      constructor(global, util, flowchart, engine) {
-            super();
-            this.global = global;
-            this.util = util;
-            this.flowchart = flowchart;
-            this.engine = engine;
-            this.par = global.par;
+constructor(global, util, flowchart, engine) {
+      super();
+      this.global = global;
+      this.util = util;
+      this.flowchart = flowchart;
+      this.engine = engine;
+      this.par = global.par;
 
-            this.solved_imageId = null;           // successfully solved image, used to copy astrometric solution
-            this.current_telescope_name = "";
+      this.solved_imageId = null;           // successfully solved image, used to copy astrometric solution
+      this.current_telescope_name = "";
 
-            this.telescope_info = [
-                  [ 'AUS-2-CMOS', 382, 3.76 ],
-                  [ 'SPA-1-CMOS', 382, 3.76 ],
-                  [ 'SPA-2-CMOS', 5600, 3.76 ],
-                  [ 'SPA-3-CMOS', 382, 3.76 ],
-                  [ 'CHI-1-CMOS', 3962, 3.76 ],
-                  [ 'CHI-2-CMOS', 1900, 3.76 ],
-                  [ 'CHI-3-CMOS', 6800, 3.76 ],
-                  [ 'CHI-4-CMOS', 1900, 3.76 ],
-                  [ 'CHI-5-CMOS', 200, 3.76 ],
-                  [ 'CHI-6-CMOS', 600, 3.76 ]
-            ];
-      }
+      this.telescope_info = [
+            [ 'AUS-2-CMOS', 382, 3.76 ],
+            [ 'SPA-1-CMOS', 382, 3.76 ],
+            [ 'SPA-2-CMOS', 5600, 3.76 ],
+            [ 'SPA-3-CMOS', 382, 3.76 ],
+            [ 'CHI-1-CMOS', 3962, 3.76 ],
+            [ 'CHI-2-CMOS', 1900, 3.76 ],
+            [ 'CHI-3-CMOS', 6800, 3.76 ],
+            [ 'CHI-4-CMOS', 1900, 3.76 ],
+            [ 'CHI-5-CMOS', 200, 3.76 ],
+            [ 'CHI-6-CMOS', 600, 3.76 ]
+      ];
+} // constructor
 
 // Find focal length using telescope name saved into variable this.current_telescope_name
 find_focal_length()

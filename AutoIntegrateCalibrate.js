@@ -12,15 +12,16 @@
 
 class AutoIntegrateCalibrate extends Object
 {
-      constructor(global, util, flowchart, engine) {
-            super();
-            this.global = global;
-            this.util = util;
-            this.flowchart = flowchart;
-            this.engine = engine;
-            this.par = global.par;
-            this.ppar = global.ppar;
-      }
+
+constructor(global, util, flowchart, engine) {
+      super();
+      this.global = global;
+      this.util = util;
+      this.flowchart = flowchart;
+      this.engine = engine;
+      this.par = global.par;
+      this.ppar = global.ppar;
+}
 
 /*
  * Image calibration as described in Light Vortex Astronomy.

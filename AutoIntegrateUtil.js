@@ -21,21 +21,22 @@ by Pleiades Astrophoto and its contributors (https://pixinsight.com/).
 
 class AutoIntegrateUtil extends Object
 {
-    constructor(global) {
-        super();
 
-this.gui = null;
-this.global = global;
-this.par = global.par;
-this.ppar = this.global.ppar;
+constructor(global) {
+      super();
 
-this.loggingEnabled = true;
-this.beginLogCallback = null;
-this.endLogCallback = null;
+      this.gui = null;
+      this.global = global;
+      this.par = global.par;
+      this.ppar = this.global.ppar;
 
-this.executed_processes = [];
+      this.loggingEnabled = true;
+      this.beginLogCallback = null;
+      this.endLogCallback = null;
 
-}
+      this.executed_processes = [];
+
+} // constructor
 
 /* Set optional GUI object to update GUI components.
  */

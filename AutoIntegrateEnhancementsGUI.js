@@ -21,8 +21,9 @@ by Pleiades Astrophoto and its contributors (https://pixinsight.com/).
 
 class AutoIntegrateSelectStarsImageDialog extends Dialog
 {
-    constructor(util) {
-        super();
+
+constructor(util) {
+      super();
 
       this.util = util;
       this.restyle();
@@ -85,12 +86,14 @@ class AutoIntegrateSelectStarsImageDialog extends Dialog
       this.ensureLayoutUpdated();
       this.adjustToContents();
 } // constructor
-}
+
+} // AutoIntegrateSelectStarsImageDialog
 
 class AutoIntegrateHueColors extends Frame
 {
-      constructor(par) {
-            super();
+
+constructor(par) {
+      super();
 
       this.par = par;
       this.hueColorsBitmap = new Bitmap( File.extractDrive( #__FILE__ ) + File.extractDirectory( #__FILE__ ) + "/hue.png" );
@@ -113,62 +116,64 @@ class AutoIntegrateHueColors extends Frame
             this.drawHueLine(graphics, bmp_startpos, bmp_width, height, this.par.narrowband_colorized_B_hue.val);
             graphics.end();
       }
-      } // constructor
+} // constructor
 
-      drawHueLine(g, bmp_startpos, bmp_width, bmp_height, hue)
-      {
-            // console.writeln("drawHueLine " + hue + " " + bmp_startpos + " " + bmp_width + " " + bmp_height);
-            var line_x = bmp_startpos + hue * bmp_width;
-            g.drawLine(line_x, 0, line_x, bmp_height);
-      }
+drawHueLine(g, bmp_startpos, bmp_width, bmp_height, hue)
+{
+      // console.writeln("drawHueLine " + hue + " " + bmp_startpos + " " + bmp_width + " " + bmp_height);
+      var line_x = bmp_startpos + hue * bmp_width;
+      g.drawLine(line_x, 0, line_x, bmp_height);
 }
+
+} // AutoIntegrateHueColors
 
 class AutoIntegrateEnhancementsGUI extends Object
 {
-    constructor(parent, guitools, util, global, engine, preview) {
+
+constructor(parent, guitools, util, global, engine, preview) {
         super();
 
-if (global.debug) console.writeln("AutoIntegrateEnhancementsGUI: constructor");
+      if (global.debug) console.writeln("AutoIntegrateEnhancementsGUI: constructor");
 
-this.parent = parent;
-this.guitools = guitools;
-this.util = util;
-this.global = global;
-this.engine = engine;
-this.preview = preview;
+      this.parent = parent;
+      this.guitools = guitools;
+      this.util = util;
+      this.global = global;
+      this.engine = engine;
+      this.preview = preview;
 
-this.par = global.par;
-this.ppar = global.ppar;
+      this.par = global.par;
+      this.ppar = global.ppar;
 
-this.apply_completed_callback = null;
-this.target_image_selected_callback = null;
+      this.apply_completed_callback = null;
+      this.target_image_selected_callback = null;
 
-this.Foraxx_palette_values = [ 'SHO', 'HOO' ];
+      this.Foraxx_palette_values = [ 'SHO', 'HOO' ];
 
-this.enhancements_gui_info = { 
-      undo_images: [],        // undo_images[0] == original image, { image: <Image>, keywords: <image keywords>, histogramInfo: <see getHistogramInfo>, enhancements_info: [] }, see add_undo_image
-      undo_images_pos: -1, 
-      undo_button: null, 
-      redo_button: null, 
-      images_combobox: null,
-      save_button: null
-};
+      this.enhancements_gui_info = { 
+            undo_images: [],        // undo_images[0] == original image, { image: <Image>, keywords: <image keywords>, histogramInfo: <see getHistogramInfo>, enhancements_info: [] }, see add_undo_image
+            undo_images_pos: -1, 
+            undo_button: null, 
+            redo_button: null, 
+            images_combobox: null,
+            save_button: null
+      };
 
-this.enhancements_target_image_window_list = [];
-this.preview_control = null;
+      this.enhancements_target_image_window_list = [];
+      this.preview_control = null;
 
-this.adjust_type_values = [ 'Lights', 'Darks', 'All' ];
-this.star_reduce_methods = [ 'None', 'Transfer', 'Halo', 'Star' ];
-this.normalize_channels_reference_values = [ 'R', 'G', 'B' ];
-this.rotate_degrees_values = [ '90', '180', '-90' ];
+      this.adjust_type_values = [ 'Lights', 'Darks', 'All' ];
+      this.star_reduce_methods = [ 'None', 'Transfer', 'Halo', 'Star' ];
+      this.normalize_channels_reference_values = [ 'R', 'G', 'B' ];
+      this.rotate_degrees_values = [ '90', '180', '-90' ];
 
-this.colorized_narrowband_preset_values = [ 'Default', 'North America', 'Eagle' ];
-this.narrowband_colorized_mapping_values = [ 'RGB', 'GRB', 'GBR', 'BRG', 'BGR', 'RBG' ];
-this.narrowband_colorized_combine_values = [ 'Channels', 'Screen', 'Sum', 'Mean', 'Max', 'Median' ];
-this.narrowband_colorized_method_values = [ 'PixelMath' ];
-this.signature_positions_values = [ 'Top left', 'Top middle', 'Top right', 'Bottom left', 'Bottom middle', 'Bottom right' ];
-this.highpass_sharpen_values = [ 'Default', 'MLT', 'UnsharpMask', 'BlurXTerminator', 'None' ];
-this.enhancements_HDRMLT_color_values = [ 'None', 'Preserve hue', 'Color corrected' ];
+      this.colorized_narrowband_preset_values = [ 'Default', 'North America', 'Eagle' ];
+      this.narrowband_colorized_mapping_values = [ 'RGB', 'GRB', 'GBR', 'BRG', 'BGR', 'RBG' ];
+      this.narrowband_colorized_combine_values = [ 'Channels', 'Screen', 'Sum', 'Mean', 'Max', 'Median' ];
+      this.narrowband_colorized_method_values = [ 'PixelMath' ];
+      this.signature_positions_values = [ 'Top left', 'Top middle', 'Top right', 'Bottom left', 'Bottom middle', 'Bottom right' ];
+      this.highpass_sharpen_values = [ 'Default', 'MLT', 'UnsharpMask', 'BlurXTerminator', 'None' ];
+      this.enhancements_HDRMLT_color_values = [ 'None', 'Preserve hue', 'Color corrected' ];
 
 } // constructor
 
@@ -1745,6 +1750,6 @@ this.setPreviewControl = setPreviewControl;
 
 */
 
-}
+} // End of class AutoIntegrateEnhancementsGUI
 
 #endif // AUTOINTEGRATE_ENHANCEMENTS_GUI_JS

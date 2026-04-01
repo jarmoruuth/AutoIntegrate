@@ -10,8 +10,9 @@
 #define AUTOINTEGRATEEXCLUSIONAREA_JS
 
 class AutoIntegrateExclusionArea extends Dialog {
-   constructor(global, util, engine, activeWindow, currentExclusionAreas) {
-      super();
+
+constructor(global, util, engine, activeWindow, currentExclusionAreas) {
+   super();
 
    this.global = global;
    this.util = util;

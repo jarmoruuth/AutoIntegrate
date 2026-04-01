@@ -213,7 +213,7 @@ class AutoIntegrateMetricsVisualizerPlotControl extends Control {
             graphics.end();
         };
     }
-}
+} // AutoIntegrateMetricsVisualizerPlotControl
 
 // ---- StatsControl ----
 
@@ -271,7 +271,7 @@ class AutoIntegrateMetricsVisualizerStatsControl extends Control {
         this.sizer.add(this.stdDevLabel);
         this.sizer.addStretch();
     }
-}
+} // AutoIntegrateMetricsVisualizerStatsControl
 
 // ---- AstroMetricsDialog ----
 
@@ -563,7 +563,7 @@ class AutoIntegrateMetricsVisualizerDialog extends Dialog {
         lbl.textAlignment  = TextAlignment.Right | TextAlignment.VertCenter;
         return lbl;
     }
-}
+} // AutoIntegrateMetricsVisualizerDialog
 
 // ---- AutoIntegrateMetricsVisualizer (outer class / entry point) ----
 
@@ -606,6 +606,6 @@ class AutoIntegrateMetricsVisualizer extends Object {
 
         return this.dialog.execute();
     }
-}
+} // AutoIntegrateMetricsVisualizer
 
 #endif  /* AUTOINTEGRATEMETRICSVISUALIZER_JS */

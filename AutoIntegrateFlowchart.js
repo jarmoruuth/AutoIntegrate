@@ -13,41 +13,42 @@
 
 class AutoIntegrateFlowchart
 {
-    constructor(global, util) {
-        this.global = global;
-        this.util = util;
 
-this.gui = null;
+constructor(global, util) {
+      this.global = global;
+      this.util = util;
 
-this.par = this.global.par;
-this.ppar = this.global.ppar;
+      this.gui = null;
 
-// Globals for section: Collect flowchart data from processing engine
+      this.par = this.global.par;
+      this.ppar = this.global.ppar;
 
-this.flowchart_active = false;
-this.flowchartCurrent = null;
-this.flowchartStack = [];
-this.flowchartOperationList = [];
-this.flowchart_operation_level = 0;
+      // Globals for section: Collect flowchart data from processing engine
 
-// Globals for section: Draw flowchart Preview Image
+      this.flowchart_active = false;
+      this.flowchartCurrent = null;
+      this.flowchartStack = [];
+      this.flowchartOperationList = [];
+      this.flowchart_operation_level = 0;
 
-this.flowchart_text_margin = 4;                                                // Margin between box and text
-this.flowchart_box_margin = 4;                                                 // Margin outside of the box
-this.flowchart_line_margin = 12;                                               // Margin for lines with child nodes
-this.flowchart_margin = 2 * (this.flowchart_text_margin + this.flowchart_box_margin);    // Margin for elements in the graph
+      // Globals for section: Draw flowchart Preview Image
 
-// light orange 0xffffd7b5
-// light orange 0xffFFD580
-// light red 0xffffb3b3
-// red       0xffff0000
-//                          blue        green       orange      magenta     cyan        yellow      black
-this.flowchart_colors =    [ 0xffb3d1ff, 0xffc2f0c2, 0xffffd7b5, 0xffffb3ff, 0xffb3f0ff, 0xffffffb3, 0xff000000 ];      // For background
-this.flowchart_active_id_color = 0xffff0000;      // For active node, red
-this.flowchart_inactive_id_color = 0xFFD3D3D3;    // For inactive node, light gray
+      this.flowchart_text_margin = 4;                                                // Margin between box and text
+      this.flowchart_box_margin = 4;                                                 // Margin outside of the box
+      this.flowchart_line_margin = 12;                                               // Margin for lines with child nodes
+      this.flowchart_margin = 2 * (this.flowchart_text_margin + this.flowchart_box_margin);    // Margin for elements in the graph
 
-this.flowchart_is_background_image = false;
-this.flowchart_garbagecollection_ctr = 0;
+      // light orange 0xffffd7b5
+      // light orange 0xffFFD580
+      // light red 0xffffb3b3
+      // red       0xffff0000
+      //                          blue        green       orange      magenta     cyan        yellow      black
+      this.flowchart_colors =    [ 0xffb3d1ff, 0xffc2f0c2, 0xffffd7b5, 0xffffb3ff, 0xffb3f0ff, 0xffffffb3, 0xff000000 ];      // For background
+      this.flowchart_active_id_color = 0xffff0000;      // For active node, red
+      this.flowchart_inactive_id_color = 0xFFD3D3D3;    // For inactive node, light gray
+
+      this.flowchart_is_background_image = false;
+      this.flowchart_garbagecollection_ctr = 0;
 
 } // constructor end
 

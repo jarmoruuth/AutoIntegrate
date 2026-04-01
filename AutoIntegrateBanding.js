@@ -43,9 +43,9 @@
 
 class AutoIntegrateBandingEngine extends Object {
 
-    constructor() {
-      super();
-      this.DEBUGGING_MODE_ON = false;
+constructor() {
+    super();
+    this.DEBUGGING_MODE_ON = false;
 
     // init members
     this.targetImage=null;  // image to which operation is done
@@ -357,7 +357,8 @@ class AutoIntegrateBandingEngine extends Object {
        // end transaction
        targetView.endProcess();
      };   //function doit
-   } // constructor
+} // constructor
+
 }  //class AutoIntegrateBandingEngine
 
 #endif  /* AUTOINTEGRATEBANDING_JS */
