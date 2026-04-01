@@ -356,21 +356,20 @@ flowchartGraph(rootnode, current_preview_image, txt)
       if (this.par.flowchart_debug.val) {
             console.writeln("flowchart Graph");
       }
-
       if (rootnode == null) {
             console.writeln("No flowchart");
             return null;
       }
-
       if (this.global.is_processing == this.global.processing_state.none) {
             this.flowchartPrint(rootnode);
       }
-
       if (!this.global.use_preview) {
             return null;
       }
-
       if (!this.global.interactiveMode) {
+            return null;
+      }
+      if (this.gui == null || this.gui.previewControl == null) {
             return null;
       }
 
