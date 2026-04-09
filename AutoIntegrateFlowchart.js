@@ -424,11 +424,13 @@ flowchartGraph(rootnode, current_preview_image, txt)
             if (bitmap.height != current_preview_image.height) {
                   var scale = current_preview_image.height / bitmap.height;
                   var scaled_bitmap = bitmap.scaledTo(scale * bitmap.width, scale * bitmap.height);
+                  bitmap.clear();
                   bitmap = scaled_bitmap;
             }
             if (bitmap.width > current_preview_image.width) {
                   var scale = current_preview_image.width / bitmap.width;
                   var scaled_bitmap = bitmap.scaledTo(scale * bitmap.width, scale * bitmap.height);
+                  bitmap.clear();
                   bitmap = scaled_bitmap;
             }
             // A new Image should not be needed
@@ -441,6 +443,7 @@ flowchartGraph(rootnode, current_preview_image, txt)
             var y = (current_preview_image.height - bitmap.height) / 2;
             graphics.drawBitmap(x, y, bitmap);
             graphics.end();
+            bitmap.clear();
             bitmap = background_bitmap;
       } else {
             if (this.global.debug) console.writeln("flowchartGraph:no background image");
@@ -456,6 +459,7 @@ flowchartGraph(rootnode, current_preview_image, txt)
             }
             this.global.flowchart_image = this.util.createImageFromBitmap(bitmap);
       }
+      bitmap.clear();
       if (this.flowchart_garbagecollection_ctr++ > 5) {
             this.util.runGarbageCollection();
             this.flowchart_garbagecollection_ctr = 0;

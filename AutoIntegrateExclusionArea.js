@@ -258,6 +258,8 @@ drawPreview(control) {
    graphics.drawBitmap(0, 0, bitmap);
    graphics.end();
 
+   bitmap.clear();
+
    // console.writeln("Preview drawn.");
 }
 

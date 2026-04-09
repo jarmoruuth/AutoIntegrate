@@ -789,6 +789,7 @@ copy_processed_image(imgWin, process_name)
 
 engine_end_process(node, imgWin = null, process_name = null, copy_image = true)
 {
+      if (this.global.debug) console.writeln("engine_end_process");
       if (node) {
             console.writeln("Process end " + node.txt);
             if (!this.global.get_flowchart_data) {
@@ -4537,7 +4538,7 @@ runPixelMathSingleMappingEx(id, reason, mapping, createNewImage, symbols, rescal
             var targetFITSKeywords = this.getTargetFITSKeywordsForPixelmath(idWin);
       }
       if (reason != "from_lights") {
-            var node = this.flowchart.flowchartOperation("PixelMath:" + reason + ", createNewImage=" + createNewImage);
+            var node = this.flowchart.flowchartOperation("PixelMath:" + reason);
       } else {
             var node = null;
       }
@@ -7753,10 +7754,21 @@ runSpectrophotometricFluxCalibration(win)
       P.generateStarMaps = false;
       P.generateTextFiles = false;
       P.outputDirectory = "";
+
+      console.writeln("SpectrophotometricFluxCalibration on " + win.mainView.id);
       
-      var succp = P.executeOn(win.mainView, false);
-      if (!succp) {
-            this.util.addCriticalStatus("SpectrophotometricFluxCalibration failed");
+      try {
+            var succp = P.executeOn(win.mainView, false);
+            if (!succp) {
+                  this.util.addCriticalStatus("SpectrophotometricFluxCalibration failed on " + win.mainView.id);
+            }
+      } catch (e) {
+            this.util.addCriticalStatus("SpectrophotometricFluxCalibration failed with error: " + e + ", image " + win.mainView.id);
+            var succp = false;
+      }
+
+      if (succp) {
+            console.writeln("SpectrophotometricFluxCalibration completed successfully on " + win.mainView.id);
       }
 
       this.printAndSaveProcessValues(P, "", win.mainView.id);
@@ -9942,6 +9954,7 @@ findTrueBackground(w, testmode)
                   bw.mainView.beginProcess(UndoFlag.NoSwapFile);
                   bw.mainView.image.blend(bitmap);
                   bw.mainView.endProcess();
+                  bitmap.clear();
             }
 
             console.writeln("findTrueBackground:create preview");
@@ -10514,6 +10527,8 @@ findDBEsamples(w)
                   bw.mainView.image.blend(bitmap);
                   bw.mainView.endProcess();
                   this.iconized_image_ids.push(bw_id);
+
+                  bitmap.clear();
 
                   if (0 && !this.util.findKeywordName(w, "AutoIntegrateNonLinear") && this.imageIsLinear(w, imageStats.median, imageStats.stdDev)) {
                         // Autostretch for the convenience of the user
@@ -16110,9 +16125,11 @@ enhancementsAnnotateImage(enhancementsWin, apply_directly)
       
       if (apply_directly) {
             enhancementsWin.mainView.beginProcess(UndoFlag.NoSwapFile);
-            enhancementsWin.mainView.image.blend(this.util.getWindowBitmap(annotatedImgWin));
+            var bitmap = this.util.getWindowBitmap(annotatedImgWin);
+            enhancementsWin.mainView.image.blend(bitmap);
             enhancementsWin.mainView.endProcess();
             this.util.closeOneWindow(annotatedImgWin);
+            bitmap.clear();
       }
 
       return annotatedImgWin;
@@ -16128,8 +16145,8 @@ enhancementsAddSignature(enhancementsWin)
 
       var signatureWin = this.util.openImageWindowFromFile(this.par.enhancements_signature_path.val, true);
 
-      var enhancements_bmp = this.util.getWindowBitmap(enhancementsWin);
-      console.writeln("enhancementsAddSignature: enhancements_bmp " + enhancements_bmp.width + "x" + enhancements_bmp.height);
+      var enhancements_bitmap = this.util.getWindowBitmap(enhancementsWin);
+      console.writeln("enhancementsAddSignature: enhancements_bitmap " + enhancements_bitmap.width + "x" + enhancements_bitmap.height);
       var enhancements_height = enhancementsWin.mainView.image.height;
       var signature_height = signatureWin.mainView.image.height;
       var signature_width = signatureWin.mainView.image.width;
@@ -16139,47 +16156,49 @@ enhancementsAddSignature(enhancementsWin)
             var scale = 1;
       }
       console.writeln("enhancementsAddSignature: scale " + scale);
-      var signature_bmp = this.util.getWindowBitmap(signatureWin).scaledTo(scale * signature_width, scale * signature_height);
-      console.writeln("enhancementsAddSignature: scaled signature_bmp " + signature_bmp.width + "x" + signature_bmp.height);
+      var signature_bitmap = this.util.getWindowBitmap(signatureWin).scaledTo(scale * signature_width, scale * signature_height);
+      console.writeln("enhancementsAddSignature: scaled signature_bitmap " + signature_bitmap.width + "x" + signature_bitmap.height);
 
-      var graphics = new Graphics(enhancements_bmp);
+      var graphics = new Graphics(enhancements_bitmap);
       switch (this.par.enhancements_signature_position.val) {
             case 'Top left':
                   var signature_x = 0;
                   var signature_y = 0;
                   break;
             case 'Top middle':
-                  var signature_x = (enhancements_bmp.width - signature_bmp.width) / 2;
+                  var signature_x = (enhancements_bitmap.width - signature_bitmap.width) / 2;
                   var signature_y = 0;
                   break;
             case 'Top right':
-                  var signature_x = enhancements_bmp.width - signature_bmp.width;
+                  var signature_x = enhancements_bitmap.width - signature_bitmap.width;
                   var signature_y = 0;
                   break;
             case 'Bottom left':
                   var signature_x = 0;
-                  var signature_y = enhancements_height - signature_bmp.height;
+                  var signature_y = enhancements_height - signature_bitmap.height;
                   break;
             case 'Bottom middle':
-                  var signature_x = (enhancements_bmp.width - signature_bmp.width) / 2;
-                  var signature_y = enhancements_height - signature_bmp.height;
+                  var signature_x = (enhancements_bitmap.width - signature_bitmap.width) / 2;
+                  var signature_y = enhancements_height - signature_bitmap.height;
                   break;
             case 'Bottom right':
-                  var signature_x = enhancements_bmp.width - signature_bmp.width;
-                  var signature_y = enhancements_height - signature_bmp.height;
+                  var signature_x = enhancements_bitmap.width - signature_bitmap.width;
+                  var signature_y = enhancements_height - signature_bitmap.height;
                   break;
             default:
                   this.util.throwFatalError("Invalid signature position " + this.par.enhancements_signature_position.val);
                   break;
       }
-      graphics.drawBitmap(signature_x, signature_y, signature_bmp);
-      console.writeln("enhancementsAddSignature: drawBitmap " + signature_bmp.width + "x" + signature_bmp.height + " at 0, " + (enhancements_height - signature_bmp.height));
+      graphics.drawBitmap(signature_x, signature_y, signature_bitmap);
+      console.writeln("enhancementsAddSignature: drawBitmap " + signature_bitmap.width + "x" + signature_bitmap.height + " at 0, " + (enhancements_height - signature_bitmap.height));
       graphics.end();
 
       enhancementsWin.mainView.beginProcess(UndoFlag.NoSwapFile);
-      enhancementsWin.mainView.image.blend(enhancements_bmp);
+      enhancementsWin.mainView.image.blend(enhancements_bitmap);
       enhancementsWin.mainView.endProcess();
 
+      enhancements_bitmap.clear();
+      signature_bitmap.clear();
       this.util.closeOneWindow(signatureWin);
 
       return enhancementsWin;
@@ -18276,9 +18295,11 @@ autointegrateProcessingEngine(parent, auto_continue, autocontinue_narrowband, tx
             if (this.par.flowchart_saveimage.val && this.global.flowchart_image != null && this.gui) {
                   // Save this.flowchart image
                   var flowchart_imagename = this.util.ensure_win_prefix("AutoIntegrateFlowchart");
-                  var flowchart_win = this.util.createWindowFromBitmap(this.global.flowchart_image.render(), flowchart_imagename);
+                  var bitmap = this.global.flowchart_image.render();
+                  var flowchart_win = this.util.createWindowFromBitmap(bitmap, flowchart_imagename);
                   this.saveProcessedWindow(flowchart_win.mainView.id, null, ".jpg");
                   this.util.closeOneWindow(flowchart_win);
+                  bitmap.clear();
                   this.global.flowchart_image = null;
             }
        }
@@ -18376,17 +18397,20 @@ printProcessValues(obj, txt = "")
           && !this.global.get_flowchart_data
           && this.global.is_processing != this.global.processing_state.none)
       {
+            if (this.global.debug) console.writeln("printProcessValues");
             console.writeln(obj.toSource());
       }
 }
 
 saveProcessValues(obj, txt = "", imageId = null)
 {
+      if (this.global.debug) console.writeln("saveProcessValues");
       this.util.addExecutedProcess(obj, txt, imageId);
 }
 
 printAndSaveProcessValues(obj, txt = "", imageId = null)
 {
+      if (this.global.debug) console.writeln("printAndSaveProcessValues");
       this.printProcessValues(obj, txt);
       this.saveProcessValues(obj, txt, imageId);
 }

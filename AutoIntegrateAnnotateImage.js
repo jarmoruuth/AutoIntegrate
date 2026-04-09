@@ -16,6 +16,7 @@ by Pleiades Astrophoto and its contributors (https://pixinsight.com/).
 #ifndef NO_SOLVER_LIBRARY
 
 #define USE_ANNOTATE_LIBRARY true
+#undef SETTINGS_MODULE
 #define SETTINGS_MODULE      "AutoIntegrateAnnotateImage"
 #undef TITLE
 
@@ -55,10 +56,11 @@ annotateImage(enhancementsWin, apply_directly)
     }
     
     if (apply_directly) {
-        enhancementsWin.mainView.beginProcess(UndoFlag.NoSwapFile);
-        enhancementsWin.mainView.image.blend(this.util.getWindowBitmap(annotatedImgWin));
+        var bitmap = this.util.getWindowBitmap(annotatedImgWin);
+        enhancementsWin.mainView.image.blend(bitmap);
         enhancementsWin.mainView.endProcess();
         this.util.closeOneWindow(annotatedImgWin);
+        bitmap.clear();
     }
 
     return annotatedImgWin;

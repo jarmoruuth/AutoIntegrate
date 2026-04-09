@@ -1415,10 +1415,12 @@ updatePreviewNoImageInControl(control)
                   if (bitmap.height > 1080) {
                         scale = bitmap.height / 1080;
                   }
-                  bitmap = bitmap.scaledTo(bitmap.width * scale, bitmap.height * scale);
+                  var scaled_bitmap = bitmap.scaledTo(bitmap.width * scale, bitmap.height * scale);
+                  bitmap.clear();
+                  bitmap = scaled_bitmap;
             }
-      }
-      if (!show_startup_image) {
+      } else {
+            if (this.global.debug) console.writeln("Not showing startup image");
             let width;
             let height;
             width = this.ppar.preview.side_preview_width ;
@@ -1511,6 +1513,7 @@ updatePreviewNoImageInControl(control)
 
       control.SetImage(startupImage);
 
+      bitmap.clear();
       startupImage.free();
 }
 
@@ -1551,6 +1554,7 @@ createCombinedMosaicPreviewWin(imgWinArr)
                         var bmp = this.getWindowBitmap(imgWin).scaledTo(width / 2, height / 2);
                         graphics.drawBitmap(x, height / 4, bmp);
                         x = width / 2;
+                        bmp.clear();
                   }
             } else {
                   // Two images, rescale them to half size and put them on top of each other.
@@ -1560,6 +1564,8 @@ createCombinedMosaicPreviewWin(imgWinArr)
                         var bmp = this.getWindowBitmap(imgWin).scaledTo(width / 2, height / 2);
                         graphics.drawBitmap(width / 4, y, bmp);
                         y = height / 2;
+                        bmp.clear();
+
                   }
             }
       } else {
@@ -1584,6 +1590,8 @@ createCombinedMosaicPreviewWin(imgWinArr)
       combinedWindow.mainView.beginProcess(UndoFlag.NoSwapFile);
       combinedWindow.mainView.image.blend(bitmap);
       combinedWindow.mainView.endProcess();
+
+      bitmap.clear();
 
       return combinedWindow;
 }
@@ -4408,6 +4416,9 @@ newHistogramControl(parent)
       var graphics = new Graphics(bitmap);      // VectorGraphics
       this.setHistogramBitmapBackground(graphics);
       graphics.end();
+      if (histogramViewControl.aiInfo && histogramViewControl.aiInfo.histogramBitmap) {
+            histogramViewControl.aiInfo.histogramBitmap.clear();
+      }
       histogramViewControl.aiInfo = { histogramBitmap: bitmap, scaledValues: null, cumulativeValues: null, percentageValues: null, log_x_scale: false };
       histogramViewControl.onPaint = function(x0, y0, x1, y1) {
             var graphics = new Graphics(this);  // VectorGraphics

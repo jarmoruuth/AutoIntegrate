@@ -94,6 +94,8 @@ class AutoIntegratePreviewControl extends Frame
             this.standalone = false;
 #endif
 
+            this.bitmap = null;
+            this.scaledBitmap = null;
             this.saveNonclippedBitmap = null;
 
             this.initGUI();
@@ -114,8 +116,14 @@ class AutoIntegratePreviewControl extends Frame
       SetImageBitmap(bitmap, txt)
       {
              if (this.par.debug.val) console.writeln(this.name + ":SetImageBitmap:bitmap " + bitmap.width + "x" + bitmap.height + ", txt " + txt);
+             if (this.bitmap != null) {
+                  this.bitmap.clear();
+             }
              this.bitmap = bitmap;
-             this.scaledBitmap = null;
+             if (this.scaledBitmap != null) {
+                  this.scaledBitmap.clear();
+                  this.scaledBitmap = null;
+             }
              this.SetZoomOutLimit();
              this.UpdateZoom(-100);
              if (txt) {
@@ -123,7 +131,10 @@ class AutoIntegratePreviewControl extends Frame
             } else {
                   this.image_name_Label.text = "";
             }
-            this.saveNonclippedBitmap = null;
+            if (this.saveNonclippedBitmap != null) {
+                  this.saveNonclippedBitmap.clear();
+                  this.saveNonclippedBitmap = null;
+            }
       }
 
        // Update image window and bitmap
@@ -142,8 +153,14 @@ class AutoIntegratePreviewControl extends Frame
              if (this.zoom == this.zoomOutLimit) {
                    this.SetImageBitmap(bitmap, txt);
              } else {
+                  if (this.bitmap != null) {
+                        this.bitmap.clear();
+                  }
                    this.bitmap = bitmap;
-                   this.scaledBitmap = null;
+                   if (this.scaledBitmap != null) {
+                        this.scaledBitmap.clear();
+                        this.scaledBitmap = null;
+                   }
                    if (this.zoom == this.zoomOutLimit) {
                         var newZoom = -100;
                    } else {
@@ -156,7 +173,10 @@ class AutoIntegratePreviewControl extends Frame
                   } else {
                         this.image_name_Label.text = "";
                   }
-                  this.saveNonclippedBitmap = null;
+                  if (this.saveNonclippedBitmap != null) {
+                        this.saveNonclippedBitmap.clear();
+                        this.saveNonclippedBitmap = null;
+                  }
             }
        }
 
@@ -259,7 +279,10 @@ class AutoIntegratePreviewControl extends Frame
  
              this.zoom = newZoom;
              this.scale = this.zoom;
-             this.scaledBitmap = null;
+             if (this.scaledBitmap != null) {
+                  this.scaledBitmap.clear();
+                  this.scaledBitmap = null;
+             }
             if (this.zoom >= 1) {
                   this.zoomVal_Label.text = "1:1";
             } else {
