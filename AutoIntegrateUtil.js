@@ -1164,6 +1164,20 @@ testDirectoryIsWriteable(dir)
       }
 }
 
+writeTextToFile(dir, file, text)
+{
+      var fname = this.ensurePathEndSlash(dir) + file;
+      try {
+            let file = new File();
+            file.createForWriting(fname);
+            file.outTextLn(text);
+            file.close();
+      } catch (error) {
+            console.criticalln(error);
+            this.throwFatalError("Failed to write to file " + fname);
+      }
+}
+
 ensureDir(dir)
 {
       // console.writeln("ensureDir " + dir)
