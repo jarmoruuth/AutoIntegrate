@@ -321,8 +321,8 @@ class AutoIntegratePreviewControl extends Frame
       this.zoomIn_Button.toolTip = "Zoom in";
       this.zoomIn_Button.onClick = () =>
       {
-            if (this.par.debug.val) console.writeln(this.parent.name + ":zoom-in");
-            this.parent.UpdateZoom(this.parent.zoom + this.parent.zoomOutLimit);
+            if (this.par.debug.val) console.writeln(this.name + ":zoom-in");
+            this.UpdateZoom(this.zoom + this.zoomOutLimit);
       };
 
       this.zoomOut_Button = new ToolButton( this );
@@ -331,8 +331,8 @@ class AutoIntegratePreviewControl extends Frame
       this.zoomOut_Button.toolTip = "Zoom out";
       this.zoomOut_Button.onClick = () =>
       {
-            if (this.par.debug.val) console.writeln(this.parent.name + ":zoom-out");
-            this.parent.UpdateZoom(this.parent.zoom - this.parent.zoomOutLimit);
+            if (this.par.debug.val) console.writeln(this.name + ":zoom-out");
+            this.UpdateZoom(this.zoom - this.zoomOutLimit);
       };
 
       this.zoom11_Button = new ToolButton( this );
@@ -341,8 +341,8 @@ class AutoIntegratePreviewControl extends Frame
       this.zoom11_Button.toolTip = "Zoom 1:1";
       this.zoom11_Button.onClick = () =>
       {
-            if (this.par.debug.val) console.writeln(this.parent.name + ":zoom-1-1");
-            this.parent.UpdateZoom(1);
+            if (this.par.debug.val) console.writeln(this.name + ":zoom-1-1");
+            this.UpdateZoom(1);
       };
 
       this.zoomFit_Button = new ToolButton( this );
@@ -351,8 +351,8 @@ class AutoIntegratePreviewControl extends Frame
       this.zoomFit_Button.toolTip = "Zoom fit";
       this.zoomFit_Button.onClick = () =>
       {
-            if (this.par.debug.val) console.writeln(this.parent.name + ":zoom");
-            this.parent.UpdateZoom(-100);
+            if (this.par.debug.val) console.writeln(this.name + ":zoom");
+            this.UpdateZoom(-100);
       };
 
       if (this.normalPreview) {
@@ -362,7 +362,7 @@ class AutoIntegratePreviewControl extends Frame
             this.save_Button.toolTip = "Save image to a file.";
             this.save_Button.onClick = () =>
             {
-                  if (!this.parent.bitmap) {
+                  if (!this.bitmap) {
                         console.noteln("No image to save");
                         return;
                   }
@@ -382,7 +382,7 @@ class AutoIntegratePreviewControl extends Frame
                         console.noteln("Preview image not saved");
                         return;
                   }
-                  var copy_win = this.util.createWindowFromBitmap(this.parent.bitmap, "AutoIntegrate_preview_savetmp");
+                  var copy_win = this.util.createWindowFromBitmap(this.bitmap, "AutoIntegrate_preview_savetmp");
                   console.writeln("save image to ", saveFileDialog.fileName + ", bits ", copy_win.bitsPerSample + ", width ", copy_win.mainView.image.width + ", height ", copy_win.mainView.image.height + ", id ", copy_win.mainView.id);
                   if (copy_win.bitsPerSample != 16) {
                         console.writeln("set bits to 16");
@@ -405,8 +405,10 @@ class AutoIntegratePreviewControl extends Frame
             this.maxPreview_Button.toolTip = "Open a new dialog to view the image in (almost) full screen size.";
             this.maxPreview_Button.onClick = () =>
             {
-                  let maxPreviewDialog = new AutoIntegrateMaxPreviewDialog(this.engine, this.util, this.global, this.parent.image, this.parent.image_name_Label.text);
+                  let image = this.util.createImageFromBitmap(this.bitmap);
+                  let maxPreviewDialog = new AutoIntegrateMaxPreviewDialog(this.engine, this.util, this.global, image, this.image_name_Label.text);
                   maxPreviewDialog.execute();
+                  image.free();
             };
       }
       this.image_name_Label = new Label( this );
@@ -450,7 +452,7 @@ class AutoIntegratePreviewControl extends Frame
              this.viewport.update();
        }
  
-              this.scrollbox.viewport.onMouseWheel = function (x, y, delta, buttonState, modifiers)
+      this.scrollbox.viewport.onMouseWheel = function (x, y, delta, buttonState, modifiers)
        {
              var preview = this.parent.parent;
              preview.UpdateZoom(preview.zoom + (delta > 0 ? preview.zoomOutLimit : -preview.zoomOutLimit), new Point(x,y));
