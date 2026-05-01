@@ -1230,6 +1230,11 @@ newMaskWindow(sourceWindow, name, allow_duplicate_name, clip_shadows_more)
 {
       var targetWindow;
 
+      if (this.par.enhancements_force_new_mask.val) {
+            // Close old mask window if exists
+            this.util.closeOneWindowById(name);
+      }
+
       if (sourceWindow.mainView.image.colorSpace != ColorSpace.Gray) {
             /* If we have color files we extract lightness component and
                use it as a mask.
