@@ -56,10 +56,10 @@ class AutoIntegrateNarrowbandCombinationsDialog extends Dialog {
     constructor() {
         super();
 
-    this.TITLE = "Narrowband Combinations";
-    this.VERSION = "1.00";
+    this.title = "Narrowband Combinations";
+    this.version = "1.00";
 
-    this.windowTitle = this.TITLE + " v" + this.VERSION;
+    this.windowTitle = this.title + " v" + this.version;
     // this.minWidth = 1000;
 
     this.global = new AutoIntegrateGlobal();
@@ -389,7 +389,7 @@ class AutoIntegrateNarrowbandCombinationsDialog extends Dialog {
     // -------------------------------------------------------------------------
 
     this.titleLabel = new Label(this);
-    this.titleLabel.text = this.TITLE + " v" + this.VERSION;
+    this.titleLabel.text = this.title + " v" + this.version;
     this.titleLabel.textAlignment = TextAlignment.Center;
     this.titleLabel.styleSheet = "font-size: 14pt; font-weight: bold; color: #4488FF;";
 
