@@ -178,7 +178,7 @@ class AutoIntegrateImageStretchingDialog extends Dialog {
     this.stretchingChoiceGroupBox.sizer = this.stretchingChoiceSizer;
 
     this.targetImageSizer = this.enhancements_gui.createTargetImageSizer(this);
-    this.enhancements_gui.apply_completed_callback = function(apply_ok) {
+    this.enhancements_gui.apply_completed_callback = (apply_ok) => {
         // We do stretching here so we set the value to true
         // With reset option it may have been reset to false (default)
         this.global.par.enhancements_stretch.val = true;

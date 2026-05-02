@@ -46,8 +46,6 @@ class AutoIntegrateNarrowbandSelectMultipleDialog extends Dialog
             super();
             this.restyle();
 
-      this.self = this;
-
       this.labelWidth = this.font.width( "Object identifier:M" );
       this.editWidth = this.font.width( 'M' )*40;
 
@@ -1394,6 +1392,7 @@ setPreviewIdReset(id, keep_zoom, histogramInfo)
 updatePreviewNoImageInControl(control)
 {
       let show_startup_image = this.ppar.show_startup_image;
+      var bitmap = null;
 
       if (show_startup_image) {
             if (this.ppar.startup_image_name == this.global.default_startup_image_name) {
@@ -1402,9 +1401,9 @@ updatePreviewNoImageInControl(control)
                   var startup_image_name = this.ppar.startup_image_name;
             }
             try {
-                  var bitmap = new Bitmap( startup_image_name );
+                  bitmap = new Bitmap( startup_image_name );
             } catch (e) {
-                  var bitmap = null;
+                  bitmap = null;
             }
             if (!bitmap) {
                   console.noteln("Could not load startup image " + startup_image_name);
@@ -1419,7 +1418,8 @@ updatePreviewNoImageInControl(control)
                   bitmap.clear();
                   bitmap = scaled_bitmap;
             }
-      } else {
+      }
+      if (!show_startup_image || !bitmap) {
             if (this.global.debug) console.writeln("Not showing startup image");
             let width;
             let height;

@@ -19,6 +19,7 @@ by Pleiades Astrophoto and its contributors (https://pixinsight.com/).
 #undef SETTINGS_MODULE
 #define SETTINGS_MODULE      "AutoIntegrateAnnotateImage"
 #undef TITLE
+#undef VERSION
 
 #include "../AnnotateImage/AnnotateImage.js"
 
