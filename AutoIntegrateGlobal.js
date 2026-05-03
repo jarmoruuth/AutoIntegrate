@@ -33,6 +33,7 @@ by Pleiades Astrophoto and its contributors (https://pixinsight.com/).
 #include <pjsr/ImageOp.jsh>
 #include <pjsr/DataType.jsh>
 #include <pjsr/StdCursor.jsh>
+#include <pjsr/FontFamily.jsh>
 
 
 #define SETTINGSKEY "AutoIntegrate"

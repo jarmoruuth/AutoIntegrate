@@ -2013,7 +2013,9 @@ function is_non_starless_option()
              par.enhancements_color_calibration.val ||
              par.enhancements_ha_mapping.val ||
              par.enhancements_solve_image.val ||
+#ifdef ENABLE_ANNOTATE_IMAGE
              par.enhancements_annotate_image.val ||
+#endif // ENABLE_ANNOTATE_IMAGE
              par.enhancements_signature.val ||
              par.enhancements_rotate.val ||
              par.enhancements_fix_star_cores.val ||

@@ -97,7 +97,9 @@ by Pleiades Astrophoto and its contributors (https://pixinsight.com/).
 #include "../AdP/ImageSolver.js"
 #include "../AdP/SearchCoordinatesDialog.js"
 #undef TITLE
+#ifdef ENABLE_ANNOTATE_IMAGE
 #include "../AdP/AnnotateImage.js"
+#endif // ENABLE_ANNOTATE_IMAGE
 #endif // NO_SOLVER_LIBRARY
 
 #include "AutoIntegrateVeraLuxHMS.js"
@@ -17016,6 +17018,7 @@ function combineStarsAndStarless(stars_combine, starless_id, stars_id)
       return new_id;
 }
 
+#ifdef ENABLE_ANNOTATE_IMAGE
 function enhancementsAnnotateImage(enhancementsWin, apply_directly)
 {
       addEnhancementsStep("Annotate image " + enhancementsWin.mainView.id);
@@ -17033,7 +17036,7 @@ function enhancementsAnnotateImage(enhancementsWin, apply_directly)
       }
 
       var annotatedImgWin = util.findWindow(enhancementsWin.mainView.id + "_Annotated");
-      
+
       if (apply_directly) {
             enhancementsWin.mainView.beginProcess(UndoFlag_NoSwapFile);
             enhancementsWin.mainView.image.blend(util.getWindowBitmap(annotatedImgWin));
@@ -17043,6 +17046,7 @@ function enhancementsAnnotateImage(enhancementsWin, apply_directly)
 
       return annotatedImgWin;
 }
+#endif // ENABLE_ANNOTATE_IMAGE
 
 function enhancementsAddSignature(enhancementsWin)
 {
@@ -17451,6 +17455,7 @@ function enhancementsProcessing(parent, id, apply_directly)
             runImageSolver(enhancementsWin.mainView.id);
             enhancementsOptionCompleted(par.enhancements_solve_image);
       }
+#ifdef ENABLE_ANNOTATE_IMAGE
       if (par.enhancements_annotate_image.val) {
             addEnhancementsStep("Annotate image");
             let annotatedImgWin = enhancementsAnnotateImage(enhancementsWin, apply_directly);
@@ -17460,6 +17465,7 @@ function enhancementsProcessing(parent, id, apply_directly)
             }
             enhancementsOptionCompleted(par.enhancements_annotate_image);
       }
+#endif // ENABLE_ANNOTATE_IMAGE
       if (par.enhancements_signature.val) {
             addEnhancementsStep("Add signature");
             enhancementsAddSignature(enhancementsWin);

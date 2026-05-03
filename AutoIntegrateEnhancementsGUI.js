@@ -1090,13 +1090,15 @@ function createEnhancementsControls(parent)
             }
       };
 
-      self.enhancements_annotate_image_CheckBox = guitools.newCheckBox(parent, "Annotate", par.enhancements_annotate_image, 
-            "<p>Use AnnotateImage script to annotate image.</p>" + 
-            "<p>Note that image must have a correct astrometric solution embedded for annotate to work. " + 
+#ifdef ENABLE_ANNOTATE_IMAGE
+      self.enhancements_annotate_image_CheckBox = guitools.newCheckBox(parent, "Annotate", par.enhancements_annotate_image,
+            "<p>Use AnnotateImage script to annotate image.</p>" +
+            "<p>Note that image must have a correct astrometric solution embedded for annotate to work. " +
             "When using SPCC color calibration astrometric solution is automatically added.</p>" +
             "<p>When used with the Run or AutoContinue button a new image with _Annotated postfix is created.</p>");
-      self.enhancements_annotate_scale_SpinBox = guitools.newSpinBox(parent, par.enhancements_annotate_image_scale, 1, 8, 
+      self.enhancements_annotate_scale_SpinBox = guitools.newSpinBox(parent, par.enhancements_annotate_image_scale, 1, 8,
             "<p>Graphics scale for AnnotateImage script.</p>");
+#endif // ENABLE_ANNOTATE_IMAGE
 
 #endif // AUTOINTEGRATE_STANDALONE
 
@@ -1244,8 +1246,10 @@ function createEnhancementsControls(parent)
 #ifndef AUTOINTEGRATE_STANDALONE
       self.enhancementsImageOptionsSizer11.add( self.enhancements_solve_image_CheckBox );
       self.enhancementsImageOptionsSizer11.add( self.enhancements_solve_image_Button );
+#ifdef ENABLE_ANNOTATE_IMAGE
       self.enhancementsImageOptionsSizer11.add( self.enhancements_annotate_image_CheckBox );
       self.enhancementsImageOptionsSizer11.add( self.enhancements_annotate_scale_SpinBox );
+#endif // ENABLE_ANNOTATE_IMAGE
 #endif // AUTOINTEGRATE_STANDALONE
       self.enhancementsImageOptionsSizer11.addStretch();
 
