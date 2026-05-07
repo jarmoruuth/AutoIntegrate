@@ -28,12 +28,12 @@ super();
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-this.autointegrate_version = "AutoIntegrate v1.86 test2";   // Version, also updated into updates.xri
+this.autointegrate_version = "AutoIntegrate v1.86";         // Version, also updated into updates.xri
 this.autointegrate_info = "V8 JavaScript engine";           // For updates.xri
 
 this.autointegrate_version_info = [
       "Changes since the previous version:",
-      "- V8 JavaScript engine",
+      "- Runs on V8 JavaScript engine",
 ];
 
 /* Interface version changes:
@@ -194,8 +194,8 @@ this.narrowbandAutoMapping = [
 this.par = {
       // Image processing parameters
       local_normalization: { val: false, def: false, name : "Local normalization", type : 'B' },
-      fix_column_defects: { val: false, def: false, name : "Fix column defects", type : 'B' },
-      fix_row_defects: { val: false, def: false, name : "Fix row defects", type : 'B' },
+      fix_column_defects: { val: false, def: false, name : "Fix column defects", type : 'B', ignore_used: true }, // Does not work in V8
+      fix_row_defects: { val: false, def: false, name : "Fix row defects", type : 'B', ignore_used: true },       // Does not work in V8
       skip_cosmeticcorrection: { val: false, def: false, name : "No Cosmetic correction", type : 'B', oldname: "Cosmetic correction" },
       skip_subframeselector: { val: false, def: false, name : "No SubframeSelector", type : 'B', oldname : "SubframeSelector" },
       staralignment_sensitivity: { val: 0.5, def: 0.5, name : "StarAlignment sensitivity", type : 'R' },
@@ -271,9 +271,9 @@ this.par = {
       reset_on_setup_load: { val: true, def: true, name : "Reset on setup load", type : 'B' },
       keep_temporary_images: { val: false, def: false, name : "Keep temporary images", type : 'B' },
       keep_processed_images: { val: false, def: false, name : "Keep processed images", type : 'B' },
-      debug: { val: true, def: true, name : "Debug", type : 'B' },
+      debug: { val: false, def: false, name : "Debug", type : 'B' },
       null_processing: { val: false, def: false, name : "Null processing", type : 'B' },
-      flowchart_debug: { val: true, def: true, name : "Flowchart debug", type : 'B' },
+      flowchart_debug: { val: false, def: false, name : "Flowchart debug", type : 'B' },
       print_process_values: { val: false, def: false, name : "Print process values", type : 'B' },
       create_executed_processes_js: { val: false, def: false, name : "Create ExecutedProcesses.js file", type : 'B' },
       monochrome_image: { val: false, def: false, name : "Monochrome", type : 'B' },
@@ -989,7 +989,7 @@ if (this.autointegrate_version.indexOf("test") > 0) {
 }
 
 this.rootingArr = [];            // for rooting objects
-this.debug = true;              // true to enable debug output to console and additional debug checks
+this.debug = false;              // true to enable debug output to console and additional debug checks
 
 /* Functions
 this.getDirectoryInfo = getDirectoryInfo;

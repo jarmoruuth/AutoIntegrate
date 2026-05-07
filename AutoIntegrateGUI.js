@@ -4784,12 +4784,14 @@ AutoIntegrateDialog()
       this.useLocalNormalizationCheckBox = this.guitools.newCheckBox(this, "Local Normalization", this.par.local_normalization, 
             "<p>Use local normalization data for ImageIntegration</p>" +
             "<p>For local normalization settings see section <i>Integration / LocalNormalization</i></p>");
+#ifdef LDD_IN_V8
       this.FixColumnDefectsCheckBox = this.guitools.newCheckBox(this, "Fix column defects", this.par.fix_column_defects, 
             "If checked, fix linear column defects by using linear defect detection algorithm from LinearDefectDetection.js script. " + 
             "Defect information is used by CosmeticCorrection to fix the defects." );
       this.FixRowDefectsCheckBox = this.guitools.newCheckBox(this, "Fix row defects", this.par.fix_row_defects, 
             "If checked, fix linear row defects by using linear defect detection algorithm from LinearDefectDetection.js script. " + 
             "Defect information is used by CosmeticCorrection to fix the defects." );
+#endif
       this.CosmeticCorrectionCheckBox = this.guitools.newCheckBox(this, "No CosmeticCorrection", this.par.skip_cosmeticcorrection, 
             "<p>Do not run CosmeticCorrection on image files.</p>" +
             "<p>Can be useful when doing Comet align.</p>" );
@@ -5074,14 +5076,16 @@ AutoIntegrateDialog()
       this.imageParamsSet1_left.add( this.CalibrateOnlyCheckBox );
       this.imageParamsSet1_left.add( this.GenerateMastersOnlyCheckBox );
       this.imageParamsSet1_left.add( this.IntegrateOnlyCheckBox );
+#ifdef LDD_IN_V8
       this.imageParamsSet1_left.add( this.FixColumnDefectsCheckBox );
       this.imageParamsSet1_left.add( this.FixRowDefectsCheckBox );
+#endif
       this.imageParamsSet1_left.add( this.CometAlignCheckBox );
+      this.imageParamsSet1_left.add( this.crop_to_common_area_CheckBox );
 
       this.imageParamsSet1_right = new VerticalSizer;
       this.imageParamsSet1_right.margin = 6;
       this.imageParamsSet1_right.spacing = 4;
-      this.imageParamsSet1_right.add( this.crop_to_common_area_CheckBox );
       this.imageParamsSet1_right.add( this.imageintegration_ssweight_CheckBox );
       this.imageParamsSet1_right.add( this.fastIntegrationCheckBox );
       this.imageParamsSet1_right.add( this.useLocalNormalizationCheckBox );

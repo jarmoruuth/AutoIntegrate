@@ -554,57 +554,61 @@ PartialLineDetection( detectColumns, image, layersToRemove, imageShift, threshol
 */
 DefineWindowsAndImages( win, detectPartialLines )
 {
-    // Define the working image windows and images.
-    this.referenceImageWindow = win;
+    var WI = new Object;
 
-    this.referenceImage = new Image( this.referenceImageWindow.mainView.image.width,
-            this.referenceImageWindow.mainView.image.height,
-            this.referenceImageWindow.mainView.image.numberOfChannels,
-            this.referenceImageWindow.mainView.image.colorSpace,
+    // Define the working image windows and images.
+    WI.referenceImageWindow = win;
+
+    WI.referenceImage = new Image( WI.referenceImageWindow.mainView.image.width,
+            WI.referenceImageWindow.mainView.image.height,
+            WI.referenceImageWindow.mainView.image.numberOfChannels,
+            WI.referenceImageWindow.mainView.image.colorSpace,
             32, PixelSampleType.Float );
 
-    this.referenceImage.apply( this.referenceImageWindow.mainView.image );
+    WI.referenceImage.apply( WI.referenceImageWindow.mainView.image );
 
     if ( detectPartialLines )
     {
-        this.referenceImageCopy = new Image( this.referenceImageWindow.mainView.image.width,
-                this.referenceImageWindow.mainView.image.height,
-                this.referenceImageWindow.mainView.image.numberOfChannels,
-                this.referenceImageWindow.mainView.image.colorSpace,
+        WI.referenceImageCopy = new Image( WI.referenceImageWindow.mainView.image.width,
+                WI.referenceImageWindow.mainView.image.height,
+                WI.referenceImageWindow.mainView.image.numberOfChannels,
+                WI.referenceImageWindow.mainView.image.colorSpace,
                 32, PixelSampleType.Float );
 
-        this.referenceImageCopy.apply( this.referenceImageWindow.mainView.image );
+        WI.referenceImageCopy.apply( WI.referenceImageWindow.mainView.image );
     }
 
-    this.referenceSSImage = new Image( this.referenceImage.width,
-            this.referenceImage.height,
-            this.referenceImage.numberOfChannels,
-            this.referenceImage.colorSpace,
+    WI.referenceSSImage = new Image( WI.referenceImage.width,
+            WI.referenceImage.height,
+            WI.referenceImage.numberOfChannels,
+            WI.referenceImage.colorSpace,
             32, PixelSampleType.Float );
 
-    this.referenceSSImage.apply( this.referenceImage );
+    WI.referenceSSImage.apply( WI.referenceImage );
 
-    this.lineModelWindow = new ImageWindow( this.referenceImage.width,
-                this.referenceImage.height,
-                this.referenceImage.numberOfChannels,
+    WI.lineModelWindow = new ImageWindow( WI.referenceImage.width,
+                WI.referenceImage.height,
+                WI.referenceImage.numberOfChannels,
                 32, true, false, "line_model" );
 
-    this.lineModelImage = new Image( this.referenceImage.width,
-            this.referenceImage.height,
-            this.referenceImage.numberOfChannels,
-            this.referenceImage.colorSpace,
+    WI.lineModelImage = new Image( WI.referenceImage.width,
+            WI.referenceImage.height,
+            WI.referenceImage.numberOfChannels,
+            WI.referenceImage.colorSpace,
             32, PixelSampleType.Float );
 
-    this.lineDetectionWindow = new ImageWindow( this.referenceImage.width,
-                    this.referenceImage.height,
-                    this.referenceImage.numberOfChannels,
+    WI.lineDetectionWindow = new ImageWindow( WI.referenceImage.width,
+                    WI.referenceImage.height,
+                    WI.referenceImage.numberOfChannels,
                     32, true, false, "line_detection" );
 
-    this.lineDetectionImage = new Image( this.referenceImage.width,
-                this.referenceImage.height,
-                this.referenceImage.numberOfChannels,
-                this.referenceImage.colorSpace,
+    WI.lineDetectionImage = new Image( WI.referenceImage.width,
+                WI.referenceImage.height,
+                WI.referenceImage.numberOfChannels,
+                WI.referenceImage.colorSpace,
                 32, PixelSampleType.Float );
+
+    return WI;
 }
 
 /*

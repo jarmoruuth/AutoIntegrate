@@ -1883,7 +1883,7 @@ getDefects(LDD_win, detectColumns)
       var imageShift = 50;
 
       // detect line defects
-      var detectedLines = new this.autointegrateLDD.LDDEngine( LDD_win, detectColumns, detectPartialLines,
+      var detectedLines = this.autointegrateLDD.LDDEngine( LDD_win, detectColumns, detectPartialLines,
                                                           layersToRemove, rejectionLimit, imageShift,
                                                           detectionThreshold, partialLineDetectionThreshold );
       // Generate output for cosmetic correction
@@ -7031,11 +7031,54 @@ checkFilesExist(imagearray)
       return succp;
 }
 
+// Find the image whose background (SubframeSelector measurementMedian) is closest
+// to the median background of the set. This minimizes average normalization
+// corrections in LocalNormalization. Falls back to best_image if measurements
+// are not available (SubframeSelector was not run).
+findLocalNormalizationReference(images, best_image)
+{
+      var indexPath = 3;
+      var indexMedian = 10;
+
+      if (this.global.saved_measurements == null || this.global.saved_measurements.length == 0) {
+            console.writeln("findLocalNormalizationReference, no saved measurements, using best_image");
+            return best_image;
+      }
+
+      // Match each image to its SubframeSelector median value by base filename
+      var medians = [];
+      for (var i = 0; i < images.length; i++) {
+            var imgName = File.extractName(images[i][1]);
+            for (var j = 0; j < this.global.saved_measurements.length; j++) {
+                  var measName = File.extractName(this.global.saved_measurements[j][indexPath]);
+                  if (measName.startsWith(imgName) || imgName.startsWith(measName)) {
+                        medians[medians.length] = { path: images[i][1], median: this.global.saved_measurements[j][indexMedian] };
+                        break;
+                  }
+            }
+      }
+
+      if (medians.length == 0) {
+            console.writeln("findLocalNormalizationReference, no matching measurements found, using best_image");
+            return best_image;
+      }
+
+      // Sort by median value and pick the middle image
+      medians.sort(function(a, b) { return a.median - b.median; });
+      var mid = Math.floor(medians.length / 2);
+      var refImage = medians[mid].path;
+
+      this.util.addProcessingStep("LocalNormalization reference (median background): " + File.extractName(refImage) + " (median=" + medians[mid].median.toFixed(6) + ")");
+      console.writeln("findLocalNormalizationReference, selected " + refImage);
+      return refImage;
+}
+
 runImageIntegrationNormalized(images, best_image, name)
 {
       this.util.addProcessingStepAndStatusInfo("ImageIntegration with LocalNormalization");
 
-      this.runLocalNormalization(images, best_image, name);
+      var localnorm_ref = this.findLocalNormalizationReference(images, best_image);
+      this.runLocalNormalization(images, localnorm_ref, name);
 
       console.writeln("Using local normalized data in image integration, " + images.length + " files");
       
@@ -12301,7 +12344,11 @@ createChannelImages(parent, auto_continue)
                   var do_cosmeticcorrection = true;
             }
             if (do_cosmeticcorrection) {
+#ifdef LDD_IN_V8
                   if (this.par.fix_column_defects.val || this.par.fix_row_defects.val) {
+#else
+                  if (0) {
+#endif
                         var ccFileNames = [];
                         var ccInfo = this.runLinearDefectDetection(fileNames);
                         for (var i = 0; i < ccInfo.length; i++) {
@@ -14530,6 +14577,7 @@ invertImage(targetView)
 // Mask used when fixing star colors in narrowband images.
 createStarFixMask(imgView)
 {
+      if (this.global.debug) console.writeln("createStarFixMask, force_new_mask is " + this.par.enhancements_force_new_mask.val);
       if (!this.par.enhancements_force_new_mask.val) {
             if (this.star_fix_mask_win == null) {
                   this.star_fix_mask_win = this.util.findWindow(this.ppar.win_prefix + "star_fix_mask");
@@ -14556,7 +14604,7 @@ createStarFixMask(imgView)
       P.executeOn(imgView, false);
       imgView.endProcess();
 
-      this.printAndSaveProcessValues(P, "", imgView.mainView.id);
+      this.printAndSaveProcessValues(P, "", imgView.id);
       this.engine_end_process(node);
 
       this.star_fix_mask_win = ImageWindow.activeWindow;
