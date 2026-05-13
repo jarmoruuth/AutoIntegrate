@@ -18,6 +18,7 @@
 #include "AutoIntegrateGUITools.js"
 #include "AutoIntegrateEnhancementsGUI.js"
 #include "AutoIntegrateSelectiveColor.js"
+#include "AutoIntegrateCalibrate.js"
 #include "AutoIntegrateEngine.js"
 #include "AutoIntegratePreview.js"
 

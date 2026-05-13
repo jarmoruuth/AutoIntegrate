@@ -16,6 +16,7 @@
 #include "AutoIntegrateGlobal.js"
 #include "AutoIntegrateUtil.js"
 #include "AutoIntegrateGUITools.js"
+#include "AutoIntegrateCalibrate.js"
 #include "AutoIntegrateEngine.js"
 #include "AutoIntegratePreview.js"
 
