@@ -7077,7 +7077,12 @@ runImageIntegrationNormalized(images, best_image, name)
 {
       this.util.addProcessingStepAndStatusInfo("ImageIntegration with LocalNormalization");
 
-      var localnorm_ref = this.findLocalNormalizationReference(images, best_image);
+      if (0) {
+            /* Does not always improve results and can cause problems if the reference image has bad measurements, so we disable it for now. */
+            var localnorm_ref = this.findLocalNormalizationReference(images, best_image);
+      } else {
+            var localnorm_ref = best_image;
+      }
       this.runLocalNormalization(images, localnorm_ref, name);
 
       console.writeln("Using local normalized data in image integration, " + images.length + " files");
