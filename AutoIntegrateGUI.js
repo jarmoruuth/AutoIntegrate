@@ -8266,7 +8266,7 @@ showWelcomeDialog(global) {
 // Show tutorial manager
 showTutorialManager() {
     
-      var manager = new AutoIntegrateTutorialManagerDialog(this, global);
+      var manager = new AutoIntegrateTutorialManagerDialog(this, this.global);
       manager.execute();
 };
 
