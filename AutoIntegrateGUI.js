@@ -1256,7 +1256,7 @@ updatePreviewWinTxt(imgWin, txt, histogramInfo = null, run_autostf = false, imgW
             if (this.par.debug.val) console.writeln("--- updatePreviewWinTxt:init " + (Date.now()-start_time)/1000 + " sec");
             if (this.par.debug.val) start_time = Date.now();
             if (histogramInfo) {
-                  console.writeln("updatePreviewWinTxt:use existing histogramInfo");
+                  if (this.global.debug) console.writeln("updatePreviewWinTxt:use existing histogramInfo");
                   this.global.enhancements_target_histogram_info = histogramInfo;
             } else {
                   if (this.histogramControl != null) {

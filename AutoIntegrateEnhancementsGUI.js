@@ -330,7 +330,7 @@ add_undo_image(undo_image, histogramInfo)
 
 apply_undo()
 {
-      console.writeln("apply_undo");
+      if (this.global.debug) console.writeln("apply_undo");
       if (this.global.enhancements_target_image_id == null || this.global.enhancements_target_image_id == "Auto") {
             console.criticalln("No target image!");
             return;
@@ -400,7 +400,7 @@ apply_redo()
       this.preview.updatePreviewIdReset(this.global.enhancements_target_image_id, true, source_histogramInfo);
       
       this.enhancements_gui_info.undo_images_pos++;
-      console.writeln("undo_images_pos " + this.enhancements_gui_info.undo_images_pos);
+      if (this.global.debug) console.writeln("undo_images_pos " + this.enhancements_gui_info.undo_images_pos);
       this.update_undo_buttons();
 
       this.print_enhancements_info("Redo enhancements:", this.global.enhancements_info);
