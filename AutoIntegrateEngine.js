@@ -10111,22 +10111,16 @@ findSampleFromTile(tileNumber, x, y, x_size, y_size, backgroundRegions, selected
       for (var i = 0; i < backgroundRegions.length; i++) {
             var region = backgroundRegions[i];
             if (region.x >= x && region.x < x + x_size && region.y >= y && region.y < y + y_size) {
-                  if (foundRegions.length < 3) {
-                        let sample = region;
-                        // console.writeln("Tile " + tileNumber + ", sample at x " + sample.x + ", y " + sample.y + ", median " + sample.median + ", std dev " + sample.stdDev);
-                  }
                   foundRegions.push(region);
             }
       }
       if (foundRegions.length > 0) {
-            // Sort the found regions by median value
-            foundRegions.sort(function(a, b) {
-                  return a.median - b.median;
-            });
-            // Pick the sample near the 10th percentile rather than the absolute minimum
-            // to avoid cold pixels, bad columns, or dark artifacts skewing the model
-            let pickIndex = Math.floor(foundRegions.length * 0.1);
-            let sample = foundRegions[pickIndex];
+            // Sort by median ascending, then within the bottom quartile pick the
+            // candidate with the lowest stdDev: low brightness + low variance = best background
+            foundRegions.sort(function(a, b) { return a.median - b.median; });
+            var bottomQuartile = foundRegions.slice(0, Math.max(1, Math.floor(foundRegions.length * 0.25)));
+            bottomQuartile.sort(function(a, b) { return a.stdDev - b.stdDev; });
+            let sample = bottomQuartile[0];
             selectedRegions.push(sample);
             console.writeln("Tile " + tileNumber + ", " + foundRegions.length + " samples" + ", best sample at x " + sample.x + ", y " + sample.y + ", median " + sample.median + ", std dev " + sample.stdDev);
       } else {
@@ -10276,7 +10270,7 @@ calculateOutlierFactor(value, median, stdDev)
 // * @param {Object} firstSample - Boolean indicating if this is the first sample
 // * @returns {Number} The calculated weight for the sample
 // */
-calculateOptimalWeight(image, region, channel, channelStats, regionStats, firstSample)
+calculateOptimalWeight(image, region, channel, channelStats, regionStats, firstSample, imageStats)
 {
       // Base weight starts at 1.0
       let weight = 1.0;
@@ -10318,11 +10312,10 @@ calculateOptimalWeight(image, region, channel, channelStats, regionStats, firstS
       // const gradientFactor = Math.min(1.0, 0.5 + gradientStrength);
       // weight *= gradientFactor;
       
-      // 5. Sample region uniformity
-      // More uniform regions are better background samples
-      const uniformityFactor = regionStats.mean > 1e-10
-            ? Math.exp(-regionStats.stdDev / regionStats.mean)
-            : 1.0;
+      // 5. Sample region uniformity — normalised against global noise level (MAD-sigma)
+      // so the factor is consistent across linear and stretched images regardless of mean level
+      const noiseSigma = (imageStats && imageStats.sigma > 1e-10) ? imageStats.sigma : 1e-4;
+      const uniformityFactor = Math.exp(-regionStats.stdDev / noiseSigma);
       weight *= uniformityFactor;
 
       if (firstSample) {
@@ -10354,21 +10347,18 @@ findDBEsamples(w)
       var width = image.width;
       var height = image.height;
 
-      // Define window size
-      var windowSize = 25;
-      
       console.writeln("Calculate image stats...");
       console.flush();
 
       var imageStats = this.calculateImageStats(w);
-      
-      console.writeln("Find sample regions...");
-      console.flush();
 
-      // var adjust_low = this.getAdjustPoint(w, 1);
-      // console.writeln("Adjust low: " + adjust_low.normalizedAdjustPoint);
-      // var adjust_high = this.getAdjustPoint(w, 80);
-      // console.writeln("Adjust high: " + adjust_high.normalizedAdjustPoint);
+      // Compute tile dimensions first so window size can be scaled accordingly
+      var tile_x_size = Math.floor(width / this.par.dbe_samples_per_row.val);
+      var tile_y_size = Math.floor(height / this.par.dbe_samples_per_row.val);
+      var windowSize = Math.max(25, Math.floor(Math.min(tile_x_size, tile_y_size) / 15));
+
+      console.writeln("Find sample regions, window size " + windowSize + "...");
+      console.flush();
 
       // Array to store background regions
       var backgroundRegions = [];
@@ -10377,8 +10367,6 @@ findDBEsamples(w)
       var nchecked = 0;
       var stepsize = 10;
       var tileNumber = 0;
-      var tile_x_size = Math.floor(width / this.par.dbe_samples_per_row.val);
-      var tile_y_size = Math.floor(height / this.par.dbe_samples_per_row.val);
       var print_x = Math.floor(tile_x_size / 2);
       var print_y = Math.floor(tile_y_size / 2);
       var tiles_excluded = 0;
@@ -10410,10 +10398,13 @@ findDBEsamples(w)
                   var windowMedian = image.median(rect);
                   var windowStdDev = image.stdDev(rect);
 
-                  // Check if the window meets the background criteria
-                  if (windowMedian < imageStats.median
-                      && windowMedian > imageStats.median - 2 * imageStats.sigma
-                      && windowStdDev < 1.5 * imageStats.stdDev)
+                  // Check if the window meets the background criteria.
+                  // Upper bound requires candidate to be noticeably below global median (not just below it).
+                  // Lower bound uses 3*sigma (MAD-based) to include dark corners of vignetted linear images.
+                  // stdDev check uses robust MAD-sigma rather than global stdDev which is inflated by stars/nebula.
+                  if (windowMedian < imageStats.median - 0.3 * imageStats.sigma
+                      && windowMedian > imageStats.median - 3 * imageStats.sigma
+                      && windowStdDev < 1.5 * imageStats.sigma)
                   {
                         backgroundRegions.push({x: x, y: y, median: windowMedian, stdDev: windowStdDev, size: windowSize});
                   }
@@ -10464,6 +10455,27 @@ findDBEsamples(w)
             this.util.runGarbageCollection();
       }
 
+      // Cross-tile outlier rejection: one-sided sigma-clip to remove tiles whose sample
+      // is brighter than the rest of the selected set (faint nebula / star field contamination).
+      // Only reject upward outliers; dark tiles are always valid background candidates.
+      if (selectedRegions.length >= 4) {
+            var setMedians = selectedRegions.map(function(r) { return r.median; }).sort(function(a, b) { return a - b; });
+            var setMedian = setMedians[Math.floor(setMedians.length / 2)];
+            var deviations = setMedians.map(function(v) { return Math.abs(v - setMedian); }).sort(function(a, b) { return a - b; });
+            var setMAD = deviations[Math.floor(deviations.length / 2)];
+            var setSigma = setMAD * 1.4826;
+            var brightThreshold = setMedian + 2.0 * setSigma;
+            var filtered = selectedRegions.filter(function(r) { return r.median <= brightThreshold; });
+            if (filtered.length >= Math.ceil(selectedRegions.length * 0.6)) {
+                  console.writeln("findDBEsamples:Cross-tile outlier rejection: removed " + (selectedRegions.length - filtered.length) +
+                                  " of " + selectedRegions.length + " samples (threshold " + brightThreshold.toFixed(6) + ")");
+                  selectedRegions = filtered;
+            } else {
+                  console.writeln("findDBEsamples:Cross-tile outlier rejection skipped: would remove too many samples (" +
+                                  (selectedRegions.length - filtered.length) + "/" + selectedRegions.length + ")");
+            }
+      }
+
       if (selectedRegions.length > 0) {
             console.writeln("findDBEsamples:Selected Background Regions Found: " + selectedRegions.length);
 
@@ -10501,7 +10513,7 @@ findDBEsamples(w)
                               median: image.median(rect, j, j),
                               stdDev: image.stdDev(rect, j, j)
                         };
-                        var sampleWeight = this.calculateOptimalWeight(image, region, j, channelStats[j], regionStats, firstSample);
+                        var sampleWeight = this.calculateOptimalWeight(image, region, j, channelStats[j], regionStats, firstSample, imageStats);
                         firstSample = false;
                         // Check if minimum weight is reached
                         if (sampleWeight >= this.par.dbe_min_weight.val) {
