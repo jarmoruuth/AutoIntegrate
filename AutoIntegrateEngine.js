@@ -10123,8 +10123,10 @@ findSampleFromTile(tileNumber, x, y, x_size, y_size, backgroundRegions, selected
             foundRegions.sort(function(a, b) {
                   return a.median - b.median;
             });
-            // Pick the first region outside of the exclusion area as the sample
-            let sample = foundRegions[0];
+            // Pick the sample near the 10th percentile rather than the absolute minimum
+            // to avoid cold pixels, bad columns, or dark artifacts skewing the model
+            let pickIndex = Math.floor(foundRegions.length * 0.1);
+            let sample = foundRegions[pickIndex];
             selectedRegions.push(sample);
             console.writeln("Tile " + tileNumber + ", " + foundRegions.length + " samples" + ", best sample at x " + sample.x + ", y " + sample.y + ", median " + sample.median + ", std dev " + sample.stdDev);
       } else {
@@ -10168,8 +10170,8 @@ runDBEprocess(imgWin, image_samples)
       P.shadowsRelaxation = 3.000;
       P.minSampleFraction = 0.050;
       P.defaultSampleRadius = image_samples.radius;
-      P.samplesPerRow = 10;
-      P.minWeight = 0.750;
+      P.samplesPerRow = this.par.dbe_samples_per_row.val;
+      P.minWeight = this.par.dbe_min_weight.val;
       P.sampleColor = 4292927712;
       P.selectedSampleColor = 4278255360;
       P.selectedSampleFillColor = 0;
@@ -10318,7 +10320,9 @@ calculateOptimalWeight(image, region, channel, channelStats, regionStats, firstS
       
       // 5. Sample region uniformity
       // More uniform regions are better background samples
-      const uniformityFactor = Math.exp(-regionStats.stdDev / regionStats.mean);
+      const uniformityFactor = regionStats.mean > 1e-10
+            ? Math.exp(-regionStats.stdDev / regionStats.mean)
+            : 1.0;
       weight *= uniformityFactor;
 
       if (firstSample) {
@@ -10345,8 +10349,6 @@ findDBEsamples(w)
       var image = w.mainView.image;
 
       console.writeln("Finding DBE samples in " + w.mainView.id);
-
-      var image = w.mainView.image;
 
       // Get image dimensions
       var width = image.width;
@@ -10405,20 +10407,19 @@ findDBEsamples(w)
                         }
                   }
                   
-                  var windowMedian = image.mean(rect);
+                  var windowMedian = image.median(rect);
                   var windowStdDev = image.stdDev(rect);
-                  var windowMean = w.mainView.image.mean(rect);
 
                   // Check if the window meets the background criteria
                   if (windowMedian < imageStats.median
                       && windowMedian > imageStats.median - 2 * imageStats.sigma
                       && windowStdDev < 1.5 * imageStats.stdDev)
                   {
-                        backgroundRegions.push({x: x, y: y, median: windowMedian, stdDev: windowStdDev, mean: windowMean, size: windowSize});
+                        backgroundRegions.push({x: x, y: y, median: windowMedian, stdDev: windowStdDev, size: windowSize});
                   }
                   nchecked++;
                   if (x > print_x && y > print_y) {
-                        console.writeln("Tile " + tileNumber + ", x " + x + ", y " + y + ", median " + windowMedian + ", std dev " + windowStdDev + ", mean " + windowMean +
+                        console.writeln("Tile " + tileNumber + ", x " + x + ", y " + y + ", median " + windowMedian + ", std dev " + windowStdDev +
                                         ", sample regions found " + backgroundRegions.length + "/" + nchecked);
                         console.flush();
                         print_x += tile_x_size;
@@ -10506,9 +10507,12 @@ findDBEsamples(w)
                         if (sampleWeight >= this.par.dbe_min_weight.val) {
                               min_weight_ok_count++;
                         }
-                        datarow.push(regionStats.mean, sampleWeight, 0, 0, 0, 0);     // z0, w0, z1, w1, z2, w2
-                        samplerow.push(regionStats.mean, sampleWeight, 0, 0, 0, 0);   // z0, w0, z1, w1, z2, w2   
+                        datarow.push(regionStats.mean, sampleWeight);    // z, w — 2 values per channel
+                        samplerow.push(regionStats.mean, sampleWeight);  // z, w — 2 values per channel
                   }
+                  // DBE data format always requires 3 channel pairs (z0,w0,z1,w1,z2,w2); pad unused channels with zeros
+                  while (datarow.length < 8)   datarow.push(0, 0);
+                  while (samplerow.length < 12) samplerow.push(0, 0);
                   // console.writeln("findDBEsamples:Data row: " + datarow.toSource() + ", Sample row: " + samplerow.toSource());
                   // Check if minimum weight is reached for aby channel
                   if (min_weight_ok_count == 0) {
