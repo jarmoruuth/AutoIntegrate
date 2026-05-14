@@ -542,6 +542,58 @@ createEnhancementsControls(parent)
       this.selectiveColorSizer = this.selectiveColor.createSelectiveColorSizer(parent);
       this.engine.selectiveColor = this.selectiveColor;
 
+      var curvesTooltip = "<p>Adjust the tone curve applied to the image luminosity (P.K in CurvesTransformation). " +
+                          "Positive values brighten the affected tonal range, negative values darken it. " +
+                          "Range is -1.0 to +1.0.</p>";
+      this.enhancements_curves_CheckBox = this.guitools.newCheckBox(parent, "Apply curves", this.par.enhancements_curves,
+            "<p>Apply curves adjustment to the image. Use the sliders below to set the curve points.</p>");
+      this.enhancements_curves_highlights_Control = this.guitools.newNumericControl(parent, "Highlights", this.par.enhancements_curves_highlights, -1, 1,
+            curvesTooltip + "<p>Adjusts bright tones (around 75% luminosity).</p>");
+      this.enhancements_curves_lights_Control = this.guitools.newNumericControl(parent, "Lights", this.par.enhancements_curves_lights, -1, 1,
+            curvesTooltip + "<p>Adjusts medium-bright tones (around 62.5% luminosity).</p>");
+      this.enhancements_curves_darks_Control = this.guitools.newNumericControl(parent, "Darks", this.par.enhancements_curves_darks, -1, 1,
+            curvesTooltip + "<p>Adjusts medium-dark tones (around 37.5% luminosity).</p>");
+      this.enhancements_curves_shadows_Control = this.guitools.newNumericControl(parent, "Shadows", this.par.enhancements_curves_shadows, -1, 1,
+            curvesTooltip + "<p>Adjusts dark tones (around 25% luminosity).</p>");
+
+      let labelWidth = this.enhancements_curves_highlights_Control.label.font.width("Method:M");
+      this.enhancements_curves_highlights_Control.label.setFixedWidth(labelWidth);
+      this.enhancements_curves_lights_Control.label.setFixedWidth(labelWidth);
+      this.enhancements_curves_darks_Control.label.setFixedWidth(labelWidth);
+      this.enhancements_curves_shadows_Control.label.setFixedWidth(labelWidth);
+
+      var enhancementsCurvesResetButton = new ToolButton(parent);
+      enhancementsCurvesResetButton.icon = new Bitmap(":/images/icons/reset.png");
+      enhancementsCurvesResetButton.toolTip = "<p>Reset all curve adjustments to zero.</p>";
+      var curves_highlights_Control = this.enhancements_curves_highlights_Control;
+      var curves_lights_Control = this.enhancements_curves_lights_Control;
+      var curves_darks_Control = this.enhancements_curves_darks_Control;
+      var curves_shadows_Control = this.enhancements_curves_shadows_Control;
+      enhancementsCurvesResetButton.onClick = () => {
+            this.par.enhancements_curves_highlights.val = 0;
+            this.par.enhancements_curves_lights.val = 0;
+            this.par.enhancements_curves_darks.val = 0;
+            this.par.enhancements_curves_shadows.val = 0;
+            curves_highlights_Control.setValue(0);
+            curves_lights_Control.setValue(0);
+            curves_darks_Control.setValue(0);
+            curves_shadows_Control.setValue(0);
+      };
+
+      this.enhancementsCurvesCheckSizer = new HorizontalSizer;
+      this.enhancementsCurvesCheckSizer.spacing = 4;
+      this.enhancementsCurvesCheckSizer.add(this.enhancements_curves_CheckBox);
+      this.enhancementsCurvesCheckSizer.add(enhancementsCurvesResetButton);
+      this.enhancementsCurvesCheckSizer.addStretch();
+
+      this.enhancementsCurvesSizer = new VerticalSizer;
+      this.enhancementsCurvesSizer.spacing = 4;
+      this.enhancementsCurvesSizer.add(this.enhancementsCurvesCheckSizer);
+      this.enhancementsCurvesSizer.add(this.enhancements_curves_highlights_Control);
+      this.enhancementsCurvesSizer.add(this.enhancements_curves_lights_Control);
+      this.enhancementsCurvesSizer.add(this.enhancements_curves_darks_Control);
+      this.enhancementsCurvesSizer.add(this.enhancements_curves_shadows_Control);
+
       this.narrowband_leave_some_green_CheckBox = this.guitools.newCheckBox(parent, "Leave some green", this.par.leave_some_green, 
             "<p>Leave some green color on image when running SCNR. Useful with SHO color palette. </p>");
       this.narrowband_leave_some_green_Edit = this.guitools.newNumericEdit(parent, "Amount", this.par.leave_some_green_amount, 0, 1, 
@@ -1380,6 +1432,14 @@ createEnhancementsControls(parent)
       this.selectiveColorControl.sizer.add( this.selectiveColorSizer );
       this.selectiveColorControl.sizer.addStretch();
       this.selectiveColorControl.visible = false;
+
+      this.curvesControl = new Control( parent );
+      this.curvesControl.sizer = new VerticalSizer;
+      this.curvesControl.sizer.margin = 6;
+      this.curvesControl.sizer.spacing = 4;
+      this.curvesControl.sizer.add( this.enhancementsCurvesSizer );
+      this.curvesControl.sizer.addStretch();
+      this.curvesControl.visible = false;
 }
 
 enhancementsApplyButtonOnClick()
@@ -1726,12 +1786,13 @@ createEnhancementsGUIControls(parent)
       this.createEnhancementsControls(parent);
 
       return {
-             targetImageControl: this.enhancementsTargetImageControl, 
-             optionsControl: this.enhancementsTargetOptionsControl, 
-             genericControl: this.enhancementsGenericControl, 
-             narrowbandControl: this.echancementsNarrowbandControl, 
+             targetImageControl: this.enhancementsTargetImageControl,
+             optionsControl: this.enhancementsTargetOptionsControl,
+             genericControl: this.enhancementsGenericControl,
+             narrowbandControl: this.echancementsNarrowbandControl,
              starsControl: this.enhancementsStarsControl,
-             selectiveColorControl: this.selectiveColorControl 
+             selectiveColorControl: this.selectiveColorControl,
+             curvesControl: this.curvesControl
       };
 }
 

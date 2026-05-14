@@ -7092,6 +7092,7 @@ AutoIntegrateDialog()
       this.enhancementsNarrowbandControl = this.enhancementsGUIControls.narrowbandControl;
       this.enhancementsStarsControl = this.enhancementsGUIControls.starsControl;
       this.enhancementsSelectiveColorControl3 = this.enhancementsGUIControls.selectiveColorControl;
+      this.enhancementsCurvesControl3 = this.enhancementsGUIControls.curvesControl;
 
       this.imageToolsControl = this.guitools.createImageToolsControl(this);
       this.imageToolsControl.visible = true;
@@ -7904,6 +7905,7 @@ AutoIntegrateDialog()
       this.guitools.newSectionBarAdd(this, this.enhancementsGroupBox, this.enhancementsOptionsControl, "Misc options", "EnhancementsOptions");
       this.guitools.newSectionBarAdd(this, this.enhancementsGroupBox, this.enhancementsNarrowbandControl, "Narrowband enhancements", "Enhancements2");
       this.guitools.newSectionBarAdd(this, this.enhancementsGroupBox, this.enhancementsSelectiveColorControl3, "Selective Color", "Enhancements3");
+      this.guitools.newSectionBarAdd(this, this.enhancementsGroupBox, this.enhancementsCurvesControl3, "Curves", "EnhancementsCurves");
       this.guitools.newSectionBarAdd(this, this.enhancementsGroupBox, this.enhancementsGenericControl, "Generic enhancements", "Enhancements1");
       this.guitools.newSectionBarAdd(this, this.enhancementsGroupBox, this.enhancementsStarsControl, "Stars enhancements", "EnhancementsStars");
       this.enhancementsGroupBox.sizer.addStretch();

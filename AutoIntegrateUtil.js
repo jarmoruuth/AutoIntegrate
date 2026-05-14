@@ -2006,7 +2006,8 @@ is_non_starless_option()
              this.par.enhancements_signature.val ||
              this.par.enhancements_rotate.val ||
              this.par.enhancements_fix_star_cores.val ||
-             this.par.enhancements_selective_color.val;
+             this.par.enhancements_selective_color.val ||
+             this.par.enhancements_curves.val;
 }
 
 is_enhancements_option()

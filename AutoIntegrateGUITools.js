@@ -369,7 +369,7 @@ newNumericControlPrecision(parent, txt, param, min, max, tooltip, precision, upd
 {
       var edt = new NumericControl( parent );
       edt.label.text = txt;
-      edt.label.textAlignment = TextAlignment.Left|TextAlignment.VertCenter;
+      edt.label.textAlignment = TextAlignment.Right|TextAlignment.VertCenter;
       edt.aiParam = param;
       edt.onValueUpdated = function(value) { 
             edt.aiParam.val = value; 

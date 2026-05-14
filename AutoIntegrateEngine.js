@@ -15305,6 +15305,45 @@ enhancementsContrast(imgWin)
       // this.guiUpdatePreviewWin(imgWin);
 }
 
+enhancementsApplyCurves(imgWin)
+{
+      this.addEnhancementsStep("Curves adjustment");
+      var node = this.flowchart.flowchartOperation("CurvesTransformation:curves_adjust");
+
+      var scale = 0.20;
+
+      var hl_adj = this.par.enhancements_curves_highlights.val * scale;
+      var lt_adj = this.par.enhancements_curves_lights.val * scale;
+      var dk_adj = this.par.enhancements_curves_darks.val * scale;
+      var sh_adj = this.par.enhancements_curves_shadows.val * scale;
+
+      function clamp01(v) { return Math.max(0, Math.min(1, v)); }
+
+      var pts = [
+            [0.00000, 0.00000],
+            [0.25000, clamp01(0.25000 + sh_adj)],
+            [0.37500, clamp01(0.37500 + dk_adj)],
+            [0.62500, clamp01(0.62500 + lt_adj)],
+            [0.75000, clamp01(0.75000 + hl_adj)],
+            [1.00000, 1.00000]
+      ];
+
+      // Enforce monotonically increasing y to prevent solarization
+      for (var i = 1; i < pts.length - 1; i++) {
+            pts[i][1] = Math.max(pts[i - 1][1], Math.min(pts[i + 1][1], pts[i][1]));
+      }
+
+      var P = new CurvesTransformation;
+      P.K = pts;
+
+      imgWin.mainView.beginProcess(UndoFlag.NoSwapFile);
+      P.executeOn(imgWin.mainView, false);
+      imgWin.mainView.endProcess();
+
+      this.printAndSaveProcessValues(P, "", imgWin.mainView.id);
+      this.engine_end_process(node);
+}
+
 enhancementsStretch(win)
 {
       this.addEnhancementsStep("Stretch image using " + this.local_image_stretching);
@@ -16410,6 +16449,10 @@ enhancementsProcessing(parent, id, apply_directly)
       if (this.par.enhancements_selective_color.val) {
             this.enhancementsSelectiveColor(enhancementsWin);
             this.enhancementsOptionCompleted(this.par.enhancements_selective_color);
+      }
+      if (this.par.enhancements_curves.val) {
+            this.enhancementsApplyCurves(enhancementsWin);
+            this.enhancementsOptionCompleted(this.par.enhancements_curves);
       }
       if (this.par.enhancements_remove_stars.val) {
             let res = this.enhancementsRemoveStars(parent, enhancementsWin, apply_directly);

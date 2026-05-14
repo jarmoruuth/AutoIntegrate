@@ -442,7 +442,7 @@ this.par = {
       dbe_use_background_neutralization: { val: false, def: false, name : "DBE use background neutralization", type : 'B' },
       dbe_use_abe: { val: false, def: false, name : "DBE use ABE", type : 'B' },
       dbe_samples_per_row: { val: 10, def: 10, name : "DBE samples per row", type : 'I' },
-      dbe_normalize : { val: false, def: false, name : "DBE normalize", type : 'B' },
+      dbe_normalize : { val: true, def: true, name : "DBE normalize", type : 'B' },
       dbe_min_weight : { val: 0.75, def: 0.75, name : "DBE min weight", type : 'I' },
 
       graxpert_path: { val: "", def: "", name : "GraXpert path", type : 'S', skip_reset: true },
@@ -578,7 +578,13 @@ this.par = {
       enhancements_selective_color: { val: false, def: false, name : "Enh selective color", type : 'B' },
       enhancements_selective_color_preset: { val: "None", def: "None", name : "Enh selective color preset", type : 'S' },
       enhancements_selective_color_data: { val: null, def: null, name : "Enh selective color data", type : 'O' },
-      
+
+      enhancements_curves: { val: false, def: false, name : "Enh curves", type : 'B' },
+      enhancements_curves_highlights: { val: 0, def: 0, name : "Enh curves highlights", type : 'R' },
+      enhancements_curves_lights: { val: 0, def: 0, name : "Enh curves lights", type : 'R' },
+      enhancements_curves_darks: { val: 0, def: 0, name : "Enh curves darks", type : 'R' },
+      enhancements_curves_shadows: { val: 0, def: 0, name : "Enh curves shadows", type : 'R' },
+
       leave_some_green: { val: false, def: false, name : "Enh narrowband leave some green", type : 'B', oldname: "Extra narrowband leave some green" },
       leave_some_green_amount: { val: 0.50, def: 0.50, name : "Enh narrowband leave some green amount", type : 'R', oldname: "Extra narrowband leave some green amount" },
       run_narrowband_SCNR: { val: false, def: false, name : "Enh narrowband remove green", type : 'B', oldname: "Extra narrowband remove green" },
