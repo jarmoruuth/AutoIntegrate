@@ -439,8 +439,8 @@ this.par = {
       ABE_correction: { val: 'Subtraction', def: 'Subtraction', name : "ABE correction", type : 'S' },
       ABE_normalize: { val: false, def: false, name : "ABE normalize", type : 'B' },
 
-      dbe_use_background_neutralization: { val: false, def: false, name : "DBE use background neutralization", type : 'B' },
-      dbe_use_abe: { val: false, def: false, name : "DBE use ABE", type : 'B' },
+      dbe_use_background_neutralization: { val: true, def: true, name : "DBE use background neutralization", type : 'B' },
+      dbe_use_abe: { val: true, def: true, name : "DBE use ABE", type : 'B' },
       dbe_samples_per_row: { val: 10, def: 10, name : "DBE samples per row", type : 'I' },
       dbe_normalize : { val: true, def: true, name : "DBE normalize", type : 'B' },
       dbe_min_weight : { val: 0.75, def: 0.75, name : "DBE min weight", type : 'I' },
