@@ -187,9 +187,13 @@ update_enhancements_target_image_window_list(current_item)
       }
 
       this.enhancements_target_image_window_list = this.util.getWindowListReverse();
-#ifndef AUTOINTEGRATE_STANDALONE
-      this.enhancements_target_image_window_list.unshift("Auto");
+#ifdef AUTOINTEGRATE_STANDALONE
+      // Cannot choose the image directly because of a preview problem (tiny image at start).
+      this.imageListFirst = "Choose target image";
+#else
+      this.imageListFirst = "Auto";
 #endif
+      this.enhancements_target_image_window_list.unshift(this.imageListFirst);
 
       combobox.clear();
       for (var i = 0; i < this.enhancements_target_image_window_list.length; i++) {
@@ -331,7 +335,7 @@ add_undo_image(undo_image, histogramInfo)
 apply_undo()
 {
       if (this.global.debug) console.writeln("apply_undo");
-      if (this.global.enhancements_target_image_id == null || this.global.enhancements_target_image_id == "Auto") {
+      if (this.global.enhancements_target_image_id == null || this.global.enhancements_target_image_id == this.imageListFirst) {
             console.criticalln("No target image!");
             return;
       }
@@ -370,7 +374,7 @@ apply_undo()
 apply_redo()
 {
       console.writeln("apply_redo");
-      if (this.global.enhancements_target_image_id == null || this.global.enhancements_target_image_id == "Auto") {
+      if (this.global.enhancements_target_image_id == null || this.global.enhancements_target_image_id == this.imageListFirst) {
             console.criticalln("No target image!");
             return;
       }
@@ -409,7 +413,7 @@ apply_redo()
 save_as_undo()
 {
       console.writeln("Save image as XISF and TIFF");
-      if (this.global.enhancements_target_image_id == null || this.global.enhancements_target_image_id == "Auto") {
+      if (this.global.enhancements_target_image_id == null || this.global.enhancements_target_image_id == this.imageListFirst) {
             console.criticalln("No target image!");
             return;
       }
@@ -430,8 +434,8 @@ save_as_undo()
             console.noteln("Image " + this.global.enhancements_target_image_id + " not saved");
             return;
       }
-      var save_dir = File.extractDrive(saveFileDialog.fileName) + File.extractDirectory(saveFileDialog.fileName);
-      var save_id = File.extractName(saveFileDialog.fileName);
+      var save_dir = File.extractDrive(saveFileDialog.filePath) + File.extractDirectory(saveFileDialog.filePath);
+      var save_id = File.extractName(saveFileDialog.filePath);
       var save_win = ImageWindow.windowById(this.global.enhancements_target_image_id);
 
       /* Save as 16 bit TIFF.
@@ -1450,8 +1454,8 @@ enhancementsApplyButtonOnClick()
                   console.criticalln("No enhancements option selected!");
             } else if (this.global.enhancements_target_image_id == null) {
                   console.criticalln("No image!");
-            } else if (this.global.enhancements_target_image_id == "Auto") {
-                  console.criticalln("Auto target image cannot be used with Apply button!");
+            } else if (this.global.enhancements_target_image_id == this.imageListFirst) {
+                  console.criticalln("'" + this.imageListFirst + "' target image cannot be used with Apply button!");
             } else if (this.util.findWindow(this.global.enhancements_target_image_id) == null) {
                   console.criticalln("Could not find target image " + this.global.enhancements_target_image_id);
             } else {
@@ -1516,7 +1520,7 @@ createTargetImageSizerOnItemSelected(image_id)
       if (this.target_image_selected_callback != null) {
             this.target_image_selected_callback(this.global.enhancements_target_image_id);
       }
-      if (this.global.enhancements_target_image_id == "Auto" || this.global.enhancements_target_image_id == null) {
+      if (this.global.enhancements_target_image_id == this.imageListFirst || this.global.enhancements_target_image_id == null) {
             this.preview.updatePreviewNoImage();
             this.enhancements_gui_info.save_button.enabled = false;
       } else {
@@ -1548,7 +1552,7 @@ createTargetImageSizer(parent)
       this.update_enhancements_target_image_window_list(null);
 
       if (this.enhancements_target_image_window_list.length == 0 ||
-          this.enhancements_target_image_window_list[0] == "Auto" ) 
+          this.enhancements_target_image_window_list[0] == this.imageListFirst ) 
       {
             this.global.enhancements_target_image_id = null;
             this.preview.updatePreviewNoImage();
