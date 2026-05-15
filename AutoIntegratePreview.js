@@ -383,17 +383,17 @@ class AutoIntegratePreviewControl extends Frame
                         return;
                   }
                   var copy_win = this.util.createWindowFromBitmap(this.bitmap, "AutoIntegrate_preview_savetmp");
-                  console.writeln("save image to ", saveFileDialog.fileName + ", bits ", copy_win.bitsPerSample + ", width ", copy_win.mainView.image.width + ", height ", copy_win.mainView.image.height + ", id ", copy_win.mainView.id);
+                  console.writeln("save image to ", saveFileDialog.filePath + ", bits ", copy_win.bitsPerSample + ", width ", copy_win.mainView.image.width + ", height ", copy_win.mainView.image.height + ", id ", copy_win.mainView.id);
                   if (copy_win.bitsPerSample != 16) {
                         console.writeln("set bits to 16");
                         copy_win.setSampleFormat(16, false);
                   }
                   // Save image. No format options, no warning messages, 
                   // no strict mode, no overwrite checks.
-                  if (!copy_win.saveAs(saveFileDialog.fileName, false, false, false, false)) {
-                        console.criticalln("Failed to save image: " + saveFileDialog.fileName);
+                  if (!copy_win.saveAs(saveFileDialog.filePath, false, false, false, false)) {
+                        console.criticalln("Failed to save image: " + saveFileDialog.filePath);
                   } else {
-                        console.writeln("Saved image: " + saveFileDialog.fileName);
+                        console.writeln("Saved image: " + saveFileDialog.filePath);
                   }
                   this.util.closeOneWindow(copy_win);
             };
@@ -678,7 +678,7 @@ class AutoIntegratePreviewControl extends Frame
              if (this.par.debug.val) console.writeln(this.name + ":setSize");
              this.setScaledMinSize(w, h);
              this.width = w;
-             this.heigth = h;
+             this.height = h;
        }
  
        SetZoomOutLimit()

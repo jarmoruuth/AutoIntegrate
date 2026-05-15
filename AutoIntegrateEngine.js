@@ -18474,7 +18474,6 @@ autointegrateProcessingEngine(parent, auto_continue, autocontinue_narrowband, tx
        this.flatdarkFileNames = null;
        this.flatFileNames = null;
  
-       console.writeln("Run Garbage Collection");
        this.util.runGarbageCollection();
  
        if (this.global.debug) console.writeln("global.testmode " + this.global.testmode);

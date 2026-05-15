@@ -35,6 +35,8 @@ this.autointegrate_version_info = [
       "Changes since the previous version:",
       "- Runs on V8 JavaScript engine",
       "- Back to old local normalization reference selection",
+      "- Updated to DBE",
+      "- New curves enhancement",
 ];
 
 /* Interface version changes:

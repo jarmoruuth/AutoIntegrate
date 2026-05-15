@@ -2608,8 +2608,8 @@ saveJsonFileEx(parent, save_settings, autosave_json_filename, default_json_filen
             if (!saveFileDialog.execute()) {
                   return;
             }
-            var saveDir = File.extractDrive(saveFileDialog.fileName) + File.extractDirectory(saveFileDialog.fileName);
-            var json_path_and_filename = saveFileDialog.fileName;
+            var saveDir = File.extractDrive(saveFileDialog.filePath) + File.extractDirectory(saveFileDialog.filePath);
+            var json_path_and_filename = saveFileDialog.filePath;
       } else {
             let dialogRet = this.ensureDialogFilePath(autosave_json_filename);
             if (dialogRet == 0) {
