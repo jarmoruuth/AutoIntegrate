@@ -1811,7 +1811,7 @@ setBestImageInTreeBoxNode(parent, node, best_image, filename_postfix)
             // We compare only file name as path and extension can be different when we
             // set values at run time.
             if (best_image != null && this.util.compareReferenceFileNames(best_image, node.filename, filename_postfix)) {
-                  //console.writeln("setBestImageInTreeBoxNode found best image");
+                  if (this.global.debug) console.writeln("setBestImageInTreeBoxNode found best image");
                   // Invert the flag, either set or clear it
                   node.best_image = true;
                   this.updateTreeBoxNodeFromFlags(parent, node);
@@ -1845,14 +1845,14 @@ set_user_selected_reference_image(reference_image, filter)
 {
       for (var i = 0; i < this.global.user_selected_reference_image.length; i++) {
             if (this.global.user_selected_reference_image[i][1] == filter) {
-                  console.writeln("set_user_selected_reference_image, update filter " + filter + " to image " + reference_image);
+                  if (this.global.debug) console.writeln("set_user_selected_reference_image, update filter " + filter + " to image " + reference_image);
                   this.global.user_selected_reference_image[i][0] = reference_image;
                   break;
             }
       }
       if (i == this.global.user_selected_reference_image.length) {
             // not found, add new
-            // console.writeln("set_user_selected_reference_image, add filter " + filter + " and image " + reference_image);
+            if (this.global.debug) console.writeln("set_user_selected_reference_image, add filter " + filter + " and image " + reference_image);
             this.global.user_selected_reference_image[this.global.user_selected_reference_image.length] = [ reference_image, filter ];
       }
 }
@@ -1864,7 +1864,7 @@ remove_user_selected_reference_image(reference_image, filter)
                 && (filter == null || this.global.user_selected_reference_image[i][1] == filter)) 
             {
                   // clear reference image
-                  // console.writeln("remove_user_selected_reference_image, remove filter " + filter + " and image " + reference_image);
+                  if (this.global.debug) console.writeln("remove_user_selected_reference_image, remove filter " + filter + " and image " + reference_image);
                   this.global.user_selected_reference_image.splice(i, 1);
                   return;
             }
@@ -1877,13 +1877,13 @@ setReferenceImageInTreeBoxNode(parent, node, reference_image, filename_postfix, 
             // We compare only file name as path and extension can be different when we
             // set values at run time.
             if (reference_image != null && this.util.compareReferenceFileNames(reference_image, node.filename, filename_postfix)) {
-                  console.writeln("setReferenceImageInTreeBoxNode found reference image, filter " + filter + ", file " + node.filename);
+                  if (this.global.debug) console.writeln("setReferenceImageInTreeBoxNode found reference image, filter " + filter + ", file " + node.filename);
                   // Invert the flag, either set or clear it
                   node.reference_image = true;
                   this.updateTreeBoxNodeFromFlags(parent, node);
                   this.set_user_selected_reference_image(node.filename, filter);
             } else if (node.reference_image) {
-                  // console.writeln("setReferenceImageInTreeBoxNode clear old reference image " + node.filename);
+                  if (this.global.debug) console.writeln("setReferenceImageInTreeBoxNode clear old reference image " + node.filename);
                   // Clear old reference image flag
                   node.reference_image = false;
                   this.updateTreeBoxNodeFromFlags(parent, node);
@@ -1898,7 +1898,7 @@ setReferenceImageInTreeBoxNode(parent, node, reference_image, filename_postfix, 
 
 setReferenceImageInTreeBox(parent, node, reference_image, filename_postfix, filter)
 {
-      //console.writeln("setReferenceImageInTreeBox " + reference_image + " for filter " + filter);
+      if (this.global.debug) console.writeln("setReferenceImageInTreeBox " + reference_image + " for filter " + filter);
       if (node.numberOfChildren == 0) {
             return;
       } else {
