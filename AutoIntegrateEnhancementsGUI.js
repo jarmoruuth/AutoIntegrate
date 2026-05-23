@@ -1279,6 +1279,10 @@ createEnhancementsControls(parent)
       this.enhancementsClaritySizer.addStretch();
 
 
+      this.enhancements_highlight_color_CheckBox = this.guitools.newCheckBox(parent, "Enhance highlight color", this.par.enhancements_highlight_color,
+            "<p>Enhance highlight colors by multiplying the image with using a lightness mask. " +
+            "This improves colors in bright areas of the image.</p>");
+
       this.enhancements_rotate_CheckBox = this.guitools.newCheckBox(parent, "Rotate", this.par.enhancements_rotate, 
             "<p>Rotate the image in clockwise direction.</p>" );
       this.enhancements_rotate_degrees_ComboBox = this.guitools.newComboBox(parent, this.par.enhancements_rotate_degrees, this.rotate_degrees_values, this.enhancements_rotate_CheckBox.toolTip);
@@ -1368,6 +1372,7 @@ createEnhancementsControls(parent)
       this.enhancements2.add( this.enhancementsHighPassSharpenSizer );
       this.enhancements2.add( this.enhancementsSaturationIterationsSizer );
       this.enhancements2.add( this.enhancementsClaritySizer );
+      this.enhancements2.add( this.enhancements_highlight_color_CheckBox );
       this.enhancements2.addStretch();
 
       this.enhancementsStarsOptions1_sizer = new VerticalSizer;

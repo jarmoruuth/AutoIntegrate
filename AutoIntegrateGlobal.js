@@ -688,6 +688,7 @@ this.par = {
       enhancements_annotate_image: { val: false, def: false, name : "Enh annotate image", type : 'B', oldname: "Extra annotate image" },
       enhancements_annotate_image_scale: { val: 4, def: 4, name : "Enh annotate image scale", type : 'B', oldname: "Extra annotate image scale" },
       enhancements_ha_mapping: { val: false, def: false, name : "Enh ha mapping", type : 'B', oldname: "Extra ha mapping" },
+      enhancements_highlight_color: { val: false, def: false, name : "Enh highlight color", type : 'B' },
 
       // Calibration settings
       debayer_pattern: { val: "Auto", def: "Auto", name : "Debayer", type : 'S' },

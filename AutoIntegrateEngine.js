@@ -3455,7 +3455,7 @@ filterByFileName(filePath, filename_postfix)
       var basename = File.extractName(filePath);
       var filter = basename.slice(0, basename.length - filename_postfix.length).slice(-2);
       
-      console.writeln("filterByFileName:filePath=" + basename + ", filename_postfix=" + filename_postfix + ", filter=" + filter);
+      if (this.global.debug) console.writeln("filterByFileName:filePath=" + basename + ", filename_postfix=" + filename_postfix + ", filter=" + filter);
       
       // Create filter based of file name ending.
       switch (filter) {
@@ -3485,7 +3485,7 @@ filterByFileName(filePath, filename_postfix)
                   break;
       }
       if (filter != null) {
-            console.writeln("filterByFileName:file end filter=" + filter);
+            if (this.global.debug) console.writeln("filterByFileName:file end filter=" + filter);
             return filter;
       }
       // Check if filter name is embedded in file name.
@@ -3493,11 +3493,11 @@ filterByFileName(filePath, filename_postfix)
       var filters = [ 'L', 'R', 'G', 'B', 'S', 'H', 'O' ];
       for (var i = 0; i < names.length; i++) {
             if (basename.indexOf(names[i]) != -1) {
-                  console.writeln("filterByFileName:file name filter=" + filters[i]);
+                  if (this.global.debug) console.writeln("filterByFileName:file name filter=" + filters[i]);
                   return filters[i];
             }
       }
-      console.writeln("filterByFileName:filter not found");
+      if (this.global.debug) console.writeln("filterByFileName:filter not found");
       return null;
 }
 
@@ -6091,6 +6091,10 @@ copyToMapIf(id)
  */ 
 mapColorImage(oldname, newname)
 {
+      if (newname == this.RGB_win_id) {
+            console.writeln("mapColorImage using existing image " + oldname);
+            return;
+      }
       console.writeln("mapColorImage " + oldname + " to " + newname);
       this.RGB_win_id = this.util.ensure_win_prefix(newname);
       this.util.copyWindow(this.util.findWindow(this.RGB_color_id), this.RGB_win_id);
@@ -6997,6 +7001,16 @@ checkRGBfilters(imgWindow)
             }
       }
       return true;
+}
+
+checkOSCfilter(imgWindow)
+{
+      var filter_keywords = this.getAutoIntegrateFilters(imgWindow);
+      if (filter_keywords.indexOf("C") === -1) {
+            return false;
+      } else {
+            return true;
+      }
 }
 
 runImageIntegrationEx(images, name, local_normalization)
@@ -11305,7 +11319,7 @@ writeTestmodeLog(text, fname)
 // Used to find AutoContinue images
 findWindowCheckBaseNameIf(id, check_base_name)
 {
-      // console.writeln("findWindowCheckBaseNameIf: " + id);
+      if (this.global.debug) console.writeln("findWindowCheckBaseNameIf: " + id);
       var win = this.util.findWindowOrFile(this.util.ensure_win_prefix(id));
       if (win == null && check_base_name && this.ppar.win_prefix != this.ppar.autocontinue_win_prefix) {
             // Try to find without prefix so we can autocontinue
@@ -11671,7 +11685,7 @@ findGCStartWindowCheckBaseNameIf(id, check_base_name)
       var cropextensions = [ '_crop', '' ];
       var extensions = [ '_GC', '_ABE', '_DBE', '_GraXpert', '_ADBE' ];
 
-      // console.writeln("findGCStartWindowCheckBaseNameIf: " + id + ", check_base_name: " + check_base_name);
+      if (this.global.debug) console.writeln("findGCStartWindowCheckBaseNameIf: " + id + ", check_base_name: " + check_base_name);
 
       for (var i = 0; i < cropextensions.length; i++) {
             for (var j = 0; j < extensions.length; j++) {
@@ -11829,8 +11843,12 @@ findStartImages(auto_continue, check_base_name, can_update_preview)
              */
             this.util.addProcessingStep("Start from RGB (color) integrated image " + this.RGB_color_id);
             preview_id = this.RGB_color_id;
-            if (this.util.getKeywordValue(this.util.findWindow(this.RGB_color_id), "AutoIntegrateNarrowband") == "true") {
+            let win = this.util.findWindow(this.RGB_color_id);
+            if (this.util.getKeywordValue(win, "AutoIntegrateNarrowband") == "true") {
                   this.process_narrowband = true;
+            }
+            if (this.checkOSCfilter(win)) {
+                  this.is_color_files = true;
             }
             this.preprocessed_images = this.global.start_images.RGB;
 
@@ -14413,7 +14431,7 @@ processRGBimage(RGBmapping)
                   if (this.preprocessed_images == this.global.start_images.RGB) {
                         // start from combined RGB image
                         this.util.addProcessingStep("Start from image " + this.RGB_color_id);
-                        this.RGB_win = this.util.copyWindow(this.util.findWindow(this.RGB_color_id), this.ppar.win_prefix + "Integration_RGB_map");
+                        this.mapColorImage(this.RGB_color_id, this.ppar.win_prefix + "Integration_RGB_map");
                   }
                   if (this.checkNoiseReduction(this.is_color_files ? 'color' : 'RGB', 'combined')) {
                         this.runNoiseReduction(this.RGB_win, this.mask_win, !RGBmapping.stretched);
@@ -15754,6 +15772,41 @@ enhancementsSaturation(enhancementsWin, mask_win)
       // this.guiUpdatePreviewWin(enhancementsWin);
 }
 
+enhancementsHighlightColor(enhancementsWin)
+{
+      this.addEnhancementsStep("Enhance highlight color");
+      var node = this.flowchart.flowchartOperation("PixelMath:enhance highlight color");
+
+      if (this.global.get_flowchart_data) {
+            return;
+      }
+
+      var lWin = this.extractLchannel(enhancementsWin);
+
+      this.autoContrast(lWin, 20, 100);
+
+      this.setMaskChecked(enhancementsWin, lWin);
+      enhancementsWin.maskInverted = false;
+
+      var P = new PixelMath;
+      P.expression = "combine($T, $T, op_mul())";
+      P.useSingleExpression = true;
+      P.showNewImage = false;
+      P.createNewImage = false;
+      P.newImageId = "";
+      P.newImageColorSpace = PixelMath.RGB;
+
+      enhancementsWin.mainView.beginProcess(UndoFlag.NoSwapFile);
+      P.executeOn(enhancementsWin.mainView);
+      enhancementsWin.mainView.endProcess();
+
+      this.printAndSaveProcessValues(P, "enhance highlight color", enhancementsWin.mainView.id);
+      this.engine_end_process(node);
+
+      enhancementsWin.removeMask();
+      this.util.closeOneWindow(lWin);
+}
+
 enhancementsBandingReduction(enhancementsWin)
 {
       this.addEnhancementsStep("Banding reduction");
@@ -16610,6 +16663,10 @@ enhancementsProcessing(parent, id, apply_directly)
       if (this.par.enhancements_saturation.val) {
             this.enhancementsSaturation(enhancementsWin, this.mask_win);
             this.enhancementsOptionCompleted(this.par.enhancements_saturation);
+      }
+      if (this.par.enhancements_highlight_color.val) {
+            this.enhancementsHighlightColor(enhancementsWin);
+            this.enhancementsOptionCompleted(this.par.enhancements_highlight_color);
       }
       if (this.par.enhancements_clarity.val) {
             this.enhancementsClarity(enhancementsWin, this.mask_win);
@@ -17734,6 +17791,8 @@ autointegrateProcessingEngine(parent, auto_continue, autocontinue_narrowband, tx
 {
        console.writeln("autointegrateProcessingEngine");
        console.writeln("gllobal.outputRootDir: " + this.global.outputRootDir);
+
+       this.global.debug = this.par.debug.val;
        
        this.get_local_copies_of_parameters();
 

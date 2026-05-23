@@ -284,10 +284,10 @@ findWindow(id)
 isDefaultImageId(str) 
 {
       // Regular expression to match the pattern "Image" followed by a number
-      const regex = /^Image\d+$/i; 
+      const regex1 = /^Image\d+$/i; 
     
       // Test the string against the regular expression
-      return regex.test(str);
+      return regex1.test(str) || str.startsWith("MasterLight");
 }
 
 getFnameIfGeneratedWindowId(imgWin) 
@@ -334,6 +334,7 @@ findWindowOrFile(id)
             return w;
       }
       // Window not found by view id, try to find using a file name
+      if (this.global.debug) console.writeln("findWindowOrFile: Window with id " + id + " not found, try to find by file name");
       var found_win = null;
       for (var i = 0; i < images.length; i++) {
             if (images[i].mainView == null
@@ -2007,7 +2008,8 @@ is_non_starless_option()
              this.par.enhancements_rotate.val ||
              this.par.enhancements_fix_star_cores.val ||
              this.par.enhancements_selective_color.val ||
-             this.par.enhancements_curves.val;
+             this.par.enhancements_curves.val ||
+             this.par.enhancements_highlight_color.val;
 }
 
 is_enhancements_option()
