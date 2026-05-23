@@ -1280,7 +1280,7 @@ createEnhancementsControls(parent)
 
 
       this.enhancements_highlight_color_CheckBox = this.guitools.newCheckBox(parent, "Enhance highlight color", this.par.enhancements_highlight_color,
-            "<p>Enhance highlight colors by multiplying the image with using a lightness mask. " +
+            "<p>Enhance highlight colors by multiplying the image using a lightness mask. " +
             "This improves colors in bright areas of the image.</p>");
 
       this.enhancements_rotate_CheckBox = this.guitools.newCheckBox(parent, "Rotate", this.par.enhancements_rotate, 
