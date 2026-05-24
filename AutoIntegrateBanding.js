@@ -212,16 +212,10 @@ constructor() {
              // FIXME maybe use new noise estimate functionality as used by imageIntegration.
              var dGlobalSigma=1.4826*targetImage.avgDev();
  
-             // construct statistics object. If highlight protect, ignore unusually bright pixels.
-             var aStatistic=new ImageStatistics;
+             // Chec image statistics. If highlight protect, ignore unusually bright pixels.
              if ( this.DEBUGGING_MODE_ON ){
                 console.writeln("BandingEngine.doStatistics(), dGlobalSigma=",dGlobalSigma,", dSigma=",this.dSigma, ", doHiglightProtect=",this.bDoHighlightProtect);
              }
-               aStatistic.medianEnabled=true;
-               aStatistic.varianceEnabled=false;
-               aStatistic.lowRejectionEnabled=false;
-               aStatistic.highRejectionEnabled=this.bDoHighlightProtect;
-               aStatistic.rejectionHigh=rGBGlobalMedian+this.dSigma*dGlobalSigma;
 
              //now determine the medians for each row.
              var lineRect=new Rect(targetWidth,1);
@@ -233,8 +227,7 @@ constructor() {
                 lineRect.moveTo(0,row);
                 targetImage.selectedRect=lineRect;
                 fixImage.selectedRect=lineRect;
-                aStatistic.generate(targetImage);
-                var rGBRowMedian=aStatistic.median;
+                var rGBRowMedian=targetImage.median();
                 // store fix factor into fixImage
                 var fixFactor=rGBGlobalMedian-rGBRowMedian;
                 fixImage.fill(fixFactor);  //much faster than apply()!
