@@ -4642,6 +4642,7 @@ AutoIntegrateDialog()
             // Including X button, Escape key, or programmatic close
             this.exitCleanup(thisdialog);
             console.noteln("Dialog is closing");
+            this.cancel();
       };
 
       let sz = this.util.getScreenSize(this);
