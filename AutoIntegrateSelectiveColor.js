@@ -8,66 +8,77 @@
 #ifndef AUTOINTEGRATESELECTIVECOLOR_JS
 #define AUTOINTEGRATESELECTIVECOLOR_JS
 
-function AutoIntegrateSelectiveColor(guitools, util, global, preview)
+class AutoIntegrateSelectiveColor extends Object
 {
 
-this.__base__ = Object;
-this.__base__();
+constructor(guitools, util, global, preview) {
+   super();
+   this.guitools = guitools;
+   this.util = util;
+   this.global = global;
+   this.preview = preview;
 
-var self = this;
+   this.par = this.global.par;
 
-var par = global.par;
+   // Color ranges matching Photoshop
+   this.ColorRange = {
+      REDS: 0,
+      YELLOWS: 1,
+      GREENS: 2,
+      CYANS: 3,
+      BLUES: 4,
+      MAGENTAS: 5,
+      WHITES: 6,
+      NEUTRALS: 7,
+      BLACKS: 8
+   };
 
-// Color ranges matching Photoshop
-let ColorRange = {
-   REDS: 0,
-   YELLOWS: 1,
-   GREENS: 2,
-   CYANS: 3,
-   BLUES: 4,
-   MAGENTAS: 5,
-   WHITES: 6,
-   NEUTRALS: 7,
-   BLACKS: 8
-};
+   this.ColorRangeNames = [
+      "Reds", "Yellows", "Greens", "Cyans", "Blues", "Magentas",
+      "Whites", "Neutrals", "Blacks"
+   ];
 
-let ColorRangeNames = [
-   "Reds", "Yellows", "Greens", "Cyans", "Blues", "Magentas",
-   "Whites", "Neutrals", "Blacks"
-];
+   // Adjustment modes
+   this.AdjustmentMode = {
+      RELATIVE: 0,
+      ABSOLUTE: 1
+   };
 
-// Adjustment modes
-let AdjustmentMode = {
-   RELATIVE: 0,
-   ABSOLUTE: 1
-};
+   this.selective_color_preset_values = [ 'None', 'Gold and Blue' ];
 
-var selective_color_preset_values = [ 'None', 'Gold and Blue' ];
+   this.SelectiveColorEngine();
 
-function SelectiveColorData() {
+} // constructor end
+
+SelectiveColorData() {
    // Store adjustments for each color range
    // Each range has CMYK adjustments: [C, M, Y, K]
-   this.adjustments = {};
-   for (let i = 0; i < ColorRangeNames.length; i++) {
-      this.adjustments[i] = [0, 0, 0, 0]; // C, M, Y, K
+   if (this.global.debug) console.writeln("SelectiveColor: SelectiveColorData");
+   let data = {};
+   data.adjustments = {};
+   for (let i = 0; i < this.ColorRangeNames.length; i++) {
+      data.adjustments[i] = [0, 0, 0, 0]; // C, M, Y, K
    }
    
-   this.mode = AdjustmentMode.RELATIVE;
-   this.currentRange = ColorRange.REDS;
+   data.mode = this.AdjustmentMode.RELATIVE;
+   data.currentRange = this.ColorRange.REDS;
+
+   return data;
 }
 
-SelectiveColorData.prototype.clone = function() {
-   let copy = new SelectiveColorData();
+clone() {
+   if (this.global.debug) console.writeln("SelectiveColor: clone");
+   let copy = this.SelectiveColorData();
    copy.mode = this.mode;
    copy.currentRange = this.currentRange;
-   for (let i = 0; i < ColorRangeNames.length; i++) {
+   for (let i = 0; i < this.ColorRangeNames.length; i++) {
       copy.adjustments[i] = this.adjustments[i].slice();
    }
    return copy;
 };
 
 // Smooth hue-based weight calculation with cosine interpolation
-function smoothHueWeight(h, centerHue, rangeSize, falloffSize) {
+smoothHueWeight(h, centerHue, rangeSize, falloffSize) {
    // Calculate angular distance considering 360-degree wraparound
    let dist = Math.abs(h - centerHue);
    if (dist > 180) dist = 360 - dist;
@@ -84,15 +95,15 @@ function smoothHueWeight(h, centerHue, rangeSize, falloffSize) {
 }
 
 // Create color range mask based on hue/saturation/lightness
-function createColorRangeMask(image, colorRange) {
+createColorRangeMask(image, colorRange) {
    let width = image.width;
    let height = image.height;
    
    // Convert to HSV for easier color range selection
-   let img = new Image(width, height, 3, ColorSpace_RGB);
+   let img = new Image(width, height, 3, ColorSpace.RGB);
    img.apply(image);
    
-   let mask = new Image(width, height, 1, ColorSpace_Gray);
+   let mask = new Image(width, height, 1, ColorSpace.Gray);
    mask.fill(0);
    
    // Get RGB samples
@@ -135,49 +146,49 @@ function createColorRangeMask(image, colorRange) {
       let weight = 0;
       
       switch (colorRange) {
-         case ColorRange.REDS:
+         case this.ColorRange.REDS:
             // Reds: centered at 0/360 degrees
-            weight = smoothHueWeight(h, 0, 30, 30);
+            weight = this.smoothHueWeight(h, 0, 30, 30);
             weight *= Math.min(s * 1.5, 1);
             weight *= (v > 0.1 ? 1 : v / 0.1);
             break;
             
-         case ColorRange.YELLOWS:
+         case this.ColorRange.YELLOWS:
             // Yellows: centered at 60 degrees
-            weight = smoothHueWeight(h, 60, 30, 30);
+            weight = this.smoothHueWeight(h, 60, 30, 30);
             weight *= Math.min(s * 1.5, 1);
             weight *= (v > 0.1 ? 1 : v / 0.1);
             break;
             
-         case ColorRange.GREENS:
+         case this.ColorRange.GREENS:
             // Greens: centered at 135 degrees
-            weight = smoothHueWeight(h, 135, 60, 30);
+            weight = this.smoothHueWeight(h, 135, 60, 30);
             weight *= Math.min(s * 1.5, 1);
             weight *= (v > 0.1 ? 1 : v / 0.1);
             break;
             
-         case ColorRange.CYANS:
+         case this.ColorRange.CYANS:
             // Cyans: centered at 180 degrees
-            weight = smoothHueWeight(h, 180, 30, 30);
+            weight = this.smoothHueWeight(h, 180, 30, 30);
             weight *= Math.min(s * 1.5, 1);
             weight *= (v > 0.1 ? 1 : v / 0.1);
             break;
             
-         case ColorRange.BLUES:
+         case this.ColorRange.BLUES:
             // Blues: centered at 255 degrees
-            weight = smoothHueWeight(h, 255, 60, 30);
+            weight = this.smoothHueWeight(h, 255, 60, 30);
             weight *= Math.min(s * 1.5, 1);
             weight *= (v > 0.1 ? 1 : v / 0.1);
             break;
             
-         case ColorRange.MAGENTAS:
+         case this.ColorRange.MAGENTAS:
             // Magentas: centered at 315 degrees
-            weight = smoothHueWeight(h, 315, 60, 30);
+            weight = this.smoothHueWeight(h, 315, 60, 30);
             weight *= Math.min(s * 1.5, 1);
             weight *= (v > 0.1 ? 1 : v / 0.1);
             break;
             
-         case ColorRange.WHITES:
+         case this.ColorRange.WHITES:
             // Whites: high value, low saturation with smooth falloff
             if (v > 0.6 && s < 0.4) {
                let vWeight = (v > 0.85) ? 1 : (v - 0.6) / 0.25;
@@ -189,7 +200,7 @@ function createColorRangeMask(image, colorRange) {
             }
             break;
             
-         case ColorRange.NEUTRALS:
+         case this.ColorRange.NEUTRALS:
             // Neutrals: mid value, low saturation with smooth falloff
             if (v > 0.15 && v < 0.85 && s < 0.4) {
                let vCenter = 0.5;
@@ -203,7 +214,7 @@ function createColorRangeMask(image, colorRange) {
             }
             break;
             
-         case ColorRange.BLACKS:
+         case this.ColorRange.BLACKS:
             // Blacks: low value with smooth falloff
             if (v < 0.4) {
                weight = (v < 0.15) ? 1 : (0.4 - v) / 0.25;
@@ -220,7 +231,7 @@ function createColorRangeMask(image, colorRange) {
    
    // Apply additional blur to smooth the mask even more
    let P = new Convolution;
-   P.mode = Convolution.prototype.Parametric;
+   P.mode = Convolution.Parametric;
    P.sigma = 1.0;
    P.shape = 2.0;
    P.aspectRatio = 1.0;
@@ -244,11 +255,11 @@ function createColorRangeMask(image, colorRange) {
 }
 
 // Apply CMYK adjustments to image using mask
-function applySelectiveColorAdjustment(image, colorRange, cmykAdjust, mode) {
+applySelectiveColorAdjustment(image, colorRange, cmykAdjust, mode) {
    if (cmykAdjust[0] == 0 && cmykAdjust[1] == 0 && cmykAdjust[2] == 0 && cmykAdjust[3] == 0)
       return; // No adjustment needed
    
-   let mask = createColorRangeMask(image, colorRange);
+   let mask = this.createColorRangeMask(image, colorRange);
    
    // Get RGB channels
    let width = image.width;
@@ -285,7 +296,7 @@ function applySelectiveColorAdjustment(image, colorRange, cmykAdjust, mode) {
       // Magenta affects green channel (opposite)
       // Yellow affects blue channel (opposite)
       
-      if (mode == AdjustmentMode.RELATIVE) {
+      if (mode == this.AdjustmentMode.RELATIVE) {
          // Relative mode: percentage of existing color
          // For CMY, we adjust the opposite RGB channel
          // Positive cyan reduces red, negative cyan increases red
@@ -368,121 +379,119 @@ function applySelectiveColorAdjustment(image, colorRange, cmykAdjust, mode) {
    image.setSamples(B, new Rect(0, 0, width, height), 2);
 }
 
-function SelectiveColorEngine() {
-    if (par.enhancements_selective_color_data.val != null) {
-        if (global.debug) console.writeln("Loading existing Selective Color data" + JSON.stringify(par.enhancements_selective_color_data.val)); 
-        this.data = par.enhancements_selective_color_data.val;
+SelectiveColorEngine() {
+    if (this.par.enhancements_selective_color_data.val != null) {
+        if (this.global.debug) console.writeln("Loading existing Selective Color data" + JSON.stringify(this.par.enhancements_selective_color_data.val)); 
+        this.data = this.par.enhancements_selective_color_data.val;
     } else {
-        if (global.debug) console.writeln("Creating new Selective Color data");
-        this.data = new SelectiveColorData();
-        par.enhancements_selective_color_data.val = this.data;
+        if (this.global.debug) console.writeln("Creating new Selective Color data");
+        this.data = this.SelectiveColorData();
+        this.par.enhancements_selective_color_data.val = this.data;
     }
-    par.enhancements_selective_color_data.def = new SelectiveColorData();
-    par.enhancements_selective_color_data.is_changed_callback = function(param) {
+    this.par.enhancements_selective_color_data.def = this.SelectiveColorData();
+    this.par.enhancements_selective_color_data.is_changed_callback = (param) => {
         // Compare current data with default
         let def = param.def;
         let cur = param.val;
         if (cur.mode != def.mode) {
-            if (global.debug) console.writeln("Selective Color mode changed");
+            if (this.global.debug) console.writeln("Selective Color mode changed");
             return true;
         }
-        for (let i = 0; i < ColorRangeNames.length; i++) {
+        for (let i = 0; i < this.ColorRangeNames.length; i++) {
             let adjCur = cur.adjustments[i];
             let adjDef = def.adjustments[i];
             for (let j = 0; j < 4; j++) {
                 if (adjCur[j] != adjDef[j]) {
-                    if (global.debug) console.writeln("Selective Color adjustment changed for " + ColorRangeNames[i] + " channel " + j);
+                    if (this.global.debug) console.writeln("Selective Color adjustment changed for " + this.ColorRangeNames[i] + " channel " + j);
                     return true;
                 }
             }
         }
-        if (global.debug) console.writeln("Selective Color data unchanged");
+        if (this.global.debug) console.writeln("Selective Color data unchanged");
         return false;
     }
 }
 
-SelectiveColorEngine.prototype.apply = function(view) {
+apply(view) {
    console.noteln("Applying Selective Color...");
    
-   view.beginProcess(UndoFlag_NoSwapFile);
+   view.beginProcess(UndoFlag.NoSwapFile);
    
    let image = view.image;
    
    // Apply adjustments for each color range that has changes
-   for (let range = 0; range < ColorRangeNames.length; range++) {
+   for (let range = 0; range < this.ColorRangeNames.length; range++) {
       let adj = this.data.adjustments[range];
       if (adj[0] != 0 || adj[1] != 0 || adj[2] != 0 || adj[3] != 0) {
-         console.writeln("Adjusting " + ColorRangeNames[range] + 
+         console.writeln("Adjusting " + this.ColorRangeNames[range] + 
                         ": C=" + adj[0] + " M=" + adj[1] + 
                         " Y=" + adj[2] + " K=" + adj[3]);
          // Divide adjustment by 3 to make them comparable to Photoshop and to avoid overcorrection
          adj = [ adj[0] / 3, adj[1] / 3, adj[2] / 3, adj[3] / 3 ];
-         applySelectiveColorAdjustment(image, range, adj, this.data.mode);
+         this.applySelectiveColorAdjustment(image, range, adj, this.data.mode);
       }
    }
    
    view.endProcess();
    console.noteln("Selective Color Done.");
-};
+}
 
-function selectiveColorPreview() {
+selectiveColorPreview() {
     // make a copy if the current image
-    if (global.enhancements_target_image_id == 'Auto') {
+    if (this.global.enhancements_target_image_id == 'Auto') {
         console.criticalln("AutoIntegrateSelectiveColor: No image open for preview.");
         return
     }
     console.writeln("Generating Selective Color preview...");
-    var enhancementsWin = ImageWindow.windowById(global.enhancements_target_image_id);
+    var enhancementsWin = ImageWindow.windowById(this.global.enhancements_target_image_id);
     var originalWin = enhancementsWin;
 
     var imageId = originalWin.mainView.id + "_SelectiveColorPreview";
-    util.closeOneWindowById(imageId);
-    var copyWin = util.copyWindow(originalWin, imageId);
+    this.util.closeOneWindowById(imageId);
+    var copyWin = this.util.copyWindow(originalWin, imageId);
 
     // Process the copy
     console.writeln("Applying Selective Color to preview image...");
-    self.engine.apply(copyWin.mainView);
+    this.apply(copyWin.mainView);
 
     // Show the preview window
-    preview.updatePreviewWin(copyWin);
+    this.preview.updatePreviewWin(copyWin);
 
-    util.closeOneWindow(copyWin);
-    util.runGarbageCollection();
+    this.util.closeOneWindow(copyWin);
+    this.util.runGarbageCollection();
 }
 
-function createSelectiveColorSizer(parent, selectiveColorEngine) {
+createSelectiveColorSizer(parent) {
     
-    this.engine = selectiveColorEngine;
-    this.par = par;
-
 #ifndef AUTOINTEGRATE_STANDALONE
-    this.selectiveCColorCheckBox = guitools.newCheckBox(parent, "Selective color", par.enhancements_selective_color, 
+    this.selectiveCColorCheckBox = this.guitools.newCheckBox(parent, "Selective color", this.par.enhancements_selective_color, 
             "<p>Enhance colors.</p>");
 #endif // AUTOINTEGRATE_STANDALONE
 
-    this.selectiveColorPresetLabel = guitools.newLabel(parent, "Presets", "");
-    this.selectiveColorPresetComboBox = guitools.newComboBox(parent, par.enhancements_selective_color_preset, selective_color_preset_values, "");
-    this.selectiveColorPresetComboBox.onItemSelected = function( itemIndex )
+    this.selectiveColorPresetLabel = this.guitools.newLabel(parent, "Presets", "");
+    this.selectiveColorPresetComboBox = this.guitools.newComboBox(parent, this.par.enhancements_selective_color_preset, this.selective_color_preset_values, "");
+    this.selectiveColorPresetComboBox.onItemSelected = ( itemIndex ) =>
     {
-        switch (selective_color_preset_values[itemIndex]) {
+        if (this.global.debug) console.writeln("createSelectiveColorSizer: onItemSelected");
+        switch (this.selective_color_preset_values[itemIndex]) {
                 case 'None':
                     // Reset all adjustments
-                    for (let i = 0; i < ColorRangeNames.length; i++) {
-                        self.engine.data.adjustments[i] = [0, 0, 0, 0];
+                    for (let i = 0; i < this.ColorRangeNames.length; i++) {
+                        this.data.adjustments[i] = [0, 0, 0, 0];
                     }
-                    self.updateAdjustmentControls();
+                    this.updateAdjustmentControls();
                     break;
                 case 'Gold and Blue':
                     // Gold and Blue preset
-                    self.engine.data.adjustments[ColorRange.YELLOWS] = [-100,25,0,0];
-                    self.engine.data.adjustments[ColorRange.GREENS] = [-100,-25,0,0];
-                    self.engine.data.adjustments[ColorRange.CYANS] = [-1,-25,-100,0];
-                    self.updateAdjustmentControls();
+                    this.data.adjustments[this.ColorRange.YELLOWS] = [-100,25,0,0];
+                    this.data.adjustments[this.ColorRange.GREENS] = [-100,-25,0,0];
+                    this.data.adjustments[this.ColorRange.CYANS] = [-1,-25,-100,0];
+                    this.updateAdjustmentControls();
                     break;
                 case 'Eagle':
                     break;
                 default:
-                    util.throwFatalError("Unknown preset " + selective_color_preset_values[itemIndex]);
+                    this.util.throwFatalError("Unknown preset " + this.selective_color_preset_values[itemIndex]);
                     break;
         }
     }
@@ -502,17 +511,17 @@ function createSelectiveColorSizer(parent, selectiveColorEngine) {
     // Color range selector
     this.colorLabel = new Label(parent);
     this.colorLabel.text = "Colors:";
-    this.colorLabel.textAlignment = TextAlign_Right | TextAlign_VertCenter;
+    this.colorLabel.textAlignment = TextAlignment.Right | TextAlignment.VertCenter;
     this.colorLabel.minWidth = labelWidth1;
     
     this.colorCombo = new ComboBox(parent);
-    for (let i = 0; i < ColorRangeNames.length; i++) {
-        this.colorCombo.addItem(ColorRangeNames[i]);
+    for (let i = 0; i < this.ColorRangeNames.length; i++) {
+        this.colorCombo.addItem(this.ColorRangeNames[i]);
     }
-    this.colorCombo.currentItem = self.engine.data.currentRange;
-    this.colorCombo.onItemSelected = function(index) {
-        self.engine.data.currentRange = index;
-        self.updateAdjustmentControls();
+    this.colorCombo.currentItem = this.data.currentRange;
+    this.colorCombo.onItemSelected = (index) => {
+        this.data.currentRange = index;
+        this.updateAdjustmentControls();
     };
     
     this.colorSizer = new HorizontalSizer;
@@ -524,17 +533,17 @@ function createSelectiveColorSizer(parent, selectiveColorEngine) {
     // Method selector
     this.methodLabel = new Label(parent);
     this.methodLabel.text = "Method:";
-    this.methodLabel.textAlignment = TextAlign_Right | TextAlign_VertCenter;
+    this.methodLabel.textAlignment = TextAlignment.Right | TextAlignment.VertCenter;
     this.methodLabel.minWidth = labelWidth1;
     
     this.methodCombo = new ComboBox(parent);
     this.methodCombo.addItem("Relative");
     this.methodCombo.addItem("Absolute");
-    this.methodCombo.currentItem = self.engine.data.mode;
+    this.methodCombo.currentItem = this.data.mode;
     this.methodCombo.toolTip = "<p>Relative: Adjusts based on existing color amount<br/>" +
                                 "Absolute: Direct color addition</p>";
-    this.methodCombo.onItemSelected = function(index) {
-        self.engine.data.mode = index;
+    this.methodCombo.onItemSelected = (index) => {
+        this.data.mode = index;
     };
     
     this.methodSizer = new HorizontalSizer;
@@ -555,7 +564,7 @@ function createSelectiveColorSizer(parent, selectiveColorEngine) {
     this.createSlider = function(label, channel, negColor, posColor) {
         let label_control = new Label(parent);
         label_control.text = label + ":";
-        label_control.textAlignment = TextAlign_Right | TextAlign_VertCenter;
+        label_control.textAlignment = TextAlignment.Right | TextAlignment.VertCenter;
         label_control.minWidth = labelWidth1;
         
         // Negative color hint (left side)
@@ -568,8 +577,8 @@ function createSelectiveColorSizer(parent, selectiveColorEngine) {
         numericControl.slider.minWidth = 250;
         numericControl.setPrecision(0);
         numericControl.setValue(0);
-        numericControl.onValueUpdated = function(value) {
-            self.engine.data.adjustments[self.engine.data.currentRange][channel] = value;
+        numericControl.onValueUpdated = (value) => {
+            this.data.adjustments[this.data.currentRange][channel] = value;
         };
         
         // Positive color hint (right side)
@@ -600,44 +609,44 @@ function createSelectiveColorSizer(parent, selectiveColorEngine) {
     this.blackControl = this.createSlider("Black", 3, [1, 1, 1], [0, 0, 0]);
     
     this.updateAdjustmentControls = function() {
-        let adj = self.engine.data.adjustments[self.engine.data.currentRange];
-        self.cyanControl.control.setValue(adj[0]);
-        self.magentaControl.control.setValue(adj[1]);
-        self.yellowControl.control.setValue(adj[2]);
-        self.blackControl.control.setValue(adj[3]);
+        let adj = this.data.adjustments[this.data.currentRange];
+        this.cyanControl.control.setValue(adj[0]);
+        this.magentaControl.control.setValue(adj[1]);
+        this.yellowControl.control.setValue(adj[2]);
+        this.blackControl.control.setValue(adj[3]);
     };
 
     this.updateAllAdjustmentControls = function(param) {
-        self.engine.data = param.val;
-        self.engine.data.currentRange = 0;
-        self.updateAdjustmentControls();
+        this.data = param.val;
+        this.data.currentRange = 0;
+        this.updateAdjustmentControls();
     };
 
     // Reset current button
     this.resetButton = new PushButton(parent);
     this.resetButton.text = "Reset Current";
     this.resetButton.toolTip = "Reset adjustments for current color range";
-    this.resetButton.onClick = function() {
-        self.engine.data.adjustments[self.engine.data.currentRange] = [0, 0, 0, 0];
-        self.updateAdjustmentControls();
+    this.resetButton.onClick = () => {
+        this.data.adjustments[this.data.currentRange] = [0, 0, 0, 0];
+        this.updateAdjustmentControls();
     };
     
     // Reset all button
     this.resetAllButton = new PushButton(parent);
     this.resetAllButton.text = "Reset All";
     this.resetAllButton.toolTip = "Reset all color range adjustments";
-    this.resetAllButton.onClick = function() {
-        for (let i = 0; i < ColorRangeNames.length; i++) {
-            self.engine.data.adjustments[i] = [0, 0, 0, 0];
+    this.resetAllButton.onClick = () => {
+        for (let i = 0; i < this.ColorRangeNames.length; i++) {
+            this.data.adjustments[i] = [0, 0, 0, 0];
         }
-        self.updateAdjustmentControls();
+        this.updateAdjustmentControls();
     };
     
     // Preview button
     this.previewButton = new PushButton(parent);
     this.previewButton.text = "Preview";
-    this.previewButton.onClick = function() {
-        selectiveColorPreview();
+    this.previewButton.onClick = () => {
+        this.selectiveColorPreview();
     };
     
     this.buttonsSizer = new HorizontalSizer;
@@ -665,31 +674,28 @@ function createSelectiveColorSizer(parent, selectiveColorEngine) {
     this.sizer.add(this.buttonsSizer);
     this.sizer.addStretch();
 
-    par.enhancements_selective_color_data.set_callback = function(param) {
-        if (global.debug) console.writeln("Selective Color data changed, updating controls");
-        self.updateAllAdjustmentControls(param);
+    this.par.enhancements_selective_color_data.set_callback = (param) => {
+        if (this.global.debug) console.writeln("Selective Color data changed, updating controls");
+        this.updateAllAdjustmentControls(param);
+        if (this.global.debug) console.writeln("Selective Color data changed, updating controls:end");
     }
-    util.recordParam(par.enhancements_selective_color_data);
-    this.updateAllAdjustmentControls(par.enhancements_selective_color_data);
+    this.util.recordParam(this.par.enhancements_selective_color_data);
+    this.updateAllAdjustmentControls(this.par.enhancements_selective_color_data);
     
     return this.sizer;
 }
 
-function createSelectiveColorEngine() {
-    return new SelectiveColorEngine();
+setPreset(name) {
+    this.selectiveColorPresetComboBox.onItemSelected( this.selective_color_preset_values.indexOf(name) );
 }
 
-function setPreset(name) {
-    this.selectiveColorPresetComboBox.onItemSelected( selective_color_preset_values.indexOf(name) );
-}
-
-this.createSelectiveColorEngine = createSelectiveColorEngine;
+/*
 this.createSelectiveColorSizer = createSelectiveColorSizer;
 
 this.setPreset = setPreset;     // For testing purposes
 
-}  /* AutoIntegrateSelectiveColor */
+*/
 
-AutoIntegrateSelectiveColor.prototype = new Object;
+}  /* AutoIntegrateSelectiveColor */
 
 #endif // AUTOINTEGRATESELECTIVECOLOR_JS

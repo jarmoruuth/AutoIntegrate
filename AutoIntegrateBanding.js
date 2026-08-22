@@ -41,9 +41,11 @@
 #ifndef AUTOINTEGRATEBANDING_JS
 #define AUTOINTEGRATEBANDING_JS
 
-function AutoIntegrateBandingEngine() {
+class AutoIntegrateBandingEngine extends Object {
 
-    var DEBUGGING_MODE_ON = false;
+constructor() {
+    super();
+    this.DEBUGGING_MODE_ON = false;
 
     // init members
     this.targetImage=null;  // image to which operation is done
@@ -57,7 +59,7 @@ function AutoIntegrateBandingEngine() {
     this.dSigma=1.0;  //factor for sigma in hihglight protection
  
     /// retrieve settings from previous runs, stored in Parameters
-    this.importParameters = function() {
+    this.importParameters = () => {
        if ( Parameters.has( "amount" ) )
           this.dAmount = Parameters.getReal( "amount" );
        if ( Parameters.has( "highlightProtect" ) )
@@ -67,7 +69,7 @@ function AutoIntegrateBandingEngine() {
     };
  
     /// Store current settings for use with later runs.
-    this.exportParameters = function() {
+    this.exportParameters = () => {
        Parameters.set( "amount", this.dAmount );
        Parameters.set( "highlightProtect", this.bDoHighlightProtect );
        Parameters.set( "sigma", this.dSigma );
@@ -81,7 +83,7 @@ function AutoIntegrateBandingEngine() {
     /// function to set new target image
     this.setTargetImage=function(targetImage){
        if (this.targetImage!=targetImage){
-         if ( DEBUGGING_MODE_ON ){
+         if ( this.DEBUGGING_MODE_ON ){
             console.writeln("Setting targetImage=",targetImage);
          }  
           this.targetImage=targetImage;
@@ -101,7 +103,7 @@ function AutoIntegrateBandingEngine() {
  
     /// function to set highlightProtect mode
     this.setHighlightProtect=function(doHighlightProtect,sigmaValue){
-       if ( DEBUGGING_MODE_ON ){
+       if ( this.DEBUGGING_MODE_ON ){
           console.writeln("SetHighlightProtect=",doHighlightProtect,sigmaValue);
        }
        if((this.bDoHighlightProtect!=doHighlightProtect)||
@@ -125,7 +127,7 @@ function AutoIntegrateBandingEngine() {
        if (statusFunction==null){
           // set default doing nothing
           this.statusFunction=function(statusString,bForceUpdate) {
-             if ( DEBUGGING_MODE_ON ){
+             if ( this.DEBUGGING_MODE_ON ){
                 console.writeln("statusFunction, string=",statusString, "bForceUpdate=",bForceUpdate);
              }
              return true;
@@ -140,23 +142,23 @@ function AutoIntegrateBandingEngine() {
  
     /// function converts target image to float type if necessary
     this.doConvertImage=function(){
-       if ( DEBUGGING_MODE_ON ){
+       if ( this.DEBUGGING_MODE_ON ){
           console.writeln("BandingEngine.doConvertImage(), targetImage=",this.targetImage);
        }
        if(!this.statusFunction("Converting image to float type",true)) return;
  
        if (this.bRedoConvert){
           if (this.targetImage.isNull){
-             if ( DEBUGGING_MODE_ON ){
+             if ( this.DEBUGGING_MODE_ON ){
                 console.writeln("doConvertImage(). targetImage is null");
              }
              this.convertedImage=null;
           }else{
              // convert image to floating point format, since int would not handle negatives or overflows
-             if ( this.targetImage.sampleType == SampleType_Integer ){
+             if ( this.targetImage.sampleType == PixelSampleType.Integer ){
                 this.convertedImage = new Image( this.targetImage.width, this.targetImage.height,
                                   this.targetImage.numberOfChannels, this.targetImage.colorSpace,
-                                  (this.targetImage.bitsPerSample < 32) ? 32 : 64, SampleType_Real );
+                                  (this.targetImage.bitsPerSample < 32) ? 32 : 64, PixelSampleType.Float );
                 this.targetImage.resetSelections();
                 this.convertedImage.resetSelections()
                 this.convertedImage.assign( this.targetImage );
@@ -169,14 +171,14 @@ function AutoIntegrateBandingEngine() {
           this.bRedoConvert=false;
           this.statusFunction("Conversion done",true);
        }  // if redoConvert
-       if ( DEBUGGING_MODE_ON ){
+       if ( this.DEBUGGING_MODE_ON ){
           console.writeln("BandingEngine.doConvertImage() done");
        }
     };  //convertImage()
  
     /// do statistics and medians if necessary. Create fixImage.
     this.doStatistics=function(){
-       if ( DEBUGGING_MODE_ON ){
+       if ( this.DEBUGGING_MODE_ON ){
           var now=Date.now();
           console.writeln("BandingEngine.doStatistics()");
        }
@@ -187,7 +189,7 @@ function AutoIntegrateBandingEngine() {
  
           this.fixImage=new Image( targetImage.width, targetImage.height,
                                   targetImage.numberOfChannels, targetImage.colorSpace,
-                                  targetImage.bitsPerSample, SampleType_Real );
+                                  targetImage.bitsPerSample, PixelSampleType.Float );
           var fixImage=this.fixImage;
           targetImage.resetSelections();
           fixImage.resetSelections();
@@ -210,18 +212,11 @@ function AutoIntegrateBandingEngine() {
              // FIXME maybe use new noise estimate functionality as used by imageIntegration.
              var dGlobalSigma=1.4826*targetImage.avgDev();
  
-             // construct statistics object. If highlight protect, ignore unusually bright pixels.
-             var aStatistic=new ImageStatistics;
-             if ( DEBUGGING_MODE_ON ){
+             // Chec image statistics. If highlight protect, ignore unusually bright pixels.
+             if ( this.DEBUGGING_MODE_ON ){
                 console.writeln("BandingEngine.doStatistics(), dGlobalSigma=",dGlobalSigma,", dSigma=",this.dSigma, ", doHiglightProtect=",this.bDoHighlightProtect);
              }
-             with (aStatistic){
-                medianEnabled=true;
-                varianceEnabled=false;
-                lowRejectionEnabled=false;
-                highRejectionEnabled=this.bDoHighlightProtect;
-                rejectionHigh=rGBGlobalMedian+this.dSigma*dGlobalSigma;
-             }  //with aStatistic
+
              //now determine the medians for each row.
              var lineRect=new Rect(targetWidth,1);
              for (var row=0; row<targetHeight;++row) {
@@ -232,8 +227,7 @@ function AutoIntegrateBandingEngine() {
                 lineRect.moveTo(0,row);
                 targetImage.selectedRect=lineRect;
                 fixImage.selectedRect=lineRect;
-                aStatistic.generate(targetImage);
-                var rGBRowMedian=aStatistic.median;
+                var rGBRowMedian=targetImage.median();
                 // store fix factor into fixImage
                 var fixFactor=rGBGlobalMedian-rGBRowMedian;
                 fixImage.fill(fixFactor);  //much faster than apply()!
@@ -251,10 +245,10 @@ function AutoIntegrateBandingEngine() {
           if ( false ){
              fixImage.normalize();
              var wtmp = new ImageWindow( 1000, 1000, 3,
-                                  fixImage.bitsPerSample, fixImage.sampleType == SampleType_Real, fixImage.isColor,"FixImage" );
+                                  fixImage.bitsPerSample, fixImage.sampleType == PixelSampleType.Float, fixImage.isColor,"FixImage" );
              var v = wtmp.mainView;
  
-             v.beginProcess( UndoFlag_NoSwapFile );
+             v.beginProcess( UndoFlag.NoSwapFile );
              v.image.assign( fixImage );
              v.endProcess();
              wtmp.bringToFront();
@@ -262,7 +256,7 @@ function AutoIntegrateBandingEngine() {
  
           this.statusFunction("Statistics done",true)
        }  // if RedoStatistics
-       if ( DEBUGGING_MODE_ON ){
+       if ( this.DEBUGGING_MODE_ON ){
           console.writeln("BandingEngine.doStatistics() done");
           console.writeln("BandingEngine.doStatistics() required time [ms]=",Date.now()-now);
        }
@@ -270,7 +264,7 @@ function AutoIntegrateBandingEngine() {
  
     /// compute the result, doing only the necessary recomputations.
     this.doResult=function(){
-       if ( DEBUGGING_MODE_ON ){
+       if ( this.DEBUGGING_MODE_ON ){
           console.writeln("BandingEngine.doResult()");
        }
        if (this.bRedoResult){
@@ -283,15 +277,15 @@ function AutoIntegrateBandingEngine() {
           }
           this.resultImage=new Image( targetImage.width, targetImage.height,
                                   targetImage.numberOfChannels, targetImage.colorSpace,
-                                  targetImage.bitsPerSample, SampleType_Real );
+                                  targetImage.bitsPerSample, PixelSampleType.Float );
           targetImage.resetSelections();
           var resultImage=this.resultImage;
           this.fixImage.resetSelections();
           resultImage.resetSelections();
           resultImage.assign(this.fixImage);
           var dAmount=this.dAmount;
-          resultImage.apply(dAmount,ImageOp_Mul);
-          resultImage.apply(targetImage,ImageOp_Add);
+          resultImage.apply(dAmount,ImageOp.Mul);
+          resultImage.apply(targetImage,ImageOp.Add);
           // if necessary: rescale data into range from 0.0-1.0
           if(!this.statusFunction("Normalizing image",true)) return;
  
@@ -300,29 +294,29 @@ function AutoIntegrateBandingEngine() {
           //I just clip the values between 0.0 and 1.1.
           var clipImage=new Image( targetImage.width, targetImage.height,
                                   targetImage.numberOfChannels, targetImage.colorSpace,
-                                  targetImage.bitsPerSample, SampleType_Real );
+                                  targetImage.bitsPerSample, PixelSampleType.Float );
           clipImage.fill(0.0);
-          resultImage.apply(clipImage,ImageOp_Max);
+          resultImage.apply(clipImage,ImageOp.Max);
           clipImage.fill(1.0);
-          resultImage.apply(clipImage,ImageOp_Min);
+          resultImage.apply(clipImage,ImageOp.Min);
           this.statusFunction("Fixing image done",true);
           this.bRedoResult=false;
        }  //if RedoResult
-       if ( DEBUGGING_MODE_ON ){
+       if ( this.DEBUGGING_MODE_ON ){
           console.writeln("BandingEngine.doResult() done");
        }
     };  //doResult()
  
     /// get the current result, doing recomputations if necessary
     this.getResult=function(){
-       if ( DEBUGGING_MODE_ON ){
+       if ( this.DEBUGGING_MODE_ON ){
           console.writeln("BandingEngine.getResult()");
        }
        this.doResult();
        if(!this.statusFunction("Processing done",true)){
           this.statusFunction("Processing aborted",true);
        }
-       if ( DEBUGGING_MODE_ON ){
+       if ( this.DEBUGGING_MODE_ON ){
           console.writeln("BandingEngine.getResult() done");
        }
        return this.resultImage;
@@ -331,7 +325,7 @@ function AutoIntegrateBandingEngine() {
     // get the last computed result. If there is no valid result,
     // return null. No recompute is done, even if it would be necessary
     this.getLastResult=function(){
-       if ( DEBUGGING_MODE_ON ){
+       if ( this.DEBUGGING_MODE_ON ){
           console.writeln("BandingEngine.getLastResult()");
        }
        return this.resultImage;
@@ -339,7 +333,7 @@ function AutoIntegrateBandingEngine() {
        if (!this.bRedoResult){
           result=this.getResult();
        }
-       if ( DEBUGGING_MODE_ON ){
+       if ( this.DEBUGGING_MODE_ON ){
           console.writeln("BandingEngine.getLastResult() done");
        }
        return result;
@@ -356,6 +350,8 @@ function AutoIntegrateBandingEngine() {
        // end transaction
        targetView.endProcess();
      };   //function doit
+} // constructor
+
 }  //class AutoIntegrateBandingEngine
 
 #endif  /* AUTOINTEGRATEBANDING_JS */

@@ -19,65 +19,68 @@ by Pleiades Astrophoto and its contributors (https://pixinsight.com/).
 #ifndef AUTOINTEGRATEUTIL_JS
 #define AUTOINTEGRATEUTIL_JS
 
-function AutoIntegrateUtil(global)
+class AutoIntegrateUtil extends Object
 {
 
-this.__base__ = Object;
-this.__base__();
+constructor(global) {
+      super();
 
-var self = this;
+      this.gui = null;
+      this.global = global;
+      this.par = global.par;
+      this.ppar = this.global.ppar;
 
-var util = this;
-var gui = null;
+      this.loggingEnabled = true;
+      this.beginLogCallback = null;
+      this.endLogCallback = null;
 
-var par = global.par;
-var ppar = global.ppar;
+      this.executed_processes = [];
 
-this.loggingEnabled = true;
-this.beginLogCallback = null;
-this.endLogCallback = null;
+} // constructor
 
 /* Set optional GUI object to update GUI components.
  */
-function setGUI(aigui)
+setGUI(aigui)
 {
-      gui = aigui;
+      this.gui = aigui;
 }
 
-function init_pixinsight_version()
+init_pixinsight_version()
 {
-      global.pixinsight_version_str = CoreApplication.versionMajor + '.' + CoreApplication.versionMinor + '.' + 
+      this.global.pixinsight_version_str = CoreApplication.versionMajor + '.' + CoreApplication.versionMinor + '.' + 
                                       CoreApplication.versionRelease + '-' + CoreApplication.versionRevision +
                                       ' build '  + CoreApplication.versionBuild;
-      global.pixinsight_version_num = CoreApplication.versionMajor * 1e6 + 
+      this.global.pixinsight_version_num = CoreApplication.versionMajor * 1e6 + 
                                       CoreApplication.versionMinor * 1e4 + 
                                       CoreApplication.versionRelease * 1e2 + 
                                       CoreApplication.versionRevision;
-      global.pixinsight_build_num = CoreApplication.versionBuild;
+      this.global.pixinsight_build_num = CoreApplication.versionBuild;
 }
 
-function runGarbageCollection()
+runGarbageCollection()
 {
-      var start_time = Date.now();
-      gc();
-      var end_time = Date.now();
-      var time_sec = (end_time-start_time)/1000;
-      if (time_sec >= 1.0) {
-            console.writeln("runGarbageCollection, " + time_sec + " sec");
+      if (0) {
+            var start_time = Date.now();
+            gc();
+            var end_time = Date.now();
+            var time_sec = (end_time-start_time)/1000;
+            if (time_sec >= 1.0) {
+                  console.writeln("runGarbageCollection, " + time_sec + " sec");
+            }
       }
 }
 
-function checkEvents()
+checkEvents()
 {
-      processEvents();  // process events to keep GUI responsible
-      util.runGarbageCollection();
+      CoreApplication.processEvents();  // process events to keep GUI responsible
+      this.runGarbageCollection();
 }
 
 /// Init filter sets. We used to have actual Set object but
 // use a simple array so we can add object into it.
 // There are file sets for each possible filters and
 // each array element has file name and used flag.
-function initFilterSets()
+initFilterSets()
 {
       return [
             ['L', []],
@@ -92,20 +95,20 @@ function initFilterSets()
 }
 
 // find filter set object based on file type
-function findFilterSet(filterSet, filetype)
+findFilterSet(filterSet, filetype)
 {
       for (var i = 0; i < filterSet.length; i++) {
             if (filterSet[i][0] == filetype) {
                   return filterSet[i][1];
             }
       }
-      util.throwFatalError("findFilterSet bad filetype " + filetype);
+      this.throwFatalError("findFilterSet bad filetype " + filetype);
       return null;
 }
 
 // Add file base name to the filter set object
 // We use file base name to detect filter files
-function addFilterSetFile(filterSet, filePath, filetype)
+addFilterSetFile(filterSet, filePath, filetype)
 {
       var basename = File.extractName(filePath);
       console.writeln("addFilterSetFile add " + basename + " filter "+ filetype);
@@ -115,7 +118,7 @@ function addFilterSetFile(filterSet, filePath, filetype)
 // Try to find base file name from filter set objects.
 // We use simple linear search which should be fine
 // for most data sizes.
-function findFilterForFile(filterSet, filePath, filename_postfix)
+findFilterForFile(filterSet, filePath, filename_postfix)
 {
       var basename = File.extractName(filePath);
       if (filename_postfix.length > 0) {
@@ -137,7 +140,7 @@ function findFilterForFile(filterSet, filePath, filename_postfix)
 }
 
 // remove a file from filter set
-function removeFilterFile(filterSet, filePath)
+removeFilterFile(filterSet, filePath)
 {
       var basename = File.extractName(filePath);
       for (var i = 0; i < filterSet.length; i++) {
@@ -151,7 +154,7 @@ function removeFilterFile(filterSet, filePath)
       }
 }
 
-function clearFilterFileUsedFlags(filterSet)
+clearFilterFileUsedFlags(filterSet)
 {
       console.writeln("clearUsedFilterForFiles");
       for (var i = 0; i < filterSet.length; i++) {
@@ -163,23 +166,23 @@ function clearFilterFileUsedFlags(filterSet)
       return null;
 }
 
-function setDefaultDirs()
+setDefaultDirs()
 {
-      global.AutoOutputDir = "AutoOutput";
-      global.AutoCalibratedDir = "AutoCalibrated";
-      global.AutoMasterDir = "AutoMaster";
-      global.AutoProcessedDir = "AutoProcessed";
+      this.global.AutoOutputDir = "AutoOutput";
+      this.global.AutoCalibratedDir = "AutoCalibrated";
+      this.global.AutoMasterDir = "AutoMaster";
+      this.global.AutoProcessedDir = "AutoProcessed";
 }
 
-function clearDefaultDirs()
+clearDefaultDirs()
 {
-      global.AutoOutputDir = ".";
-      global.AutoCalibratedDir = ".";
-      global.AutoMasterDir = ".";
-      global.AutoProcessedDir = ".";
+      this.global.AutoOutputDir = ".";
+      this.global.AutoCalibratedDir = ".";
+      this.global.AutoMasterDir = ".";
+      this.global.AutoProcessedDir = ".";
 }
 
-function ensurePathEndSlash(dir)
+ensurePathEndSlash(dir)
 {
       if (dir.length > 0) {
             switch (dir[dir.length-1]) {
@@ -194,7 +197,7 @@ function ensurePathEndSlash(dir)
       return dir;
 }
 
-function removePathEndSlash(dir)
+removePathEndSlash(dir)
 {
       if (dir.length > 1) {
             switch (dir[dir.length-1]) {
@@ -208,7 +211,7 @@ function removePathEndSlash(dir)
       return dir;
 }
 
-function removePathEndDot(dir)
+removePathEndDot(dir)
 {
       if (dir.length > 0) {
             switch (dir.substr(-2, 2)) {
@@ -223,18 +226,18 @@ function removePathEndDot(dir)
 }
 
 // parse full path from file name appended with '/
-function parseNewOutputDir(filePath, subdir)
+parseNewOutputDir(filePath, subdir)
 {
-      var path = util.ensurePathEndSlash(File.extractDrive(filePath) + File.extractDirectory(filePath));
-      path = util.ensurePathEndSlash(path + subdir);
-      path = util.normalizePath(path);
+      var path = this.ensurePathEndSlash(File.extractDrive(filePath) + File.extractDirectory(filePath));
+      path = this.ensurePathEndSlash(path + subdir);
+      path = this.normalizePath(path);
       console.writeln("parseNewOutputDir " + path);
       return path;
 }
 
 // If path is relative and not absolute, we append it to the 
 // path of the image file
-function pathIsRelative(p)
+pathIsRelative(p)
 {
       var dir = File.extractDirectory(p);
       if (dir == null || dir == '') {
@@ -249,15 +252,15 @@ function pathIsRelative(p)
       }
 }
 
-function throwFatalError(txt)
+throwFatalError(txt)
 {
-      util.addProcessingStepAndStatusInfo(txt);
-      global.run_results.fatal_error = txt;
-      global.is_processing = global.processing_state.none;
+      this.addProcessingStepAndStatusInfo(txt);
+      this.global.run_results.fatal_error = txt;
+      this.global.is_processing = this.global.processing_state.none;
       throw new Error(txt);
 }
 
-function findWindow(id)
+findWindow(id)
 {
       if (id == null || id == undefined) {
             return null;
@@ -267,7 +270,7 @@ function findWindow(id)
       if (images == null || images == undefined) {
             return null;
       }
-      for (var i in images) {
+      for (var i = 0; i < images.length; i++) {
             if (images[i].mainView != null
                 && images[i].mainView != undefined
                 && images[i].mainView.id == id)
@@ -278,16 +281,16 @@ function findWindow(id)
       return null;
 }
 
-function isDefaultImageId(str) 
+isDefaultImageId(str) 
 {
       // Regular expression to match the pattern "Image" followed by a number
-      const regex = /^Image\d+$/i; 
+      const regex1 = /^Image\d+$/i; 
     
       // Test the string against the regular expression
-      return regex.test(str);
+      return regex1.test(str) || str.startsWith("MasterLight");
 }
 
-function getFnameIfGeneratedWindowId(imgWin) 
+getFnameIfGeneratedWindowId(imgWin) 
 {
       var filePath = imgWin.filePath;
       if (filePath == null || filePath == undefined) {
@@ -298,16 +301,16 @@ function getFnameIfGeneratedWindowId(imgWin)
             // fname and view id match, not using a system generated view id
             return null;
       }
-      if (!isDefaultImageId(imgWin.mainView.id)) {
+      if (!this.isDefaultImageId(imgWin.mainView.id)) {
             // not using a system generated view id, maybe user changed the view id
             return null;
       }
       return fname;
 }
 
-function getBaseWindowId(imgWin)
+getBaseWindowId(imgWin)
 {
-      var fname = getFnameIfGeneratedWindowId(imgWin);
+      var fname = this.getFnameIfGeneratedWindowId(imgWin);
       if (fname != null) {
             // We have system generated view id, use the file name
             return fname;
@@ -316,7 +319,7 @@ function getBaseWindowId(imgWin)
 
 }
 
-function findWindowOrFile(id)
+findWindowOrFile(id)
 {
       if (id == null || id == undefined) {
             return null;
@@ -326,19 +329,20 @@ function findWindowOrFile(id)
             return null;
       }
 
-      var w = util.findWindow(id);
+      var w = this.findWindow(id);
       if (w != null) {
             return w;
       }
       // Window not found by view id, try to find using a file name
+      if (this.global.debug) console.writeln("findWindowOrFile: Window with id " + id + " not found, try to find by file name");
       var found_win = null;
-      for (var i in images) {
+      for (var i = 0; i < images.length; i++) {
             if (images[i].mainView == null
                 || images[i].mainView == undefined)
             {
                   continue;
             }
-            var fname = getFnameIfGeneratedWindowId(images[i]);
+            var fname = this.getFnameIfGeneratedWindowId(images[i]);
             if (fname == null) {
                   // not using a system generated view id so we
                   // have already checked the id
@@ -348,7 +352,7 @@ function findWindowOrFile(id)
             if (fname == id) {
                   if (found_win != null) {
                         // Duplicate file name found, we cannot use the file name
-                        util.addCriticalStatus("Duplicate file name " + id + " found, cannot use the file");
+                        this.addCriticalStatus("Duplicate file name " + id + " found, cannot use the file");
                         return null;
                   }
                   found_win = images[i];
@@ -360,7 +364,7 @@ function findWindowOrFile(id)
       return found_win;
 }
 
-function findWindowStartsWith(id)
+findWindowStartsWith(id)
 {
       if (id == null || id == undefined) {
             return null;
@@ -369,7 +373,7 @@ function findWindowStartsWith(id)
       if (images == null || images == undefined) {
             return null;
       }
-      for (var i in images) {
+      for (var i = 0; i < images.length; i++) {
             if (images[i].mainView != null
                 && images[i].mainView != undefined
                 && images[i].mainView.id.startsWith(id))
@@ -380,7 +384,7 @@ function findWindowStartsWith(id)
       return null;
 }
 
-function findWindowRe(re)
+findWindowRe(re)
 {
       if (re == null || re == undefined) {
             return null;
@@ -389,7 +393,7 @@ function findWindowRe(re)
       if (images == null || images == undefined) {
             return null;
       }
-      for (var i in images) {
+      for (var i = 0; i < images.length; i++) {
             if (images[i].mainView != null
                 && images[i].mainView != undefined
                 && images[i].mainView.id.match(re))
@@ -400,23 +404,23 @@ function findWindowRe(re)
       return null;
 }
 
-function findWindowFromArray(arr)
+findWindowFromArray(arr)
 {
       for (var i = 0; i < arr.length; i++) {
-            if (util.findWindow(arr[i]) != null) {
+            if (this.findWindow(arr[i]) != null) {
                   return true;
             }
       }
       return false;
 }
 
-function closeAllWindowsSubstr(id_substr)
+closeAllWindowsSubstr(id_substr)
 {
       var images = ImageWindow.windows;
       if (images == null || images == undefined) {
             return;
       }
-      for (var i in images) {
+      for (var i = 0; i < images.length; i++) {
             if (images[i].mainView != null
                 && images[i].mainView != undefined
                 && images[i].mainView.id.indexOf(id_substr) != -1) 
@@ -426,14 +430,14 @@ function closeAllWindowsSubstr(id_substr)
       }
 }
 
-function getWindowList()
+getWindowList()
 {
       var windowList = [];
       var images = ImageWindow.windows;
       if (images == null || images == undefined) {
             return windowList;
       }
-      for (var i in images) {
+      for (var i = 0; i < images.length; i++) {
             try {
                   if (images[i].mainView == null || images[i].mainView == undefined) {
                         continue;
@@ -446,10 +450,10 @@ function getWindowList()
       return windowList;
 }
 
-function getWindowListReverse()
+getWindowListReverse()
 {
       var windowListReverse = [];
-      var windowList = util.getWindowList();
+      var windowList = this.getWindowList();
       for (var i = windowList.length-1; i >= 0; i--) {
             if (windowList[i].match(/undo[1-9]*/g) == null) {
                   windowListReverse[windowListReverse.length] = windowList[i];
@@ -458,9 +462,9 @@ function getWindowListReverse()
       return windowListReverse;
 }
 
-function findWindowId(id)
+findWindowId(id)
 {
-      var w = util.findWindow(id);
+      var w = this.findWindow(id);
 
       if (w == null) {
             return null;
@@ -469,9 +473,9 @@ function findWindowId(id)
       return w.mainView.id;
 }
 
-function findWindowOrFileId(id)
+findWindowOrFileId(id)
 {
-      var w = util.findWindowOrFile(id);
+      var w = this.findWindowOrFile(id);
 
       if (w == null) {
             return null;
@@ -480,9 +484,9 @@ function findWindowOrFileId(id)
       return w.mainView.id;
 }
 
-function windowShowif(id)
+windowShowif(id)
 {
-      var w = util.findWindow(id);
+      var w = this.findWindow(id);
       if (w != null) {
             w.show();
       }
@@ -490,18 +494,18 @@ function windowShowif(id)
 
 // Iconify the window, the return value is the window,
 // only as a convenience to this.windowIconizeAndKeywordif()
-function windowIconizeEx(id, columnCount, iconStartRow, haveIconizedCount)
+windowIconizeEx(id, columnCount, iconStartRow, haveIconizedCount)
 {
       if (id == null) {
             return null;
       }
-      if (global.get_flowchart_data) {
+      if (this.global.get_flowchart_data) {
             return null;
       }
 
       console.writeln("windowIconizeEx " + id + " columnCount " + columnCount + " iconStartRow " + iconStartRow + " haveIconizedCount " + haveIconizedCount);
 
-      var w = util.findWindow(id);
+      var w = this.findWindow(id);
 
       if (w != null) {
             if (w.iconic) {
@@ -516,22 +520,22 @@ function windowIconizeEx(id, columnCount, iconStartRow, haveIconizedCount)
                window position back to old position.
             */
             var oldpos = new Point(w.position);  // save old position
-            if (global.iconPoint == null) {
+            if (this.global.iconPoint == null) {
                   /* Get first icon to upper left corner. */
-                  global.iconPoint = new Point(
+                  this.global.iconPoint = new Point(
                                           -(w.width / 2) + 5 + columnCount * 300,
                                           -(w.height / 2) + 5 + iconStartRow * 32);
                   //console.writeln("Icon " + id + " start from position " + iconPoint + ", iconStartRow " + iconStartRow + ", columnCount " + columnCount);
             } else {
                   /* Put next icons in a nice row below the first icon.
                   */
-                  // global.iconPoint.moveBy(0, 32);
-                  global.iconPoint = new Point(
+                  // this.global.iconPoint.moveBy(0, 32);
+                  this.global.iconPoint = new Point(
                                           -(w.width / 2) + 5 + columnCount * 300,
                                           -(w.height / 2) + 5 + iconStartRow * 32 + haveIconizedCount * 32);
                   // console.writeln("Next icon " + id + " position " + iconPoint + ", iconStartRow " + iconStartRow + ", columnCount " + columnCount);
             }
-            w.position = new Point(global.iconPoint);  // set window position to get correct icon position
+            w.position = new Point(this.global.iconPoint);  // set window position to get correct icon position
             w.iconize();
             w.position = oldpos;                // restore window position
       }
@@ -539,7 +543,7 @@ function windowIconizeEx(id, columnCount, iconStartRow, haveIconizedCount)
       return w;
 }
 
-function windowIconizeFindPosition(id, keep_iconized)
+windowIconizeFindPosition(id, keep_iconized)
 {
       var index = 0;
       var iconStartRow = 0;
@@ -552,35 +556,35 @@ function windowIconizeFindPosition(id, keep_iconized)
 
       // console.writeln("windowIconizeFindPosition " + id);
 
-      if (global.get_flowchart_data) {
+      if (this.global.get_flowchart_data) {
             return null;
       }
 
       // See if this window has some known prefix
       // If not, we use position 0
-      for (var i = 0; i < ppar.prefixArray.length; i++) {
-            // console.writeln("windowIconizeFindPosition check prefix " + ppar.prefixArray[i][1]);
-            if (ppar.prefixArray[i][1] != "" && id.startsWith(ppar.prefixArray[i][1])) {
-                  if (ppar.prefixArray[i][1].length > prefixlen) {
-                        // console.writeln("windowIconizeFindPosition found prefix " + ppar.prefixArray[i][1]);
-                        prefixlen = ppar.prefixArray[i][1].length;
+      for (var i = 0; i < this.ppar.prefixArray.length; i++) {
+            // console.writeln("windowIconizeFindPosition check prefix " + this.ppar.prefixArray[i][1]);
+            if (this.ppar.prefixArray[i][1] != "" && id.startsWith(this.ppar.prefixArray[i][1])) {
+                  if (this.ppar.prefixArray[i][1].length > prefixlen) {
+                        // console.writeln("windowIconizeFindPosition found prefix " + this.ppar.prefixArray[i][1]);
+                        prefixlen = this.ppar.prefixArray[i][1].length;
                         index = i;
                   }
             }
       }
-      if (ppar.prefixArray.length == 0) {
+      if (this.ppar.prefixArray.length == 0) {
             // No prefixes, add one
-            ppar.prefixArray[0] = [ 0, "", 0 ];
+            this.ppar.prefixArray[0] = [ 0, "", 0 ];
       }
-      columnCount = ppar.prefixArray[index][0];
-      iconStartRow = ppar.prefixArray[index][2];
+      columnCount = this.ppar.prefixArray[index][0];
+      iconStartRow = this.ppar.prefixArray[index][2];
 
       console.writeln("windowIconizeFindPosition " + id + " columnCount " + columnCount + " iconStartRow " + iconStartRow);
 
-      var w = windowIconizeEx(id, columnCount, iconStartRow, global.haveIconized);
+      var w = this.windowIconizeEx(id, columnCount, iconStartRow, this.global.haveIconized);
       if (w != null) {
-            ppar.prefixArray[index][2]++;
-            global.haveIconized++;
+            this.ppar.prefixArray[index][2]++;
+            this.global.haveIconized++;
             if (!keep_iconized) {
                   // console.writeln("windowIconizeFindPosition show");
                   w.show();
@@ -592,19 +596,19 @@ function windowIconizeFindPosition(id, keep_iconized)
 
 // Iconify the window, the return value is the window,
 // only as a convenience to this.windowIconizeAndKeywordif()
-function windowIconizeif(id, show_image)
+windowIconizeif(id, show_image)
 {
       if (id == null) {
             return null;
       }
-      if (global.get_flowchart_data) {
-            util.closeOneWindowById(id);
+      if (this.global.get_flowchart_data) {
+            this.closeOneWindowById(id);
             return null;
       }
 
-      var w = windowIconizeEx(id, global.columnCount, global.iconStartRow, global.haveIconized);
+      var w = this.windowIconizeEx(id, this.global.columnCount, this.global.iconStartRow, this.global.haveIconized);
       if (w != null) {
-            global.haveIconized++;
+            this.global.haveIconized++;
             if (show_image) {
                   w.show();
             }
@@ -613,9 +617,9 @@ function windowIconizeif(id, show_image)
       return w;
 }
 
-function batchWindowSetPosition(id, count)
+batchWindowSetPosition(id, count)
 {
-      var w = util.findWindow(id);
+      var w = this.findWindow(id);
       if (w != null) {
             var windowPoint = new Point(
                                     5 + 300 + count * 64,
@@ -624,7 +628,7 @@ function batchWindowSetPosition(id, count)
       }
 }
 
-function autointegrateProcessingHistory(imageWindow)
+autointegrateProcessingHistory(imageWindow)
 {
       var keywords = imageWindow.keywords;
       var history = {
@@ -671,7 +675,7 @@ function autointegrateProcessingHistory(imageWindow)
       }
 }
 
-function filterKeywords(imageWindow, keywordname) 
+filterKeywords(imageWindow, keywordname) 
 {
       var oldKeywords = [];
       var keywords = imageWindow.keywords;
@@ -684,7 +688,7 @@ function filterKeywords(imageWindow, keywordname)
       return oldKeywords;
 }
 
-function findDrizzleScale(imageWindow) 
+findDrizzleScale(imageWindow) 
 {
       var scale = 0;
       var keywords = imageWindow.keywords;
@@ -704,7 +708,7 @@ function findDrizzleScale(imageWindow)
       return scale;
 }
 
-function findDrizzle(imgWin)
+findDrizzle(imgWin)
 {
       for (var i = 0; i < imgWin.keywords.length; i++) {
             switch (imgWin.keywords[i].name) {
@@ -717,7 +721,7 @@ function findDrizzle(imgWin)
                         break;
             }
       }
-      var scale = util.findDrizzleScale(imgWin);
+      var scale = this.findDrizzleScale(imgWin);
       if (scale > 1) {
             console.writeln("Using image metadata drizzle scale " + scale);
             return scale;
@@ -727,7 +731,7 @@ function findDrizzle(imgWin)
 }
 
 
-function copyKeywords(imageWindow) 
+copyKeywords(imageWindow) 
 {
       var newKeywords = [];
       var keywords = imageWindow.keywords;
@@ -738,9 +742,9 @@ function copyKeywords(imageWindow)
 }
 
 // Overwrite an old keyword or add a new one
-function setFITSKeyword(imageWindow, name, value, comment) 
+setFITSKeyword(imageWindow, name, value, comment) 
 {
-      var oldKeywords = util.filterKeywords(imageWindow, name);
+      var oldKeywords = this.filterKeywords(imageWindow, name);
       imageWindow.keywords = oldKeywords.concat([
          new FITSKeyword(
             name,
@@ -751,7 +755,7 @@ function setFITSKeyword(imageWindow, name, value, comment)
 }
 
 // Append a new keyword, allows multiple keywords with same name
-function appenFITSKeyword(imageWindow, name, value, comment) 
+appenFITSKeyword(imageWindow, name, value, comment) 
 {
       imageWindow.keywords = imageWindow.keywords.concat([
          new FITSKeyword(
@@ -762,7 +766,7 @@ function appenFITSKeyword(imageWindow, name, value, comment)
       ]);
 }
 
-function getKeywordValue(imageWindow, keywordname) 
+getKeywordValue(imageWindow, keywordname) 
 {
       var keywords = imageWindow.keywords;
       if (!keywords) {
@@ -777,7 +781,7 @@ function getKeywordValue(imageWindow, keywordname)
       return null;
 }
 
-function findKeywordName(imageWindow, keywordname) 
+findKeywordName(imageWindow, keywordname) 
 {
       var keywords = imageWindow.keywords;
       if (!keywords) {
@@ -792,31 +796,31 @@ function findKeywordName(imageWindow, keywordname)
       return false;
 }
 
-function setFITSKeywordNoOverwrite(imageWindow, name, value, comment)
+setFITSKeywordNoOverwrite(imageWindow, name, value, comment)
 {
-      if (util.findKeywordName(imageWindow, name)) {
+      if (this.findKeywordName(imageWindow, name)) {
             console.writeln("keyword already set");
             return;
       }
-      util.setFITSKeyword(imageWindow, name, value, comment);
+      this.setFITSKeyword(imageWindow, name, value, comment);
 }
 
-function setProcessedImageKeyword(imageWindow) 
+setProcessedImageKeyword(imageWindow) 
 {
       console.writeln("setProcessedImageKeyword to " + imageWindow.mainView.id);
-      util.setFITSKeywordNoOverwrite(
+      this.setFITSKeywordNoOverwrite(
             imageWindow,
             "AutoIntegrate",
             "processedimage",
             "AutoIntegrate processed intermediate image");
 }
 
-function windowIconizeAndKeywordif(id, show_image, find_prefix)
+windowIconizeAndKeywordif(id, show_image, find_prefix)
 {
       if (find_prefix) {
-            var w = util.windowIconizeFindPosition(id, true);
+            var w = this.windowIconizeFindPosition(id, true);
       } else {
-            var w = util.windowIconizeif(id);
+            var w = this.windowIconizeif(id);
       }
 
       if (w != null) {
@@ -824,7 +828,7 @@ function windowIconizeAndKeywordif(id, show_image, find_prefix)
             // Set processed image keyword. It will not overwrite old
             // keyword. If we later set a final image keyword it will overwrite
             // this keyword.
-            setProcessedImageKeyword(w);
+            this.setProcessedImageKeyword(w);
       }
       if (show_image) {
             w.show();
@@ -833,170 +837,173 @@ function windowIconizeAndKeywordif(id, show_image, find_prefix)
 
 // Add a script window that will be closed when close all is clicked
 // Useful for temporary windows that do not have a fixed name
-function addScriptWindow(name)
+addScriptWindow(name)
 {
-      global.all_windows[global.all_windows.length] = name;
+      this.global.all_windows[this.global.all_windows.length] = name;
 }
 
-function windowRenameKeepifEx(old_name, new_name, keepif, allow_duplicate_name)
+windowRenameKeepifEx(old_name, new_name, keepif, allow_duplicate_name)
 {
-      if (par.debug.val) {
+      if (this.par.debug.val) {
             console.writeln("windowRenameKeepifEx " + old_name + " to " + new_name + ", keepif " + keepif + ", allow_duplicate_name " + allow_duplicate_name);
       }
-      if (global.get_flowchart_data) {
+      if (this.global.get_flowchart_data) {
             allow_duplicate_name = true;
       }
       if (old_name == new_name) {
             return new_name;
       }
-      var w = util.findWindow(old_name);
+      var w = this.findWindow(old_name);
       if (!w) {
-            util.throwFatalError("Could not find image " + old_name + " for rename");
+            this.throwFatalError("Could not find image " + old_name + " for rename");
       }
       w.mainView.id = new_name;
       if (!keepif) {
-            util.addScriptWindow(new_name);
+            this.addScriptWindow(new_name);
       }
       if (!allow_duplicate_name && w.mainView.id != new_name) {
-            util.fatalWindowNameFailed("Window rename from " + old_name + " to " + new_name + " failed, name is " + w.mainView.id);
+            this.fatalWindowNameFailed("Window rename from " + old_name + " to " + new_name + " failed, name is " + w.mainView.id);
       }
-      if (global.get_flowchart_data && w.mainView.id != new_name) {
-            global.flowchartWindows[global.flowchartWindows.length] = w.mainView.id;
+      if (this.global.get_flowchart_data && w.mainView.id != new_name) {
+            this.global.flowchartWindows[this.global.flowchartWindows.length] = w.mainView.id;
       }
+      this.addExecutedProcessScriptAction("rename", [ old_name, w.mainView.id ]);
       return w.mainView.id;
 }
 
-function windowRenameKeepif(old_name, new_name, keepif)
+windowRenameKeepif(old_name, new_name, keepif)
 {
-      return util.windowRenameKeepifEx(old_name, new_name, keepif, false);
+      return this.windowRenameKeepifEx(old_name, new_name, keepif, false);
 }
 
-function windowRename(old_name, new_name)
+windowRename(old_name, new_name)
 {
-      return util.windowRenameKeepif(old_name, new_name, false);
+      return this.windowRenameKeepif(old_name, new_name, false);
 }
 
-function closeOneWindow(w, force_close = true)
+closeOneWindow(w, force_close = true)
 {
       if (w == null) {
             return;
       }
-      if (par.keep_temporary_images.val) {
+      if (this.par.keep_temporary_images.val) {
             w.mainView.id = "tmp_" + w.mainView.id;
             w.show();
             console.writeln("Rename window to " + w.mainView.id);
       } else if (force_close) {
             // Force close will close the window without asking
-            if (!global.get_flowchart_data) {
+            if (!this.global.get_flowchart_data) {
                   // console.writeln("Force close " + w.mainView.id);
             }
+            this.addExecutedProcessScriptAction("closeWindow", [ w.mainView.id ]);
             w.forceClose();
       } else {
             // PixInsight will ask if file is changed but not saved
             console.writeln("Close " + w.mainView.id);
+            this.addExecutedProcessScriptAction("closeWindow", [ w.mainView.id ]);
             w.close();
       }
 }
 
 // close one window
-function closeOneWindowById(id, force_close = true)
+closeOneWindowById(id, force_close = true)
 {
-      var w = util.findWindow(id);
+      var w = this.findWindow(id);
       if (w != null) {
-            util.closeOneWindow(w, force_close);
+            this.closeOneWindow(w, force_close);
       }
 }
 
-function closeWindowsFromArray(arr)
+closeWindowsFromArray(arr)
 {
       for (var i = 0; i < arr.length; i++) {
-            util.closeOneWindowById(arr[i]);
+            this.closeOneWindowById(arr[i]);
       }
 }
 
 // For the final window, we may have more different names with
 // both prefix or postfix added
-function closeFinalWindowsFromArray(arr, force_close)
+closeFinalWindowsFromArray(arr, force_close)
 {
       for (var i = 0; i < arr.length; i++) {
-            util.closeOneWindowById(arr[i], force_close);
-            util.closeOneWindowById(arr[i]+"_stars", force_close);
-            util.closeOneWindowById(arr[i]+"_starless", force_close);
-            util.closeOneWindowById(arr[i]+"_enh", force_close);
-            util.closeOneWindowById(arr[i]+"_enh_starless", force_close);
-            util.closeOneWindowById(arr[i]+"_enh_stars", force_close);
-            util.closeOneWindowById(arr[i]+"_enh_combined", force_close);
+            this.closeOneWindowById(arr[i], force_close);
+            this.closeOneWindowById(arr[i]+"_stars", force_close);
+            this.closeOneWindowById(arr[i]+"_starless", force_close);
+            this.closeOneWindowById(arr[i]+"_enh", force_close);
+            this.closeOneWindowById(arr[i]+"_enh_starless", force_close);
+            this.closeOneWindowById(arr[i]+"_enh_stars", force_close);
+            this.closeOneWindowById(arr[i]+"_enh_combined", force_close);
       }
 }
 
-function closeTempWindowsForOneImage(id)
+closeTempWindowsForOneImage(id)
 {
-      util.closeOneWindowById(id + "_max");
-      util.closeOneWindowById(id + "_map");
-      util.closeOneWindowById(id + "_map_linear_fit_reference");
-      util.closeOneWindowById(id + "_stars");
-      util.closeOneWindowById(id + "_map_mask");
-      util.closeOneWindowById(id + "_map_stars");
-      util.closeOneWindowById(id + "_map_pm");
-      util.closeOneWindowById(id + "_mask");
-      util.closeOneWindowById(id + "_tmp");
-      util.closeOneWindowById(id + "_solvercopy");
-      util.closeOneWindowById(id + "_combined_solvercopy");
+      this.closeOneWindowById(id + "_max");
+      this.closeOneWindowById(id + "_map");
+      this.closeOneWindowById(id + "_map_linear_fit_reference");
+      this.closeOneWindowById(id + "_stars");
+      this.closeOneWindowById(id + "_map_mask");
+      this.closeOneWindowById(id + "_map_stars");
+      this.closeOneWindowById(id + "_map_pm");
+      this.closeOneWindowById(id + "_mask");
+      this.closeOneWindowById(id + "_tmp");
+      this.closeOneWindowById(id + "_solvercopy");
+      this.closeOneWindowById(id + "_combined_solvercopy");
 }
 
-function closeTempWindows()
+closeTempWindows()
 {
-      for (var i = 0; i < global.integration_LRGB_windows.length; i++) {
-            util.closeTempWindowsForOneImage(global.integration_LRGB_windows[i]);
-            util.closeTempWindowsForOneImage(global.integration_LRGB_windows[i] + "_BE");
+      for (var i = 0; i < this.global.integration_LRGB_windows.length; i++) {
+            this.closeTempWindowsForOneImage(this.global.integration_LRGB_windows[i]);
+            this.closeTempWindowsForOneImage(this.global.integration_LRGB_windows[i] + "_BE");
       }
-      for (var i = 0; i < global.integration_color_windows.length; i++) {
-            util.closeTempWindowsForOneImage(global.integration_color_windows[i]);
-            util.closeTempWindowsForOneImage(global.integration_color_windows[i] + "_BE");
+      for (var i = 0; i < this.global.integration_color_windows.length; i++) {
+            this.closeTempWindowsForOneImage(this.global.integration_color_windows[i]);
+            this.closeTempWindowsForOneImage(this.global.integration_color_windows[i] + "_BE");
       }
-      util.closeWindowsFromArray(global.temporary_windows);
-      global.temporary_windows = [];
+      this.closeWindowsFromArray(this.global.temporary_windows);
+      this.global.temporary_windows = [];
 }
 
 // close all windows from an array
-function closeAllWindowsFromArray(arr, keep_base_image = false, print_names = false)
+closeAllWindowsFromArray(arr, keep_base_image = false, print_names = false)
 {
       for (var i = 0; i < arr.length; i++) {
             if (print_names) {
                   console.writeln("closeAllWindowsFromArray: " + arr[i]);
             }
-            if (util.findWindowStartsWith(arr[i])) {
-                  util.closeOneWindowById(arr[i]+"_stars");
-                  util.closeOneWindowById(arr[i]+"_for_stars");
-                  util.closeOneWindowById(arr[i]+"_for_stars_HT");
-                  util.closeOneWindowById(arr[i]+"_starless");
-                  util.closeOneWindowById(arr[i]+"_map");
-                  util.closeOneWindowById(arr[i]+"_MGC_gradient_model");
-                  util.closeOneWindowById(arr[i]+"_model");
-                  util.closeOneWindowById(arr[i]+"_highpass");
-                  util.closeOneWindowById(arr[i]+"_lowpass");
-                  util.closeOneWindowById(arr[i]+"_DBEsamples");
-                  util.closeOneWindowById(arr[i]+"_map_DBEsamples");
+            if (this.findWindowStartsWith(arr[i])) {
+                  this.closeOneWindowById(arr[i]+"_stars");
+                  this.closeOneWindowById(arr[i]+"_for_stars");
+                  this.closeOneWindowById(arr[i]+"_for_stars_HT");
+                  this.closeOneWindowById(arr[i]+"_starless");
+                  this.closeOneWindowById(arr[i]+"_map");
+                  this.closeOneWindowById(arr[i]+"_MGC_gradient_model");
+                  this.closeOneWindowById(arr[i]+"_model");
+                  this.closeOneWindowById(arr[i]+"_highpass");
+                  this.closeOneWindowById(arr[i]+"_lowpass");
+                  this.closeOneWindowById(arr[i]+"_DBEsamples");
+                  this.closeOneWindowById(arr[i]+"_map_DBEsamples");
                   if (!keep_base_image) {
-                        util.closeOneWindowById(arr[i]);
+                        this.closeOneWindowById(arr[i]);
                   }
                   if (arr[i].indexOf("Integration_") != -1) {
                         // For possible old images
-                        util.closeOneWindowById(arr[i] + "_NB_enhanced");
-                        util.closeOneWindowById(arr[i] + "_NB_combine");
-                        util.closeOneWindowById(arr[i] + "_NB_max");
-                        util.closeOneWindowById(arr[i] + "_processed_starless");
-                        util.closeOneWindowById(arr[i] + "_background");
-                        util.closeOneWindowById(arr[i] + "_map_background");
+                        this.closeOneWindowById(arr[i] + "_NB_enhanced");
+                        this.closeOneWindowById(arr[i] + "_NB_combine");
+                        this.closeOneWindowById(arr[i] + "_NB_max");
+                        this.closeOneWindowById(arr[i] + "_processed_starless");
+                        this.closeOneWindowById(arr[i] + "_background");
+                        this.closeOneWindowById(arr[i] + "_map_background");
                   }
                   if (arr[i].indexOf("AutoMasterDark") != -1) {
                         // Close all windows starting with AutoMasterDark, as we may have multiple master darks with different integration settings
                         for (;;) {
-                              var win = util.findWindowStartsWith(arr[i]);
+                              var win = this.findWindowStartsWith(arr[i]);
                               if (win == null) {
                                     break;
                               }
-                              util.closeOneWindow(win);
+                              this.closeOneWindow(win);
                         }
                   }
             }
@@ -1004,51 +1011,51 @@ function closeAllWindowsFromArray(arr, keep_base_image = false, print_names = fa
 }
 
 // close all windows created by this script
-function closeAllWindows(keep_integrated_imgs, force_close)
+closeAllWindows(keep_integrated_imgs, force_close)
 {
-      util.closeTempWindows();
+      this.closeTempWindows();
 
       if (keep_integrated_imgs) {
             var isLRGB = false;
-            for (var i = 0; i < global.integration_LRGB_windows.length; i++) {
-                  if (util.findWindow(global.integration_LRGB_windows[i]) != null) {
+            for (var i = 0; i < this.global.integration_LRGB_windows.length; i++) {
+                  if (this.findWindow(this.global.integration_LRGB_windows[i]) != null) {
                         // we have LRGB images
                         isLRGB = true;
                         break;
                   }
             }
             if (isLRGB) {
-                  closeAllWindowsFromArray(global.integration_LRGB_windows, true);        // keep_base_image = true
-                  closeAllWindowsFromArray(global.integration_color_windows, false);
-                  var integration_windows = global.integration_LRGB_windows;
+                  this.closeAllWindowsFromArray(this.global.integration_LRGB_windows, true);        // keep_base_image = true
+                  this.closeAllWindowsFromArray(this.global.integration_color_windows, false);
+                  var integration_windows = this.global.integration_LRGB_windows;
             } else {
-                  closeAllWindowsFromArray(global.integration_color_windows, true);       // keep_base_image = true
-                  closeAllWindowsFromArray(global.integration_LRGB_windows, false);
-                  var integration_windows = global.integration_color_windows;
+                  this.closeAllWindowsFromArray(this.global.integration_color_windows, true);       // keep_base_image = true
+                  this.closeAllWindowsFromArray(this.global.integration_LRGB_windows, false);
+                  var integration_windows = this.global.integration_color_windows;
             }
-            for (var i = 0; i < global.all_windows.length; i++) {
+            for (var i = 0; i < this.global.all_windows.length; i++) {
                   // check that we do not close integration windows
-                  if (!util.findFromArray(integration_windows, global.all_windows[i]) &&
-                      !util.findFromArray(global.integration_data_windows, global.all_windows[i]))
+                  if (!this.findFromArray(integration_windows, this.global.all_windows[i]) &&
+                      !this.findFromArray(this.global.integration_data_windows, this.global.all_windows[i]))
                   {
-                        util.closeOneWindowById(global.all_windows[i]);
+                        this.closeOneWindowById(this.global.all_windows[i]);
                   }
             }
       } else {
-            closeAllWindowsFromArray(global.all_windows);
-            closeAllWindowsFromArray(global.integration_LRGB_windows);
-            closeAllWindowsFromArray(global.integration_color_windows);
-            closeAllWindowsFromArray(global.integration_data_windows);
+            this.closeAllWindowsFromArray(this.global.all_windows);
+            this.closeAllWindowsFromArray(this.global.integration_LRGB_windows);
+            this.closeAllWindowsFromArray(this.global.integration_color_windows);
+            this.closeAllWindowsFromArray(this.global.integration_data_windows);
       }
-      closeAllWindowsFromArray(global.fixed_windows);
-      closeAllWindowsFromArray(global.calibrate_windows);
+      this.closeAllWindowsFromArray(this.global.fixed_windows);
+      this.closeAllWindowsFromArray(this.global.calibrate_windows);
 
-      util.closeFinalWindowsFromArray(global.final_windows, force_close);
+      this.closeFinalWindowsFromArray(this.global.final_windows, force_close);
 
-      util.runGarbageCollection();
+      this.runGarbageCollection();
 }
 
-function findFromArray(arr, id)
+findFromArray(arr, id)
 {
       for (var i = 0; i < arr.length; i++) {
             if (arr[i] == id) {
@@ -1058,7 +1065,7 @@ function findFromArray(arr, id)
       return false;
 }
 
-function fixWindowArray(arr, prev_prefix, cur_prefix)
+fixWindowArray(arr, prev_prefix, cur_prefix)
 {
     if (prev_prefix != "") {
         // in this situation we've fixed up the array at least once, but the user changed the prefix
@@ -1077,7 +1084,7 @@ function fixWindowArray(arr, prev_prefix, cur_prefix)
 
 }
 
-function getWindowPrefix(basename, curname)
+getWindowPrefix(basename, curname)
 {
       return curname.substring(0, curname.length - basename.length);
 }
@@ -1085,49 +1092,49 @@ function getWindowPrefix(basename, curname)
 // Fix all fixed window names by having the given prefix
 // We find possible previous prefix from the known fixed
 // window name
-function fixAllWindowArrays(new_prefix)
+fixAllWindowArrays(new_prefix)
 {
-      var old_prefix = getWindowPrefix("Integration_L", global.integration_LRGB_windows[0]);
+      var old_prefix = this.getWindowPrefix("Integration_L", this.global.integration_LRGB_windows[0]);
       if (old_prefix == new_prefix) {
             // no change
             // console.writeln("fixAllWindowArrays no change in prefix '" + new_prefix + "'");
             return;
       }
       // console.writeln("fixAllWindowArrays set new prefix '" + new_prefix + "'");
-      fixWindowArray(global.integration_LRGB_windows, old_prefix, new_prefix);
-      fixWindowArray(global.integration_color_windows, old_prefix, new_prefix);
-      fixWindowArray(global.integration_data_windows, old_prefix, new_prefix);
-      fixWindowArray(global.intermediate_windows, old_prefix, new_prefix);
-      fixWindowArray(global.fixed_windows, old_prefix, new_prefix);
-      fixWindowArray(global.calibrate_windows, old_prefix, new_prefix);
-      fixWindowArray(global.final_windows, old_prefix, new_prefix);
+      this.fixWindowArray(this.global.integration_LRGB_windows, old_prefix, new_prefix);
+      this.fixWindowArray(this.global.integration_color_windows, old_prefix, new_prefix);
+      this.fixWindowArray(this.global.integration_data_windows, old_prefix, new_prefix);
+      this.fixWindowArray(this.global.intermediate_windows, old_prefix, new_prefix);
+      this.fixWindowArray(this.global.fixed_windows, old_prefix, new_prefix);
+      this.fixWindowArray(this.global.calibrate_windows, old_prefix, new_prefix);
+      this.fixWindowArray(this.global.final_windows, old_prefix, new_prefix);
 }
 
-function setOutputRootDir(path)
+setOutputRootDir(path)
 {
-      if (global.outputRootDir != path) {
+      if (this.global.outputRootDir != path) {
             console.noteln("setOutputRootDir, new outputRootDir " + path);
-            global.outputRootDir = path;
+            this.global.outputRootDir = path;
       }
 }
 
-function getOutputDir(filePath)
+getOutputDir(filePath)
 {
-      var outputDir = global.outputRootDir;
-      if (global.outputRootDir == "" || util.pathIsRelative(global.outputRootDir)) {
+      var outputDir = this.global.outputRootDir;
+      if (this.global.outputRootDir == "" || this.pathIsRelative(this.global.outputRootDir)) {
             console.writeln("getOutputDir, filePath ", filePath);
             if (filePath != null && filePath != "") {
-                  outputDir = util.parseNewOutputDir(filePath, global.outputRootDir);
+                  outputDir = this.parseNewOutputDir(filePath, this.global.outputRootDir);
                   console.writeln("getOutputDir, outputDir ", outputDir);
             } else {
                   outputDir = "";
                   console.writeln("outputDir empty filePath");
             }
-            // Check if some directory in global.openedLightsDirectories is a prefix
+            // Check if some directory in this.global.openedLightsDirectories is a prefix
             // for the outputDir, then we use the directory from the list
-            if (global.openedLightsDirectories.length > 0) {
-                  for (var i = 0; i < global.openedLightsDirectories.length; i++) {
-                        var dir = util.ensurePathEndSlash(global.openedLightsDirectories[i]);
+            if (this.global.openedLightsDirectories.length > 0) {
+                  for (var i = 0; i < this.global.openedLightsDirectories.length; i++) {
+                        var dir = this.ensurePathEndSlash(this.global.openedLightsDirectories[i]);
                         console.writeln("getOutputDir, openedLightsDirectories[ " + i + "] " + dir);
                         if (outputDir.startsWith(dir)) {
                               outputDir = dir;
@@ -1143,10 +1150,10 @@ function getOutputDir(filePath)
 }
 
 // Write something to a directory to test if it is writeable
-function testDirectoryIsWriteable(dir)
+testDirectoryIsWriteable(dir)
 {
-      var fname = util.ensurePathEndSlash(dir) + "info.txt";
-      var info = global.getDirectoryInfo(true);
+      var fname = this.ensurePathEndSlash(dir) + "info.txt";
+      var info = this.global.getDirectoryInfo(true);
       try {
             let file = new File();
             file.createForWriting(fname);
@@ -1154,107 +1161,103 @@ function testDirectoryIsWriteable(dir)
             file.close();
       } catch (error) {
             console.criticalln(error);
-            util.throwFatalError("Failed to write to directory " + dir);
+            this.throwFatalError("Failed to write to directory " + dir);
       }
 }
 
-function ensureDir(dir)
+writeTextToFile(dir, file, text)
+{
+      var fname = this.ensurePathEndSlash(dir) + file;
+      try {
+            let file = new File();
+            file.createForWriting(fname);
+            file.outTextLn(text);
+            file.close();
+      } catch (error) {
+            console.criticalln(error);
+            this.throwFatalError("Failed to write to file " + fname);
+      }
+}
+
+ensureDir(dir)
 {
       // console.writeln("ensureDir " + dir)
       if (dir == "") {
             return;
       }
-      var noslashdir = util.removePathEndSlash(dir);
-      noslashdir = util.removePathEndDot(noslashdir);
+      var noslashdir = this.removePathEndSlash(dir);
+      noslashdir = this.removePathEndDot(noslashdir);
       if (!File.directoryExists(noslashdir)) {
             console.writeln("Create directory " + noslashdir);
             File.createDirectory(noslashdir);
             if (!File.directoryExists(noslashdir)) {
-                  util.throwFatalError("Failed to create directory " + noslashdir);
+                  this.throwFatalError("Failed to create directory " + noslashdir);
             }
-            util.testDirectoryIsWriteable(noslashdir);
+            this.testDirectoryIsWriteable(noslashdir);
       }
 }
 
-function saveLastDir(dirname)
+saveLastDir(dirname)
 {
-      ppar.lastDir = util.removePathEndSlash(dirname);
-      if (!global.do_not_write_settings) {
-            Settings.write(SETTINGSKEY + '/lastDir', DataType_String, ppar.lastDir);
-            if (global.debug) console.writeln("Save lastDir '" + ppar.lastDir + "'");
+      this.ppar.lastDir = this.removePathEndSlash(dirname);
+      if (!this.global.do_not_write_settings) {
+            Settings.write("AutoIntegrate" + '/lastDir', DataType.String, this.ppar.lastDir);
+            if (this.global.debug) console.writeln("Save lastDir '" + this.ppar.lastDir + "'");
       }
 }
 
-function restoreLastDir()
+restoreLastDir()
 {
-      var tempSetting = Settings.read(SETTINGSKEY + "/lastDir", DataType_String);
+      var tempSetting = Settings.read("AutoIntegrate" + "/lastDir", DataType.String);
       if (Settings.lastReadOK) {
-            if (global.debug) console.writeln("AutoIntegrate: Restored lastDir '" + tempSetting + "' from settings.");
-            ppar.lastDir = tempSetting;
+            if (this.global.debug) console.writeln("AutoIntegrate: Restored lastDir '" + tempSetting + "' from settings.");
+            this.ppar.lastDir = tempSetting;
       }
 }
 
-function saveMasterDir(dirname)
+saveMasterDir(dirname)
 {
-      ppar.masterDir = util.removePathEndSlash(dirname);
-      if (!global.do_not_write_settings) {
-            Settings.write(SETTINGSKEY + '/masterDir', DataType_String, ppar.masterDir);
-            if (global.debug) console.writeln("Save masterDir '" + ppar.masterDir + "'");
+      this.ppar.masterDir = this.removePathEndSlash(dirname);
+      if (!this.global.do_not_write_settings) {
+            Settings.write("AutoIntegrate" + '/masterDir', DataType.String, this.ppar.masterDir);
+            if (this.global.debug) console.writeln("Save masterDir '" + this.ppar.masterDir + "'");
       }
 }
 
-function restoreMasterDir()
+restoreMasterDir()
 {
-      var tempSetting = Settings.read(SETTINGSKEY + "/masterDir", DataType_String);
+      var tempSetting = Settings.read("AutoIntegrate" + "/masterDir", DataType.String);
       if (Settings.lastReadOK) {
-            if (global.debug) console.writeln("AutoIntegrate: Restored masterDir '" + tempSetting + "' from settings.");
-            ppar.masterDir = tempSetting;
+            if (this.global.debug) console.writeln("AutoIntegrate: Restored masterDir '" + tempSetting + "' from settings.");
+            this.ppar.masterDir = tempSetting;
       }
 }
 
-function readAndMigrateSetting(newname, oldname, type, old_interface_version)
+readOneParameterFromPersistentModuleSettings(name, type)
 {
-      if (global.ppar.savedInterfaceVersion <= old_interface_version) {
-            // Migrate from old interface version setting
-            var val = Settings.read(oldname, type);
-            if (Settings.lastReadOK && !global.do_not_write_settings) {
-                  if (global.debug) console.writeln("AutoIntegrate: Migrate setting " + oldname + " to " + newname + "=" + val);
-                  Settings.write(SETTINGSKEY + '/' + newname, type, val);
-                  Settings.remove(oldname);   // Remove old setting
-            }
-      } else {
-            var key = SETTINGSKEY + '/' + newname;
-            var val = Settings.read(key, type);
-            if (global.debug) console.writeln("AutoIntegrate: Read setting " + key + "=" + val);
-      }
-      return val;
-}
-
-function readOneParameterFromPersistentModuleSettings(name, type)
-{
-      name = SETTINGSKEY + '/' + util.mapBadChars(name);
+      name = "AutoIntegrate" + '/' + this.mapBadChars(name);
       switch (type) {
             case 'S':
-                  var tempSetting = Settings.read(name, DataType_String);
+                  var tempSetting = Settings.read(name, DataType.String);
                   break;
             case 'O':
-                  var tempSetting = Settings.read(name, DataType_String);
+                  var tempSetting = Settings.read(name, DataType.String);
                   break;
             case 'B':
-                  var tempSetting = Settings.read(name, DataType_Boolean);
+                  var tempSetting = Settings.read(name, DataType.Boolean);
                   break;
             case 'I':
-                  var tempSetting = Settings.read(name, DataType_Int32);
+                  var tempSetting = Settings.read(name, DataType.Int32);
                   break;
             case 'R':
-                  var tempSetting = Settings.read(name, DataType_Real32);
+                  var tempSetting = Settings.read(name, DataType.Real32);
                   break;
             default:
-                  util.throwFatalError("Unknown type '" + type + '" for parameter ' + name);
+                  this.throwFatalError("Unknown type '" + type + '" for parameter ' + name);
                   break;
       }
       if (Settings.lastReadOK) {
-            console.writeln("AutoIntegrate: read from settings " + name + "=" + tempSetting);
+            console.writeln("AutoIntegrate: read parameter from settings " + name + "=" + tempSetting);
             if (type == 'O') {
                   // Convert Json string to an object
                   tempSetting = JSON.parse(tempSetting);
@@ -1265,64 +1268,67 @@ function readOneParameterFromPersistentModuleSettings(name, type)
       }
 }
 
-function readParameterFromSettings(param)
+readParameterFromSettings(param)
 {
-      var val = readOneParameterFromPersistentModuleSettings(param.name, param.type);
+      var val = this.readOneParameterFromPersistentModuleSettings(param.name, param.type);
       if (val == null && param.oldname != undefined) {
-            val = readOneParameterFromPersistentModuleSettings(param.oldname, param.type);
+            val = this.readOneParameterFromPersistentModuleSettings(param.oldname, param.type);
       }
       if (val != null) {
-            global.setParameterValue(param, val);
+            this.global.setParameterValue(param, val);
+            if (param.reset != undefined) {
+                  param.reset();
+            }
       }
 }
 
 // Read default parameters from persistent module settings
-function readParametersFromPersistentModuleSettings()
+readParametersFromPersistentModuleSettings()
 {
-      if (global.do_not_read_settings) {
+      if (this.global.do_not_read_settings) {
             console.writeln("Use default settings, do not read parameter values from persistent module settings");
             return;
       }
-      if (!global.ai_use_persistent_module_settings) {
+      if (!this.global.ai_use_persistent_module_settings) {
             console.writeln("skip readParametersFromPersistentModuleSettings");
             return;
       }
       console.writeln("readParametersFromPersistentModuleSettings");
-      for (let x in par) {
-            util.readParameterFromSettings(par[x]);
+      for (let x in this.par) {
+            this.readParameterFromSettings(this.par[x]);
       }
 }
 
-function writeParameterToSettings(param)
+writeParameterToSettings(param)
 {
-      var name = SETTINGSKEY + '/' + util.mapBadChars(param.name);
-      if (global.isParameterChanged(param)) {
+      var name = "AutoIntegrate" + '/' + this.mapBadChars(param.name);
+      if (this.global.isParameterChanged(param)) {
             // not a default value, save setting
             console.writeln("AutoIntegrate: save to settings " + name + "=" + param.val);
             switch (param.type) {
                   case 'S':
-                        Settings.write(name, DataType_String, param.val);
+                        Settings.write(name, DataType.String, param.val);
                         break;
                   case 'O':
                         // Write object as a Json string
-                        Settings.write(name, DataType_String, JSON.stringify(param.val));
+                        Settings.write(name, DataType.String, JSON.stringify(param.val));
                         break;
                   case 'B':
-                        Settings.write(name, DataType_Boolean, param.val);
+                        Settings.write(name, DataType.Boolean, param.val);
                         break;
                   case 'I':
-                        Settings.write(name, DataType_Int32, param.val);
+                        Settings.write(name, DataType.Int32, param.val);
                         break;
                   case 'R':
-                        Settings.write(name, DataType_Real32, param.val);
+                        Settings.write(name, DataType.Real32, param.val);
                         break;
                   default:
-                        util.throwFatalError("Unknown type '" + param.type + '" for parameter ' + name);
+                        this.throwFatalError("Unknown type '" + param.type + '" for parameter ' + name);
                         break;
             }
             if (param.oldname != undefined) {
                   // remove old name
-                  Settings.remove(SETTINGSKEY + '/' + util.mapBadChars(param.oldname));
+                  Settings.remove("AutoIntegrate" + '/' + this.mapBadChars(param.oldname));
             }
       } else {
             // default value, remove possible setting
@@ -1330,16 +1336,16 @@ function writeParameterToSettings(param)
       }
 }
 
-function combinePath(p1, p2)
+combinePath(p1, p2)
 {
       if (p1 == "") {
             return "";
       } else {
-            return util.normalizePath(util.ensurePathEndSlash(p1) + p2);
+            return this.normalizePath(this.ensurePathEndSlash(p1) + p2);
       }
 }
 
-function saveWindowEx(path, id, optional_unique_part, optional_save_id, optional_extension = ".xisf")
+saveWindowEx(path, id, optional_unique_part, optional_save_id, optional_extension = ".xisf")
 {
       if (path == null || id == null) {
             return null;
@@ -1352,11 +1358,11 @@ function saveWindowEx(path, id, optional_unique_part, optional_save_id, optional
             console.writeln("saveWindowEx " + fname);
       }
 
-      if (global.get_flowchart_data) {
+      if (this.global.get_flowchart_data) {
             return fname;
       }
 
-      var w = util.findWindow(id);
+      var w = this.findWindow(id);
 
       if (w == null) {
             return null;
@@ -1365,43 +1371,43 @@ function saveWindowEx(path, id, optional_unique_part, optional_save_id, optional
       // Save image. No format options, no warning messages, 
       // no strict mode, no overwrite checks.
       if (!w.saveAs(fname, false, false, false, false)) {
-            util.throwFatalError("Failed to save image: " + fname);
+            this.throwFatalError("Failed to save image: " + fname);
       }
       return fname;
 }
 
-function saveWindowAsJpg(imgWin, jpeg_filename, quality)
+saveWindowAsJpg(imgWin, jpeg_filename, quality)
 {
       console.writeln("saveWindowAsJpg " + jpeg_filename + " quality " + quality);
       var fileFormat = new FileFormat( ".jpg", false/*toRead*/, true/*toWrite*/ );
       if (fileFormat.isNull) {
-            throwFatalError("No installed file format can write .jpg files.");
+            this.throwFatalError("No installed file format can write .jpg files.");
       }
       var file = new FileFormatInstance( fileFormat );
       if (file.isNull) {
-            throwFatalError("Unable to instantiate file format: " + fileFormat.name);
+            this.throwFatalError("Unable to instantiate file format: " + fileFormat.name);
       }
       if (!file.create(jpeg_filename, format("quality %d", quality))) {
-            throwFatalError("Error creating file: " + jpeg_filename);
+            this.throwFatalError("Error creating file: " + jpeg_filename);
       }
       if (!file.writeImage( imgWin.mainView.image)) {
-            throwFatalError("Error writing file: " + jpeg_filename);
+            this.throwFatalError("Error writing file: " + jpeg_filename);
       }
       file.close();
 }
 
-function getOptionalUniqueFilenamePart()
+getOptionalUniqueFilenamePart()
 {
-      if (par.unique_file_names.val) {
+      if (this.par.unique_file_names.val) {
             return format("_%04d%02d%02d_%02d%02d%02d",
-                          global.processingDate.getFullYear(), global.processingDate.getMonth() + 1, global.processingDate.getDate(),
-                          global.processingDate.getHours(), global.processingDate.getMinutes(), global.processingDate.getSeconds());
+                          this.global.processingDate.getFullYear(), this.global.processingDate.getMonth() + 1, this.global.processingDate.getDate(),
+                          this.global.processingDate.getHours(), this.global.processingDate.getMinutes(), this.global.processingDate.getSeconds());
       } else {
             return "";
       }
 }
 
-function saveFinalImageWindow(win, dir, name, bits)
+saveFinalImageWindow(win, dir, name, bits)
 {
       console.writeln("saveFinalImageWindow " + name);
       var copy_win = null;
@@ -1410,13 +1416,13 @@ function saveFinalImageWindow(win, dir, name, bits)
 
       // Bits 1 mean JPG
       if (bits == 1) {
-            saveWindowAsJpg(win, util.ensurePathEndSlash(dir) + name + util.getOptionalUniqueFilenamePart() + ".jpg", par.save_final_image_jpg_quality.val);
+            this.saveWindowAsJpg(win, this.ensurePathEndSlash(dir) + name + this.getOptionalUniqueFilenamePart() + ".jpg", this.par.save_final_image_jpg_quality.val);
             return;
       }
 
       if (bits == 8 || bits == 16) {
             // 8 and 16 bite are TIFF, 32 is XISF
-            copy_win = util.copyWindow(win, util.ensure_win_prefix(name + "_savetmp"));
+            copy_win = this.copyWindow(win, this.ensure_win_prefix(name + "_savetmp"));
             if (bits == 16) {
                   var new_postfix = "";
             } else {
@@ -1424,10 +1430,10 @@ function saveFinalImageWindow(win, dir, name, bits)
             }
             var old_postfix = name.substr(name.length - new_postfix.length);
             if (old_postfix != new_postfix) {
-                  save_name = this.ensurePathEndSlash(dir) + name + new_postfix + util.getOptionalUniqueFilenamePart() + ".tif";
+                  save_name = this.ensurePathEndSlash(dir) + name + new_postfix + this.getOptionalUniqueFilenamePart() + ".tif";
             } else {
                   // we already have bits added to name
-                  save_name = util.ensurePathEndSlash(dir) + name + util.getOptionalUniqueFilenamePart() + ".tif";
+                  save_name = this.ensurePathEndSlash(dir) + name + this.getOptionalUniqueFilenamePart() + ".tif";
             }
 
             if (copy_win.bitsPerSample != bits) {
@@ -1437,22 +1443,22 @@ function saveFinalImageWindow(win, dir, name, bits)
             save_win = copy_win;
       } else if (bits == 32) {
             // 32 bits is XISF
-            save_name = util.ensurePathEndSlash(dir) + name + util.getOptionalUniqueFilenamePart() + ".xisf";
+            save_name = this.ensurePathEndSlash(dir) + name + this.getOptionalUniqueFilenamePart() + ".xisf";
       } else  {
-            util.throwFatalError("Unsupported bits per sample: " + bits);
+            this.throwFatalError("Unsupported bits per sample: " + bits);
       }
       console.writeln("saveFinalImageWindow:save name " + name);
       // Save image. No format options, no warning messages, 
       // no strict mode, no overwrite checks.
       if (!save_win.saveAs(save_name, false, false, false, false)) {
-            util.throwFatalError("Failed to save image: " + save_name);
+            this.throwFatalError("Failed to save image: " + save_name);
       }
       if (copy_win != null) {
-            util.closeOneWindow(copy_win);
+            this.closeOneWindow(copy_win);
       }
 }
 
-function saveAllFinalImageWindows(bits)
+saveAllFinalImageWindows(bits)
 {
       console.writeln("saveAllFinalImageWindows");
 
@@ -1460,14 +1466,14 @@ function saveAllFinalImageWindows(bits)
       // a final image file
       var images = ImageWindow.windows;
       var finalimages = [];
-      for (var i in images) {
+      for (var i = 0; i < images.length; i++) {
             var imageWindow = images[i];
             var keywords = imageWindow.keywords;
             if (keywords != null && keywords != undefined) {
                   for (var j = 0; j != keywords.length; j++) {
                         var keyword = keywords[j].name;
                         var value = keywords[j].strippedValue.trim();
-                        if (par.save_all_files.val) {
+                        if (this.par.save_all_files.val) {
                               var savefile = keyword == "AutoIntegrate" && (value == "finalimage" || value == "processedimage");
                         } else {
                               var savefile = keyword == "AutoIntegrate" && value == "finalimage";
@@ -1498,49 +1504,49 @@ function saveAllFinalImageWindows(bits)
       if (filePath != null) {
             gdd.initialPath = File.extractDrive(filePath) + File.extractDirectory(filePath);
       } else {
-            gdd.initialPath = ppar.lastDir;
+            gdd.initialPath = this.ppar.lastDir;
       }
 
       if (gdd.execute()) {
             console.writeln("saveAllFinalImageWindows:dir " + gdd.directory);
-            util.saveLastDir(gdd.directory);
+            this.saveLastDir(gdd.directory);
             for (var i = 0; i < finalimages.length; i++) {
-                  util.saveFinalImageWindow(finalimages[i], gdd.directory, finalimages[i].mainView.id, bits);
+                  this.saveFinalImageWindow(finalimages[i], gdd.directory, finalimages[i].mainView.id, bits);
             }
       }
       console.writeln("All final image windows are saved!");
 }
 
-function fatalWindowNameFailed(txt)
+fatalWindowNameFailed(txt)
 {
       console.criticalln(txt);
       console.criticalln("Close old images or use a different window prefix.");
-      util.throwFatalError("Processing stopped");
+      this.throwFatalError("Processing stopped");
 }
 
-function add_test_image(id, testid, testmode)
+add_test_image(id, testid, testmode)
 {
       if (testmode) {
-            var copy_id = ppar.win_prefix + testid;
-            util.closeOneWindowById(copy_id);
+            var copy_id = this.ppar.win_prefix + testid;
+            this.closeOneWindowById(copy_id);
             console.writeln("add_test_image " + id + " as " + copy_id);
-            util.copyWindowEx(util.findWindow(id), copy_id, true);
-            global.test_image_ids.push(copy_id);
+            this.copyWindowEx(this.findWindow(id), copy_id, true);
+            this.global.test_image_ids.push(copy_id);
       }
 }
 
-function copyWindowEx(sourceWindow, name, allow_duplicate_name)
+copyWindowEx(sourceWindow, name, allow_duplicate_name)
 {
-      name = validateViewIdCharacters(name);
+      name = this.validateViewIdCharacters(name);
       
-      if (par.debug.val) {
+      if (this.par.debug.val) {
             console.writeln("copyWindowEx " + sourceWindow.mainView.id + " to " + name + ", allow_duplicate_name " + allow_duplicate_name);
       }
-      if (global.get_flowchart_data) {
+      if (this.global.get_flowchart_data) {
             allow_duplicate_name = true;
       }
       if (sourceWindow == null) {
-            util.throwFatalError("No source window, cannot copy to " + name);
+            this.throwFatalError("No source window, cannot copy to " + name);
       }
       var targetWindow = new ImageWindow(
                               sourceWindow.mainView.image.width,
@@ -1548,36 +1554,41 @@ function copyWindowEx(sourceWindow, name, allow_duplicate_name)
                               sourceWindow.mainView.image.numberOfChannels,
                               sourceWindow.mainView.window.bitsPerSample,
                               sourceWindow.mainView.window.isFloatSample,
-                              sourceWindow.mainView.image.colorSpace != ColorSpace_Gray,
+                              sourceWindow.mainView.image.colorSpace != ColorSpace.Gray,
                               name);
-      targetWindow.mainView.beginProcess(UndoFlag_NoSwapFile);
+      targetWindow.mainView.beginProcess(UndoFlag.NoSwapFile);
       targetWindow.mainView.image.assign(sourceWindow.mainView.image);
       targetWindow.keywords = sourceWindow.keywords;
-      if (global.pixinsight_version_num >= 1080902) {
+      if (this.global.pixinsight_version_num >= 1080902) {
             targetWindow.copyAstrometricSolution(sourceWindow);
       }
       targetWindow.mainView.endProcess();
 
       targetWindow.show();
 
-      util.addScriptWindow(name);
+      this.addScriptWindow(name);
 
       if (targetWindow.mainView.id != name && !allow_duplicate_name) {
-            util.fatalWindowNameFailed("Failed to copy window to name " + name + ", copied window name is " + targetWindow.mainView.id);
+            this.fatalWindowNameFailed("Failed to copy window to name " + name + ", copied window name is " + targetWindow.mainView.id);
       }
 
-      if (!global.get_flowchart_data || par.debug.val) {
-            if (global.debug) console.writeln("copy window " + sourceWindow.mainView.id + " to " + name);
+      if (!this.global.get_flowchart_data || this.par.debug.val) {
+            if (this.global.debug) console.writeln("copy window " + sourceWindow.mainView.id + " to " + name);
       }
 
-      if (global.get_flowchart_data) {
-            global.flowchartWindows[global.flowchartWindows.length] = targetWindow.mainView.id;
+      if (this.global.get_flowchart_data) {
+            this.global.flowchartWindows[this.global.flowchartWindows.length] = targetWindow.mainView.id;
+      }
+
+      // Skip some temporary images
+      if (name.indexOf("preview_tmp") == -1) {
+            this.addExecutedProcessScriptAction("copyWindow", [ sourceWindow.mainView.id, name ]);
       }
 
       return targetWindow;
 }
 
-function arraysEqual(a, b) {
+arraysEqual(a, b) {
       if (a === b) return true;
       if (a == null || b == null) return false;
       if (a.length != b.length) return false;
@@ -1587,40 +1598,40 @@ function arraysEqual(a, b) {
       return true;
 }
 
-function copyWindow(sourceWindow, name)
+copyWindow(sourceWindow, name)
 {
-      return util.copyWindowEx(sourceWindow, name, false);
+      return this.copyWindowEx(sourceWindow, name, false);
 }
 
 
-function forceCopyWindow(sourceWindow, name)
+forceCopyWindow(sourceWindow, name)
 {
-      util.closeOneWindowById(name);
-      return util.copyWindowEx(sourceWindow, name, false);
+      this.closeOneWindowById(name);
+      return this.copyWindowEx(sourceWindow, name, false);
 }
 
 /* Open a file as image window. */
-function openImageWindowFromFile(fileName, allow_missing_file = false, close_old_window = false)
+openImageWindowFromFile(fileName, allow_missing_file = false, close_old_window = false)
 {
       if (allow_missing_file && !File.exists(fileName)) {
             return null;
       }
       var id = File.extractName(fileName);
       if (close_old_window) {
-            util.closeOneWindowById(id);
+            this.closeOneWindowById(id);
       }
       var imageWindows = ImageWindow.open(fileName);
       if (!imageWindows || imageWindows.length == 0) {
-            util.throwFatalError("*** openImageWindowFromFile Error: imageWindows.length: " + imageWindows.length + ", file " + fileName);
+            this.throwFatalError("*** openImageWindowFromFile Error: imageWindows.length: " + imageWindows.length + ", file " + fileName);
       }
       var imageWindow = imageWindows[0];
       if (imageWindow == null) {
-            util.throwFatalError("*** openImageWindowFromFile Error: Can't read file: " + fileName);
+            this.throwFatalError("*** openImageWindowFromFile Error: Can't read file: " + fileName);
       }
       return imageWindow;
 }
 
-function copyAstrometricSolutionFromWindow(targetWindow, imgWin)
+copyAstrometricSolutionFromWindow(targetWindow, imgWin)
 {
       console.writeln("copyAstrometricSolutionFromWindow from " + imgWin.mainView.id + " to " + targetWindow.mainView.id);
 
@@ -1638,11 +1649,11 @@ function copyAstrometricSolutionFromWindow(targetWindow, imgWin)
       return succ;
 }
 
-function copyAstrometricSolutionFromFile(targetId, fname)
+copyAstrometricSolutionFromFile(targetId, fname)
 {
       console.writeln("copyAstrometricSolutionFromFile from " + fname + " to " + targetId);
 
-      var targetWindow = util.findWindow(targetId);
+      var targetWindow = this.findWindow(targetId);
       if (targetWindow == null) {
             console.criticalln("copyAstrometricSolutionFromFile: target window not found " + targetId);
             return false;
@@ -1650,18 +1661,18 @@ function copyAstrometricSolutionFromFile(targetId, fname)
       targetWindow.show();
 
       console.writeln("copyAstrometricSolutionFromFile: open " + fname);
-      var imgWin = util.openImageWindowFromFile(fname);
+      var imgWin = this.openImageWindowFromFile(fname);
       imgWin.show();
 
-      var succ = util.copyAstrometricSolutionFromWindow(targetWindow, imgWin);
+      var succ = this.copyAstrometricSolutionFromWindow(targetWindow, imgWin);
 
-      util.closeOneWindowById(imgWin.mainView.id);
+      this.closeOneWindowById(imgWin.mainView.id);
       return succ;
 }
 
 // Update keywords in target window with keywords from source window
 // using a list of keywords to update
-function updateWindowKeywords(target_keywords, source_keywords, keyword_list)
+updateWindowKeywords(target_keywords, source_keywords, keyword_list)
 {
       console.writeln("updateWindowKeywords");
 
@@ -1701,73 +1712,53 @@ function updateWindowKeywords(target_keywords, source_keywords, keyword_list)
       return new_keywords;
 }
 
-function copyKeywordsFromWindow(targetWindow, imgWin)
+copyKeywordsFromWindow(targetWindow, imgWin)
 {
       console.writeln("copyKeywordsFromWindow from " + targetWindow.mainView.id + " to " + imgWin.mainView.id);
 
-      var source_metadata = new ImageMetadata();
-      source_metadata.ExtractMetadata(imgWin);
-      console.writeln("copyKeywordsFromWindow source metadata: " + JSON.stringify(source_metadata, null, 2));
-
-      if (1) {
-            var keyword_list = [
-                  "RADESYS",
-                  "RA",
-                  "DEC",
-                  "OBJCTRA",
-                  "OBJCTDEC",
-                  "DATE-OBS",
-                  "DATE-BEG",
-                  "DATE-END",
-                  "OBSGEO-L",
-                  "OBSGEO-B",
-                  "OBSGEO-H",
-                  "FOCALLEN",
-                  "FOCAL",
-                  "XPIXSZ",
-                  "YPIXSZ",
-                  "EXPTIME",
-                  "SITELONG",
-                  "SITELAT",
-                  "LAT-OBS",
-                  "LONG-OBS",
-                  "ALT-OBS",
-                  "TELESCOP",
-                  "INSTRUME",
-                  "OBJECT",
-                  "OBSERVER",
-                  "OWNER",
-                  "NAXIS1",
-                  "NAXIS2",
-                  "BSCALE",
-                  "BZERO",
-                  "CREATOR",
-                  "OBSERVAT",
-                  "TIMESYS"
-            ];
-            targetWindow.keywords = updateWindowKeywords(targetWindow.keywords, imgWin.keywords, keyword_list);
-      } else {
-            var old_target_metadata = new ImageMetadata();
-            old_target_metadata.ExtractMetadata(targetWindow);
-            console.writeln("copyKeywordsFromWindow old target metadata: " + JSON.stringify(old_target_metadata, null, 2));
-
-            source_metadata.UpdateBasicKeywords(targetWindow.keywords);
-
-            if (imgWin.astrometricSolutionSummary().length > 0) {
-                  util.copyAstrometricSolutionFromWindow(targetWindow, imgWin);
-            }
-
-      }
-      var new_target_metadata = new ImageMetadata();
-      new_target_metadata.ExtractMetadata(targetWindow);
-      console.writeln("copyKeywordsFromWindow new target metadata: " + JSON.stringify(new_target_metadata, null, 2));
+      var keyword_list = [
+            "RADESYS",
+            "RA",
+            "DEC",
+            "OBJCTRA",
+            "OBJCTDEC",
+            "DATE-OBS",
+            "DATE-BEG",
+            "DATE-END",
+            "OBSGEO-L",
+            "OBSGEO-B",
+            "OBSGEO-H",
+            "FOCALLEN",
+            "FOCAL",
+            "XPIXSZ",
+            "YPIXSZ",
+            "EXPTIME",
+            "SITELONG",
+            "SITELAT",
+            "LAT-OBS",
+            "LONG-OBS",
+            "ALT-OBS",
+            "TELESCOP",
+            "INSTRUME",
+            "OBJECT",
+            "OBSERVER",
+            "OWNER",
+            "NAXIS1",
+            "NAXIS2",
+            "BSCALE",
+            "BZERO",
+            "CREATOR",
+            "OBSERVAT",
+            "TIMESYS"
+      ];
+      targetWindow.keywords = this.updateWindowKeywords(targetWindow.keywords, imgWin.keywords, keyword_list);
 }
 
-function copyKeywordsFromFile(targetId, fname)
+copyKeywordsFromFile(targetId, fname)
 {
       console.writeln("copyKeywordsFromFile from " + fname + " to " + targetId);
 
-      var targetWindow = util.findWindow(targetId);
+      var targetWindow = this.findWindow(targetId);
       if (targetWindow == null) {
             console.criticalln("copyKeywordsFromFile: target window not found " + targetId);
             return false;
@@ -1775,20 +1766,20 @@ function copyKeywordsFromFile(targetId, fname)
       targetWindow.show();
 
       console.writeln("copyKeywordsFromFile: open " + fname);
-      var imgWin = util.openImageWindowFromFile(fname);
+      var imgWin = this.openImageWindowFromFile(fname);
       if (imgWin == null) {
             console.criticalln("copyKeywordsFromFile: failed to open " + fname);
             return false;
       }
       imgWin.show();
 
-      util.copyKeywordsFromWindow(targetWindow, imgWin);
+      this.copyKeywordsFromWindow(targetWindow, imgWin);
 
       imgWin.forceClose();
       return true;
 }
 
-function createEmptyBitmap(width, height, fill_color)
+createEmptyBitmap(width, height, fill_color)
 {
       var bitmap = new Bitmap(width, height);
 
@@ -1797,20 +1788,12 @@ function createEmptyBitmap(width, height, fill_color)
       return bitmap;
 }
 
-function createImageFromBitmap(bitmap)
+createImageFromBitmap(bitmap)
 {
-      var image = new Image(
-                        bitmap.width, 
-                        bitmap.height,
-                        3,
-                        ColorSpace_RGB);
-
-      image.blend(bitmap);
-                  
-      return image;
+      return bitmap.toImage();
 }
 
-function createWindowFromBitmap(bitmap, id)
+createWindowFromBitmap(bitmap, id)
 {
       var win = new ImageWindow(
                         bitmap.width,
@@ -1821,73 +1804,80 @@ function createWindowFromBitmap(bitmap, id)
                         true,
                         id);
 
-      win.mainView.beginProcess(UndoFlag_NoSwapFile);
+      win.mainView.beginProcess(UndoFlag.NoSwapFile);
       win.mainView.image.blend(bitmap);
       win.mainView.endProcess();
                   
       return win;
 }
 
-function getWindowBitmap(imgWin)
+getWindowBitmap(imgWin)
 {
       var bmp = new Bitmap(imgWin.mainView.image.width, imgWin.mainView.image.height);
       bmp.assign(imgWin.mainView.image.render());
       return bmp;
 }
 
-function createWindowFromImage(image, name, allow_duplicate_name)
+createWindowFromImage(image, name, allow_duplicate_name)
 {
-      if (par.debug.val) {
+      if (this.par.debug.val) {
             console.writeln("createWindowFromImage " + name + ", allow_duplicate_name " + allow_duplicate_name);
       }
-      if (global.get_flowchart_data) {
+      if (this.global.get_flowchart_data) {
             allow_duplicate_name = true;
       }
       if (image == null) {
-            util.throwFatalError("Image not found, cannot create " + name);
+            this.throwFatalError("Image not found, cannot create " + name);
       }
-      if (par.debug.val) {
+      if (this.par.debug.val) {
             console.writeln("createWindowFromImage, create new image, width " + image.width + "x" + image.height);
       }
       if (image.width <= 0 || image.height <= 0) {
-            util.throwFatalError("Image has invalid size " + image.width + "x" + image.height + ", cannot create " + name);
+            this.throwFatalError("Image has invalid size " + image.width + "x" + image.height + ", cannot create " + name);
       }
       var targetWindow = new ImageWindow(image.width, image.height);
       targetWindow.mainView.id = name;
 
-      targetWindow.mainView.beginProcess(UndoFlag_NoSwapFile);
+      targetWindow.mainView.beginProcess(UndoFlag.NoSwapFile);
       targetWindow.mainView.image.assign(image);
       targetWindow.mainView.endProcess();
 
-      util.addScriptWindow(name);
+      this.addScriptWindow(name);
 
       if (targetWindow.mainView.id != name && !allow_duplicate_name) {
-            util.fatalWindowNameFailed("Failed to create window with name " + name + ", window name is " + targetWindow.mainView.id);
+            this.fatalWindowNameFailed("Failed to create window with name " + name + ", window name is " + targetWindow.mainView.id);
       }
 
-      if (!global.get_flowchart_data || par.debug.val) {
+      if (!this.global.get_flowchart_data || this.par.debug.val) {
             console.writeln("createWindowFromImage " + name);
       }
 
-      if (global.get_flowchart_data) {
-            global.flowchartWindows[global.flowchartWindows.length] = targetWindow.mainView.id;
+      if (this.global.get_flowchart_data) {
+            this.global.flowchartWindows[this.global.flowchartWindows.length] = targetWindow.mainView.id;
       }
 
-      if (par.debug.val) {
+      if (this.par.debug.val) {
             console.writeln("createWindowFromImage, return image, name " + targetWindow.mainView.id);
       }
       return targetWindow;
 }
 
-function addProcessingStep(txt)
+printMemoryStatus(txt = "")
 {
-      console.noteln("AutoIntegrate: " + txt);
-      global.processing_steps = global.processing_steps + "\n" + txt;
+      let memoryStatus = System.physicalMemoryStatus();
+      console.writeln("Memory status: " + parseInt((memoryStatus.totalBytes - memoryStatus.availableBytes) / (1024 * 1024)) + " MB used" + (txt ? " - " + txt : ""));
 }
 
-function updateStatusInfoLabel(txt, write_to_console = false)
+addProcessingStep(txt)
 {
-      if (global.get_flowchart_data) {
+      console.noteln("AutoIntegrate: " + txt);
+      this.printMemoryStatus(txt);
+      this.global.processing_steps = this.global.processing_steps + "\n" + txt;
+}
+
+updateStatusInfoLabel(txt, write_to_console = false)
+{
+      if (this.global.get_flowchart_data) {
             return;
       }
       if (write_to_console) {
@@ -1896,14 +1886,14 @@ function updateStatusInfoLabel(txt, write_to_console = false)
       if (txt.length > 100) {
             txt = txt.substring(0, 100);
       }
-      if (global.statusInfoLabel != null) {
-            global.statusInfoLabel.text = txt;
+      if (this.global.statusInfoLabel != null) {
+            this.global.statusInfoLabel.text = txt;
       }
 }
 
 // Add critical status message to a list of messages
 // and update status info label
-function addCriticalStatus(txt)
+addCriticalStatus(txt)
 {
       if (txt == null || txt == undefined || txt == "") {
             return;
@@ -1913,14 +1903,14 @@ function addCriticalStatus(txt)
       }
       txt = txt.trim();
       console.criticalln("Error: " + txt);
-      if (global.processing_errors == "") {
-            global.processing_errors = "Error: " + txt;
+      if (this.global.processing_errors == "") {
+            this.global.processing_errors = "Error: " + txt;
       } else {
-            global.processing_errors = global.processing_errors + "\n" + "Error: " + txt;
+            this.global.processing_errors = this.global.processing_errors + "\n" + "Error: " + txt;
       }
 }
 
-function addWarningStatus(txt)
+addWarningStatus(txt)
 {
       if (txt == null || txt == undefined || txt == "") {
             return;
@@ -1930,28 +1920,28 @@ function addWarningStatus(txt)
       }
       txt = txt.trim();
       console.warningln("Warning: " + txt);
-      if (global.processing_warnings == "") {
-            global.processing_warnings = "Warning: " + txt;
+      if (this.global.processing_warnings == "") {
+            this.global.processing_warnings = "Warning: " + txt;
       } else {
-            global.processing_warnings = global.processing_warnings + "\n" + "Warning: " + txt;
+            this.global.processing_warnings = this.global.processing_warnings + "\n" + "Warning: " + txt;
       }
 }
 
-function addStatusInfo(txt)
+addStatusInfo(txt)
 {
       console.noteln("------------------------");
       console.noteln(txt);
-      util.updateStatusInfoLabel(txt);
-      util.checkEvents();
+      this.updateStatusInfoLabel(txt);
+      this.checkEvents();
 }
 
-function addProcessingStepAndStatusInfo(txt)
+addProcessingStepAndStatusInfo(txt)
 {
-      util.addProcessingStep(txt);
-      util.updateStatusInfoLabel(txt);
+      this.addProcessingStep(txt);
+      this.updateStatusInfoLabel(txt);
 }
 
-function ensure_win_prefix_ex(id, prefix)
+ensure_win_prefix_ex(id, prefix)
 {
       if (id == null) {
             return null;
@@ -1963,84 +1953,86 @@ function ensure_win_prefix_ex(id, prefix)
       }
 }
 
-function ensure_win_prefix(id)
+ensure_win_prefix(id)
 {
-      return util.ensure_win_prefix_ex(id, ppar.win_prefix);
+      return this.ensure_win_prefix_ex(id, this.ppar.win_prefix);
 }
 
-function remove_autocontinue_prefix(id)
+remove_autocontinue_prefix(id)
 {
-      if (ppar.autocontinue_win_prefix != "" 
-          && ppar.autocontinue_win_prefix != ppar.win_prefix 
-          && id.startsWith(ppar.autocontinue_win_prefix)) 
+      if (this.ppar.autocontinue_win_prefix != "" 
+          && this.ppar.autocontinue_win_prefix != this.ppar.win_prefix 
+          && id.startsWith(this.ppar.autocontinue_win_prefix)) 
       {
-            return id.substring(ppar.autocontinue_win_prefix.length);
+            return id.substring(this.ppar.autocontinue_win_prefix.length);
       } else {
             return id;
       }
 }
 
-function is_non_starless_option()
+is_non_starless_option()
 {
-      return par.enhancements_backgroundneutralization.val ||
-             par.enhancements_GC.val || 
-             par.enhancements_banding_reduction.val ||
-             par.enhancements_darker_background.val || 
-             par.enhancements_darker_highlights.val ||
-             par.enhancements_ET.val || 
-             par.enhancements_HDRMLT.val || 
-             par.enhancements_LHE.val || 
-             par.enhancements_contrast.val ||
-             par.enhancements_stretch.val ||
-             par.enhancements_autostf.val ||
-             par.enhancements_shadowclipping.val ||
-             par.enhancements_smoothbackground.val ||
-             par.enhancements_noise_reduction.val ||
-             par.enhancements_ACDNR.val ||
-             par.enhancements_color_noise.val ||
-             par.enhancements_sharpen.val ||
-             par.enhancements_unsharpmask.val ||
-             par.enhancements_highpass_sharpen.val ||
-             par.enhancements_saturation.val ||
-             par.enhancements_clarity.val ||
-             par.enhancements_smaller_stars.val ||
-             par.enhancements_normalize_channels.val ||
-             par.enhancements_adjust_channels.val ||
-             par.enhancements_shadow_enhance.val ||
-             par.enhancements_highlight_enhance.val ||
-             par.enhancements_gamma.val ||
-             par.enhancements_auto_contrast.val ||
-             par.enhancements_color_calibration.val ||
-             par.enhancements_ha_mapping.val ||
-             par.enhancements_solve_image.val ||
-             par.enhancements_annotate_image.val ||
-             par.enhancements_signature.val ||
-             par.enhancements_rotate.val ||
-             par.enhancements_fix_star_cores.val ||
-             par.enhancements_selective_color.val;
+      return this.par.enhancements_backgroundneutralization.val ||
+             this.par.enhancements_GC.val || 
+             this.par.enhancements_banding_reduction.val ||
+             this.par.enhancements_darker_background.val || 
+             this.par.enhancements_darker_highlights.val ||
+             this.par.enhancements_ET.val || 
+             this.par.enhancements_HDRMLT.val || 
+             this.par.enhancements_LHE.val || 
+             this.par.enhancements_contrast.val ||
+             this.par.enhancements_stretch.val ||
+             this.par.enhancements_autostf.val ||
+             this.par.enhancements_shadowclipping.val ||
+             this.par.enhancements_smoothbackground.val ||
+             this.par.enhancements_noise_reduction.val ||
+             this.par.enhancements_ACDNR.val ||
+             this.par.enhancements_color_noise.val ||
+             this.par.enhancements_sharpen.val ||
+             this.par.enhancements_unsharpmask.val ||
+             this.par.enhancements_highpass_sharpen.val ||
+             this.par.enhancements_saturation.val ||
+             this.par.enhancements_clarity.val ||
+             this.par.enhancements_smaller_stars.val ||
+             this.par.enhancements_normalize_channels.val ||
+             this.par.enhancements_adjust_channels.val ||
+             this.par.enhancements_shadow_enhance.val ||
+             this.par.enhancements_highlight_enhance.val ||
+             this.par.enhancements_gamma.val ||
+             this.par.enhancements_auto_contrast.val ||
+             this.par.enhancements_color_calibration.val ||
+             this.par.enhancements_ha_mapping.val ||
+             this.par.enhancements_solve_image.val ||
+             this.par.enhancements_annotate_image.val ||
+             this.par.enhancements_signature.val ||
+             this.par.enhancements_rotate.val ||
+             this.par.enhancements_fix_star_cores.val ||
+             this.par.enhancements_selective_color.val ||
+             this.par.enhancements_curves.val ||
+             this.par.enhancements_highlight_color.val;
 }
 
-function is_enhancements_option()
+is_enhancements_option()
 {
-      return par.enhancements_remove_stars.val || 
-             par.enhancements_combine_stars.val ||
-             is_non_starless_option();
+      return this.par.enhancements_remove_stars.val || 
+             this.par.enhancements_combine_stars.val ||
+             this.is_non_starless_option();
 }
 
-function is_narrowband_option()
+is_narrowband_option()
 {
-      return par.fix_narrowband_star_color.val ||
-             par.run_orange_hue_shift.val ||
-             par.run_hue_shift.val ||
-             par.run_foraxx_mapping.val ||
-             par.run_enhancements_narrowband_mapping.val ||
-             par.run_orangeblue_colors.val ||
-             par.run_narrowband_SCNR.val ||
-             par.leave_some_green.val ||
-             par.remove_magenta_color.val;
+      return this.par.fix_narrowband_star_color.val ||
+             this.par.run_orange_hue_shift.val ||
+             this.par.run_hue_shift.val ||
+             this.par.run_foraxx_mapping.val ||
+             this.par.run_enhancements_narrowband_mapping.val ||
+             this.par.run_orangeblue_colors.val ||
+             this.par.run_narrowband_SCNR.val ||
+             this.par.leave_some_green.val ||
+             this.par.remove_magenta_color.val;
 }
 
-function validateViewIdCharacters(p)
+validateViewIdCharacters(p)
 {
       p = p.replace(/[^A-Za-z0-9]/gi,'_');
       //p = p.replace(/_+$/,'');
@@ -2051,7 +2043,7 @@ function validateViewIdCharacters(p)
       return p;
 }
 
-function mapBadChars(str)
+mapBadChars(str)
 {
       str = str.replace(/ /g,"_");
       str = str.replace(/-/g,"_");
@@ -2061,14 +2053,14 @@ function mapBadChars(str)
       return str;
 }
 
-function mapBadWindowNameChars(str)
+mapBadWindowNameChars(str)
 {
-      str = util.mapBadChars(str);
+      str = this.mapBadChars(str);
       str = str.replace(/\./g,"_");
       return str;
 }
 
-function replacePostfixOrAppend(name, postfixarr, new_postfix)
+replacePostfixOrAppend(name, postfixarr, new_postfix)
 {
       if (name.endsWith(new_postfix)) {
             // we already have a correct postfix
@@ -2085,36 +2077,36 @@ function replacePostfixOrAppend(name, postfixarr, new_postfix)
       return name + new_postfix;
 }
 
-function ensureDialogFilePath(names)
+ensureDialogFilePath(names)
 {
-      if (global.outputRootDir == "") {
+      if (this.global.outputRootDir == "") {
             var gdd = new GetDirectoryDialog;
             gdd.caption = "Select Save Directory for " + names;
-            gdd.initialPath = ppar.lastDir;
+            gdd.initialPath = this.ppar.lastDir;
             console.noteln(gdd.caption);
             if (!gdd.execute()) {
                   console.writeln("No path for " + names + ', nothing written');
                   return 0;
             }
-            util.saveLastDir(gdd.directory);
-            util.setOutputRootDir(gdd.directory);
-            if (global.outputRootDir != "") {
-                  util.setOutputRootDir(util.ensurePathEndSlash(global.outputRootDir));
+            this.saveLastDir(gdd.directory);
+            this.setOutputRootDir(gdd.directory);
+            if (this.global.outputRootDir != "") {
+                  this.setOutputRootDir(this.ensurePathEndSlash(this.global.outputRootDir));
             }
-            console.writeln("ensureDialogFilePath, set global.outputRootDir ", global.outputRootDir);
+            console.writeln("ensureDialogFilePath, set outputRootDir ", this.global.outputRootDir);
             return 1;
       } else {
             return 2;
       }
 }
 
-function setParameterDefaults()
+setParameterDefaults()
 {
       console.writeln("Set parameter defaults");
-      for (let x in par) {
-            var param = par[x];
+      for (let x in this.par) {
+            var param = this.par[x];
             if (!param.skip_reset) {
-                  global.setParameterValue(param, param.def);
+                  this.global.setParameterValue(param, param.def);
                   if (param.reset != undefined) {
                         param.reset();
                   }
@@ -2122,9 +2114,9 @@ function setParameterDefaults()
       }
 }
 
-function recordParam(param)
+recordParam(param)
 {
-      if (global.debug) {
+      if (this.global.debug) {
             if (param.used) {
                   console.criticalln("Error:recordParam: parameter " + JSON.stringify(param) + " already used");
             } else {
@@ -2133,22 +2125,22 @@ function recordParam(param)
       }
 }
 
-function getSettingsFromJson(settings)
+getSettingsFromJson(settings)
 {
       if (settings == null || settings == undefined) {
             console.noteln("getSettingsFromJson: empty settings");
             return;
       }
 
-      if (par.reset_on_setup_load.val) {
-            util.setParameterDefaults();
+      if (this.par.reset_on_setup_load.val) {
+            this.setParameterDefaults();
       }
 
       console.noteln("Restore " + settings.length + " settings");
 
       for (var i = 0; i < settings.length; i++) {
-            for (let x in par) {
-                  var param = par[x];
+            for (let x in this.par) {
+                  var param = this.par[x];
                   if (param.name == settings[i][0]) {
                         var name_found = true;
                   } else if (param.oldname != undefined && param.oldname == settings[i][0]) {
@@ -2157,7 +2149,7 @@ function getSettingsFromJson(settings)
                         var name_found = false;
                   }
                   if (name_found && !param.skip_reset) {
-                        global.setParameterValue(param, settings[i][1]);
+                        this.global.setParameterValue(param, settings[i][1]);
                         if (param.reset != undefined) {
                               param.reset();
                         }
@@ -2173,7 +2165,7 @@ function getSettingsFromJson(settings)
 
 /* Read saved Json file info.
  */ 
-function readJsonFile(fname, lights_only)
+readJsonFile(fname, lights_only)
 {
       console.writeln("readJsonFile " + fname + " lights_only " + lights_only);
 
@@ -2182,7 +2174,7 @@ function readJsonFile(fname, lights_only)
             console.criticalln("Could not open file " + fname);
             return null;
       }
-      var jsonStr = jsonFile.read(DataType_ByteArray, jsonFile.size);
+      var jsonStr = jsonFile.read(DataType.ByteArray, jsonFile.size);
       jsonFile.close();
 
       var saveInfo = JSON.parse(jsonStr);
@@ -2203,14 +2195,14 @@ function readJsonFile(fname, lights_only)
       
       if (saveInfo.version >= 2) {
             // read parameter values
-            getSettingsFromJson(saveInfo.settings);
+            this.getSettingsFromJson(saveInfo.settings);
       }
       if (saveInfo.window_prefix != null && saveInfo.window_prefix != undefined) {
-            ppar.win_prefix = saveInfo.window_prefix;
-            if (gui) {
-                  gui.updateWindowPrefix();
+            this.ppar.win_prefix = saveInfo.window_prefix;
+            if (this.gui) {
+                  this.gui.updateWindowPrefix();
             }
-            console.writeln("Restored window prefix " + ppar.win_prefix);
+            console.writeln("Restored window prefix " + this.ppar.win_prefix);
       }
 
       let saveDir = File.extractDrive(fname) + File.extractDirectory(fname);
@@ -2222,23 +2214,23 @@ function readJsonFile(fname, lights_only)
             let outputDir = saveInfo.output_dir.replace("$(setupDir)", saveDir);
             outputDir = outputDir.replace("$(saveDir)", saveDir);   // for compatibility check also saveDir
             console.writeln("Updated output directory " + outputDir);
-            if (gui) {
-                  gui.updateOutputDirEdit(outputDir);
+            if (this.gui) {
+                  this.gui.updateOutputDirEdit(outputDir);
             }
       } else {
             // Use saveDir as output root directory
-            util.setOutputRootDir(util.ensurePathEndSlash(saveDir));
+            this.setOutputRootDir(this.ensurePathEndSlash(saveDir));
       }
 
-      saveInfoMakeFullPaths(saveInfo, saveDir);
+      this.saveInfoMakeFullPaths(saveInfo, saveDir);
 
       if (saveInfo.best_image != null && saveInfo.best_image != undefined) {
             if (!File.exists(saveInfo.best_image)) {
                   console.criticalln("Restored best image " + saveInfo.best_image + " does not exist");
-                  global.user_selected_best_image = null;
+                  this.global.user_selected_best_image = null;
             } else {
                   console.writeln("Restored best image " + saveInfo.best_image);
-                  global.user_selected_best_image = saveInfo.best_image;
+                  this.global.user_selected_best_image = saveInfo.best_image;
             }
       }
       if (saveInfo.reference_image != null && saveInfo.reference_image != undefined) {
@@ -2251,49 +2243,49 @@ function readJsonFile(fname, lights_only)
                   }
             }
             if (file_not_found) {
-                  global.user_selected_reference_image = [];
+                  this.global.user_selected_reference_image = [];
             } else {
                   console.writeln("Restored reference images " + saveInfo.reference_image);
-                  global.user_selected_reference_image = saveInfo.reference_image;
+                  this.global.user_selected_reference_image = saveInfo.reference_image;
             }
       }
       if (saveInfo.star_alignment_image != null && saveInfo.star_alignment_image != undefined) {
             if (!File.exists(saveInfo.star_alignment_image)) {
                   console.criticalln("Restored star alignment image " + saveInfo.star_alignment_image + " does not exist");
-                  global.star_alignment_image = null;
+                  this.global.star_alignment_image = null;
             } else {
                   console.writeln("Restored star alignment image " + saveInfo.star_alignment_image);
-                  global.star_alignment_image = saveInfo.star_alignment_image;
+                  this.global.star_alignment_image = saveInfo.star_alignment_image;
             }
       }
       if (saveInfo.defectInfo != null && saveInfo.defectInfo != undefined) {
             console.writeln("Restored defect info");
-            global.LDDDefectInfo = saveInfo.defectInfo;
+            this.global.LDDDefectInfo = saveInfo.defectInfo;
       }
       if (saveInfo.exclusion_areas != null && saveInfo.exclusion_areas != undefined) {
             console.writeln("Restored exclusion areas");
             // Check if saveInfo.exclusion_areas is an array
             if (Array.isArray(saveInfo.exclusion_areas)) {
                   console.criticalln("Restored old format exclusion areas, it is recommended to recreate exclusion areas");
-                  global.exclusion_areas.polygons = saveInfo.exclusion_areas;
+                  this.global.exclusion_areas.polygons = saveInfo.exclusion_areas;
             } else {
-                  global.exclusion_areas = saveInfo.exclusion_areas;
+                  this.global.exclusion_areas = saveInfo.exclusion_areas;
             }
       }
       if (saveInfo.saved_measurements != null && saveInfo.saved_measurements != undefined) {
             console.writeln("Restored subframe selector measurements");
-            global.saved_measurements = saveInfo.saved_measurements;
-            global.saved_measurements_sorted = null;
+            this.global.saved_measurements = saveInfo.saved_measurements;
+            this.global.saved_measurements_sorted = null;
       }
       if (saveInfo.flowchartData != null && saveInfo.flowchartData != undefined) {
             console.writeln("Restored flowchart data");
-            global.flowchartData = saveInfo.flowchartData;
+            this.global.flowchartData = saveInfo.flowchartData;
       } else {
-            global.flowchartData = null;
+            this.global.flowchartData = null;
       }
 
       var pagearray = [];
-      for (var i = 0; i < global.pages.END; i++) {
+      for (var i = 0; i < this.global.pages.END; i++) {
             pagearray[i] = null;
       }
       var fileInfoList = saveInfo.fileinfo;
@@ -2301,7 +2293,7 @@ function readJsonFile(fname, lights_only)
       for (var i = 0; i < fileInfoList.length; i++) {
             var saveInfo = fileInfoList[i];
             console.writeln("readJsonFile " + saveInfo.pagename);
-            if (lights_only && saveInfo.pageindex != global.pages.LIGHTS) {
+            if (lights_only && saveInfo.pageindex != this.global.pages.LIGHTS) {
                   console.writeln("readJsonFile, lights_only, skip");
                   continue;
             }
@@ -2314,17 +2306,17 @@ function readJsonFile(fname, lights_only)
             var filterSet = saveInfo.filterset;
             if (filterSet != null) {
                   switch (saveInfo.pageindex) {
-                        case global.pages.LIGHTS:
+                        case this.global.pages.LIGHTS:
                               console.writeln("readJsonFile, set manual filters for lights");
-                              global.lightFilterSet = filterSet;
+                              this.global.lightFilterSet = filterSet;
                               break;
-                        case global.pages.FLATS:
+                        case this.global.pages.FLATS:
                               console.writeln("readJsonFile, set manual filters for flats");
-                              global.flatFilterSet = filterSet;
+                              this.global.flatFilterSet = filterSet;
                               break;
-                        case global.pages.FLAT_DARKS:
+                        case this.global.pages.FLAT_DARKS:
                               console.writeln("readJsonFile, set manual filters for flat darks");
-                              global.flatDarkFilterSet = filterSet;
+                              this.global.flatDarkFilterSet = filterSet;
                               break;
                         default:
                               console.criticalln("Incorrect page index " +  saveInfo.pageindex + " for filter set in file " + fname);
@@ -2340,36 +2332,36 @@ function readJsonFile(fname, lights_only)
       return pagearray;
 }
 
-function addJsonFileInfo(fileInfoList, pageIndex, treeboxfiles, filterset)
+addJsonFileInfo(fileInfoList, pageIndex, treeboxfiles, filterset)
 {
       var name = "";
       switch (pageIndex) {
-            case global.pages.LIGHTS:
+            case this.global.pages.LIGHTS:
                   name = "Lights";
                   break;
-            case global.pages.BIAS:
+            case this.global.pages.BIAS:
                   name = "Bias";
                   break;
-            case global.pages.DARKS:
+            case this.global.pages.DARKS:
                   name = "Darks";
                   break;
-            case global.pages.FLATS:
+            case this.global.pages.FLATS:
                   name = "Flats";
                   break;
-            case global.pages.FLAT_DARKS:
+            case this.global.pages.FLAT_DARKS:
                   name = "FlatDarks";
                   break;
       }
       fileInfoList[fileInfoList.length] = { pageindex: pageIndex, pagename: name, files: treeboxfiles, filterset: filterset };
 }
 
-function getChangedSettingsAsJson()
+getChangedSettingsAsJson()
 {
       var settings = [];
       console.writeln("getChangedSettingsAsJson");
-      for (let x in par) {
-            var param = par[x];
-            if (global.isParameterChanged(param) && !param.skip_reset) {
+      for (let x in this.par) {
+            var param = this.par[x];
+            if (this.global.isParameterChanged(param) && !param.skip_reset) {
                   console.writeln("getChangedSettingsAsJson, save " + param.name + "=" + param.val);
                   settings[settings.length] = [ param.name, param.val ];
             }
@@ -2378,30 +2370,30 @@ function getChangedSettingsAsJson()
       return settings;
 }
 
-function copy_user_selected_reference_image_array()
+copy_user_selected_reference_image_array()
 {
       var copyarr = [];
 
-      for (var i = 0; i < global.user_selected_reference_image.length; i++) {
+      for (var i = 0; i < this.global.user_selected_reference_image.length; i++) {
             var elem = [];
-            for (var j = 0; j < global.user_selected_reference_image[i].length; j++) {
-                  elem[elem.length] = global.user_selected_reference_image[i][j];
+            for (var j = 0; j < this.global.user_selected_reference_image[i].length; j++) {
+                  elem[elem.length] = this.global.user_selected_reference_image[i][j];
             }
             copyarr[copyarr.length] = elem;
       }
       return copyarr;
 }
 
-function initJsonSaveInfo(fileInfoList, save_settings, saveDir)
+initJsonSaveInfo(fileInfoList, save_settings, saveDir)
 {
       if (save_settings) {
-            var changed_settings = getChangedSettingsAsJson();
+            var changed_settings = this.getChangedSettingsAsJson();
             var saveInfo = { version: 3, fileinfo: fileInfoList, settings: changed_settings };
-            if (ppar.win_prefix != '') {
-                  saveInfo.window_prefix = ppar.win_prefix;
+            if (this.ppar.win_prefix != '') {
+                  saveInfo.window_prefix = this.ppar.win_prefix;
             }
-            if (gui) {
-                  var outputDirEditPath = gui.getOutputDirEdit();
+            if (this.gui) {
+                  var outputDirEditPath = this.gui.getOutputDirEdit();
             } else {
                   var outputDirEditPath = '';
             }
@@ -2421,27 +2413,27 @@ function initJsonSaveInfo(fileInfoList, save_settings, saveDir)
                         saveInfo.output_dir = outputDirEditPath;
                   }
             }
-            if (global.user_selected_best_image != null) {
-                  saveInfo.best_image = global.user_selected_best_image;
+            if (this.global.user_selected_best_image != null) {
+                  saveInfo.best_image = this.global.user_selected_best_image;
             }
-            if (global.user_selected_reference_image.length > 0) {
+            if (this.global.user_selected_reference_image.length > 0) {
                   // Need to make a copy so we do not update the original array
-                  saveInfo.reference_image = copy_user_selected_reference_image_array();
+                  saveInfo.reference_image = this.copy_user_selected_reference_image_array();
             }
-            if (global.star_alignment_image != null) {
-                  saveInfo.star_alignment_image = global.star_alignment_image;
+            if (this.global.star_alignment_image != null) {
+                  saveInfo.star_alignment_image = this.global.star_alignment_image;
             }
-            if (global.LDDDefectInfo.length > 0) {
-                  saveInfo.defectInfo = global.LDDDefectInfo;
+            if (this.global.LDDDefectInfo.length > 0) {
+                  saveInfo.defectInfo = this.global.LDDDefectInfo;
             }
-            if (global.exclusion_areas.polygons.length > 0) {
-                  saveInfo.exclusion_areas = global.exclusion_areas;
+            if (this.global.exclusion_areas.polygons.length > 0) {
+                  saveInfo.exclusion_areas = this.global.exclusion_areas;
             }
-            if (global.saved_measurements != null) {
-                  saveInfo.saved_measurements = global.saved_measurements;
+            if (this.global.saved_measurements != null) {
+                  saveInfo.saved_measurements = this.global.saved_measurements;
             }
-            if (global.flowchartData != null) {
-                  saveInfo.flowchartData = global.flowchartData;
+            if (this.global.flowchartData != null) {
+                  saveInfo.flowchartData = this.global.flowchartData;
             }
       } else {
             var saveInfo = { version: 1, fileinfo: fileInfoList };
@@ -2459,12 +2451,12 @@ function initJsonSaveInfo(fileInfoList, save_settings, saveDir)
  * we save the file name as Lights/Red/NGC104_R.fits. If saveDir is not a prefix
  * of file name we save the full path.
  */
-function saveInfoMakeRelativePaths(saveInfo, saveDir)
+saveInfoMakeRelativePaths(saveInfo, saveDir)
 {
       if (saveDir == null || saveDir == "") {
-            util.throwFatalError("saveInfoMakeRelativePaths, empty saveDir");
+            this.throwFatalError("saveInfoMakeRelativePaths, empty saveDir");
       }
-      saveDir = util.ensurePathEndSlash(saveDir);
+      saveDir = this.ensurePathEndSlash(saveDir);
       console.writeln("saveInfoMakeRelativePaths, saveDir "+ saveDir);
       var fileInfoList = saveInfo.fileinfo;
       for (var i = 0; i < fileInfoList.length; i++) {
@@ -2495,36 +2487,36 @@ function saveInfoMakeRelativePaths(saveInfo, saveDir)
       return saveInfo;
 }
 
-function saveInfoMakeFullPaths(saveInfo, saveDir)
+saveInfoMakeFullPaths(saveInfo, saveDir)
 {
       if (saveDir == null || saveDir == "") {
-            util.throwFatalError("saveInfoMakeFullPaths, empty saveDir");
+            this.throwFatalError("saveInfoMakeFullPaths, empty saveDir");
       }
-      saveDir = util.ensurePathEndSlash(saveDir);
+      saveDir = this.ensurePathEndSlash(saveDir);
       console.writeln("saveInfoMakeFullPaths, saveDir " + saveDir);
       var fileInfoList = saveInfo.fileinfo;
       for (var i = 0; i < fileInfoList.length; i++) {
             for (var j = 0; j < fileInfoList[i].files.length; j++) {
                   var fname = fileInfoList[i].files[j][0];
-                  if (util.pathIsRelative(fname)) {
+                  if (this.pathIsRelative(fname)) {
                         fileInfoList[i].files[j][0] = saveDir + fname;
                   }
             }
       }
       if (saveInfo.best_image != null && saveInfo.best_image != undefined) {
-            if (util.pathIsRelative(saveInfo.best_image)) {
+            if (this.pathIsRelative(saveInfo.best_image)) {
                   saveInfo.best_image = saveDir + saveInfo.best_image;
             }
       }
       if (saveInfo.reference_image != null && saveInfo.reference_image != undefined) {
             for (var i = 0; i < saveInfo.reference_image.length; i++) {
-                  if (util.pathIsRelative(saveInfo.reference_image[i][0])) {
+                  if (this.pathIsRelative(saveInfo.reference_image[i][0])) {
                         saveInfo.reference_image[i][0] = saveDir + saveInfo.reference_image[i][0];
                   }
             }
       }
       if (saveInfo.star_alignment_image != null && saveInfo.star_alignment_image != undefined) {
-            if (util.pathIsRelative(saveInfo.star_alignment_image)) {
+            if (this.pathIsRelative(saveInfo.star_alignment_image)) {
                   saveInfo.star_alignment_image = saveDir + saveInfo.star_alignment_image;
             }
       }
@@ -2533,34 +2525,34 @@ function saveInfoMakeFullPaths(saveInfo, saveDir)
 
 /* Save file info to a file.
  */
-function saveJsonFileEx(parent, save_settings, autosave_json_filename, default_json_filename = null)
+saveJsonFileEx(parent, save_settings, autosave_json_filename, default_json_filename = null)
 {
       console.writeln("saveJsonFile");
 
       let fileInfoList = [];
 
-      if (gui) {
+      if (this.gui) {
             for (let pageIndex = 0; pageIndex < parent.treeBox.length; pageIndex++) {
                   let treeBox = parent.treeBox[pageIndex];
                   let treeboxfiles = [];
                   let filterSet = null;
                   let name = "";
                   switch (pageIndex) {
-                        case global.pages.LIGHTS:
+                        case this.global.pages.LIGHTS:
                               name = "Lights";
-                              filterSet = global.lightFilterSet;
+                              filterSet = this.global.lightFilterSet;
                               break;
-                        case global.pages.BIAS:
+                        case this.global.pages.BIAS:
                               name = "Bias";
                               break;
-                        case global.pages.DARKS:
+                        case this.global.pages.DARKS:
                               name = "Darks";
                               break;
-                        case global.pages.FLATS:
+                        case this.global.pages.FLATS:
                               name = "Flats";
-                              filterSet = global.flatFilterSet;
+                              filterSet = this.global.flatFilterSet;
                               break;
-                        case global.pages.FLAT_DARKS:
+                        case this.global.pages.FLAT_DARKS:
                               name = "FlatDarks";
                               break;
                         default:
@@ -2574,7 +2566,7 @@ function saveJsonFileEx(parent, save_settings, autosave_json_filename, default_j
 
                   console.writeln(name + " files");
 
-                  gui.getTreeBoxNodeFiles(treeBox, treeboxfiles);
+                  this.gui.getTreeBoxNodeFiles(treeBox, treeboxfiles);
 
                   console.writeln("Found " + treeboxfiles.length + " files");
 
@@ -2584,9 +2576,9 @@ function saveJsonFileEx(parent, save_settings, autosave_json_filename, default_j
                   }
 
                   if (filterSet != null) {
-                        util.clearFilterFileUsedFlags(filterSet);
+                        this.clearFilterFileUsedFlags(filterSet);
                   }
-                  util.addJsonFileInfo(fileInfoList, pageIndex, treeboxfiles, filterSet);
+                  this.addJsonFileInfo(fileInfoList, pageIndex, treeboxfiles, filterSet);
             }
 
             if (fileInfoList.length == 0 && !save_settings) {
@@ -2601,11 +2593,11 @@ function saveJsonFileEx(parent, save_settings, autosave_json_filename, default_j
             saveFileDialog.caption = "Save As";
             saveFileDialog.filters = [["Json files", "*.json"], ["All files", "*.*"]];
             if (fileInfoList.length > 0) {
-                  var outputDir = util.ensurePathEndSlash(util.getOutputDir(fileInfoList[0].files[0][0]));
+                  var outputDir = this.ensurePathEndSlash(this.getOutputDir(fileInfoList[0].files[0][0]));
             } else {
-                  var outputDir = util.ensurePathEndSlash(util.getOutputDir(""));
+                  var outputDir = this.ensurePathEndSlash(this.getOutputDir(""));
                   if (outputDir == "") {
-                        outputDir = util.ensurePathEndSlash(ppar.lastDir);
+                        outputDir = this.ensurePathEndSlash(this.ppar.lastDir);
                   }
             }
             if (default_json_filename != null) {
@@ -2618,10 +2610,10 @@ function saveJsonFileEx(parent, save_settings, autosave_json_filename, default_j
             if (!saveFileDialog.execute()) {
                   return;
             }
-            var saveDir = File.extractDrive(saveFileDialog.fileName) + File.extractDirectory(saveFileDialog.fileName);
-            var json_path_and_filename = saveFileDialog.fileName;
+            var saveDir = File.extractDrive(saveFileDialog.filePath) + File.extractDirectory(saveFileDialog.filePath);
+            var json_path_and_filename = saveFileDialog.filePath;
       } else {
-            let dialogRet = util.ensureDialogFilePath(autosave_json_filename);
+            let dialogRet = this.ensureDialogFilePath(autosave_json_filename);
             if (dialogRet == 0) {
                   // Canceled, do not save
                   return;
@@ -2629,24 +2621,24 @@ function saveJsonFileEx(parent, save_settings, autosave_json_filename, default_j
             let json_path;
             if (dialogRet == 1) {
                   // User gave explicit directory
-                  json_path = global.outputRootDir;
+                  json_path = this.global.outputRootDir;
             } else {
                   // Not saving to AutoProcessed directory
-                  //json_path = util.combinePath(global.outputRootDir, global.AutoProcessedDir); 
+                  //json_path = this.combinePath(this.global.outputRootDir, this.global.AutoProcessedDir); 
                   
                   // Saving to lights directory, or user given output directory
                   // This way we get relative paths to file so it is easy to move around
                   // or even share with lights files.
-                  json_path = global.outputRootDir;
+                  json_path = this.global.outputRootDir;
             }
-            var saveDir = util.ensurePathEndSlash(json_path);
+            var saveDir = this.ensurePathEndSlash(json_path);
             var json_path_and_filename = saveDir + autosave_json_filename;
       }
-      util.saveLastDir(saveDir);
+      this.saveLastDir(saveDir);
       try {
-            let saveInfo = util.initJsonSaveInfo(fileInfoList, save_settings, saveDir);
+            let saveInfo = this.initJsonSaveInfo(fileInfoList, save_settings, saveDir);
             let file = new File();
-            saveInfoMakeRelativePaths(saveInfo, saveDir);
+            this.saveInfoMakeRelativePaths(saveInfo, saveDir);
             let saveInfoJson = JSON.stringify(saveInfo, null, 2);
             file.createForWriting(json_path_and_filename);
             file.outTextLn(saveInfoJson);
@@ -2658,7 +2650,7 @@ function saveJsonFileEx(parent, save_settings, autosave_json_filename, default_j
       }
 }
 
-function getReferenceBasename(processed_name, filename_postfix)
+getReferenceBasename(processed_name, filename_postfix)
 {
       let processed_basename = File.extractName(processed_name);
       if (filename_postfix.length > 0 && processed_basename.endsWith(filename_postfix)) {
@@ -2669,28 +2661,28 @@ function getReferenceBasename(processed_name, filename_postfix)
       return processed_basename;
 }
 
-function compareReferenceFileNames(reference_name, processed_name, filename_postfix)
+compareReferenceFileNames(reference_name, processed_name, filename_postfix)
 {
-      let reference_basename = getReferenceBasename(reference_name, filename_postfix);
-      let processed_basename = getReferenceBasename(processed_name, filename_postfix);
+      let reference_basename = this.getReferenceBasename(reference_name, filename_postfix);
+      let processed_basename = this.getReferenceBasename(processed_name, filename_postfix);
       return reference_basename == processed_basename;
 }
 
-function normalizePath(filePath) 
+normalizePath(filePath) 
 {
       let newPath = filePath.split("/./").join("/");
-      if (par.debug.val) {
+      if (this.par.debug.val) {
             console.writeln("normalizePath " + filePath + " -> " + newPath);
       }
       return newPath;
 }
 
-function saveJsonFile(parent, save_settings, default_json_filename = null)
+saveJsonFile(parent, save_settings, default_json_filename = null)
 {
-      util.saveJsonFileEx(parent, save_settings, null, default_json_filename);
+      this.saveJsonFileEx(parent, save_settings, null, default_json_filename);
 }
 
-function formatToolTip(txt)
+formatToolTip(txt)
 {
       if (txt.substr(0, 1) == "<") {
             return txt;
@@ -2699,7 +2691,7 @@ function formatToolTip(txt)
       }
 }
 
-function getScreenSize(dialog)
+getScreenSize(dialog)
 {
       if (dialog.availableScreenRect != undefined) {
             var screen_width = dialog.availableScreenRect.width;
@@ -2714,25 +2706,25 @@ function getScreenSize(dialog)
 }
 
 // Adjust dialog to screen size by adjusting preview control size
-function adjustDialogToScreen(dialog, preview_control, maxsize, preview_width, preview_height)
+adjustDialogToScreen(dialog, preview_control, maxsize, preview_width, preview_height)
 {
       var changes = false;
       
-      var sz = util.getScreenSize(dialog);
+      var sz = this.getScreenSize(dialog);
       var screen_width = sz[0];
       var screen_height = sz[1];
-      if (par.debug.val) console.writeln("DEBUG:adjustDialogToScreen, screen size " + screen_width + "x" + screen_height + ", preview size " + preview_width + "x" + preview_height);
+      if (this.par.debug.val) console.writeln("DEBUG:adjustDialogToScreen, screen size " + screen_width + "x" + screen_height + ", preview size " + preview_width + "x" + preview_height);
 
       if (maxsize) {
             var limit = 50;
             var target_width = Math.floor(screen_width * 0.95);
             var target_height = Math.floor(screen_height * 0.9);
-            if (par.debug.val) console.writeln("DEBUG:adjustDialogToScreen, maxsize, target size " + target_width + "x" + target_height);
+            if (this.par.debug.val) console.writeln("DEBUG:adjustDialogToScreen, maxsize, target size " + target_width + "x" + target_height);
       } else {
             var limit = 100;
             var target_width = Math.floor(screen_width * 0.7);
             var target_height = Math.floor(screen_height * 0.7);
-            if (par.debug.val) console.writeln("DEBUG:adjustDialogToScreen, target size " + target_width + "x" + target_height);
+            if (this.par.debug.val) console.writeln("DEBUG:adjustDialogToScreen, target size " + target_width + "x" + target_height);
       }
       var step = limit / 2;
 
@@ -2741,11 +2733,11 @@ function adjustDialogToScreen(dialog, preview_control, maxsize, preview_width, p
 
       if (!maxsize && dialog_width < target_width - limit && dialog_height < target_height - limit) {
             // Dialog already fits on screen
-            if (par.debug.val) console.writeln("DEBUG:adjustDialogToScreen, Dialog already fits on screen");
+            if (this.par.debug.val) console.writeln("DEBUG:adjustDialogToScreen, Dialog already fits on screen");
             return { width: preview_width, height: preview_height, changes: changes };
       }
 
-      if (par.debug.val) {
+      if (this.par.debug.val) {
             console.writeln("DEBUG:adjustDialogToScreen, maxsize " + maxsize + ", screen size " + screen_width + "x" + screen_height + ", target size " + target_width + "x" + target_height + ", preview size " + preview_width + "x" + preview_height);
             console.writeln("DEBUG:adjustDialogToScreen, start, screen size " + screen_width + "x" + screen_height + ", dialog size " + dialog_width + "x" + dialog_height + ", preview size " + preview_width + "x" + preview_height);
       }
@@ -2767,7 +2759,7 @@ function adjustDialogToScreen(dialog, preview_control, maxsize, preview_width, p
                   // Restore previous values
                   preview_width = prev_preview_width;
                   preview_height = prev_preview_height;
-                  if (par.debug.val) {
+                  if (this.par.debug.val) {
                         console.writeln("DEBUG:adjustDialogToScreen, stop, no change, screen size " + screen_width + "x" + screen_height + ", dialog size " + dialog_width + "x" + dialog_height + ", preview size " + preview_width + "x" + preview_height + ", i " + i );   
                   }
                   break;
@@ -2784,7 +2776,7 @@ function adjustDialogToScreen(dialog, preview_control, maxsize, preview_width, p
                       && dialog_height >= target_height - limit)
                   {
                         // We are close enough
-                        if (par.debug.val) {
+                        if (this.par.debug.val) {
                               console.writeln("DEBUG:adjustDialogToScreen, maxsize, stop, close enough, screen size " + screen_width + "x" + screen_height + ", dialog size " + dialog_width + "x" + dialog_height + ", preview size " + preview_width + "x" + preview_height + ", i " + i );
                         }
                         break;
@@ -2793,14 +2785,14 @@ function adjustDialogToScreen(dialog, preview_control, maxsize, preview_width, p
                   // Just make sure that the dialog fits on screen
                   if (dialog_width < target_width - limit && dialog_height < target_height - limit) {
                         // We are close enough
-                        if (par.debug.val) {
+                        if (this.par.debug.val) {
                               console.writeln("DEBUG:adjustDialogToScreen, stop, close enough, screen size " + screen_width + "x" + screen_height + ", dialog size " + dialog_width + "x" + dialog_height + ", preview size " + preview_width + "x" + preview_height + ", i " + i );
                         }
                         break;
                   }
             }
 
-            if (par.debug.val) {
+            if (this.par.debug.val) {
                   console.writeln("DEBUG:adjustDialogToScreen, screen size " + screen_width + "x" + screen_height + ", dialog size " + dialog_width + "x" + dialog_height + ", preview size " + preview_width + "x" + preview_height + ", i " + i );
             }
 
@@ -2811,21 +2803,21 @@ function adjustDialogToScreen(dialog, preview_control, maxsize, preview_width, p
              */
             if (maxsize && dialog_width < target_width + limit) {
                   preview_width = preview_width + step;
-                  if (par.debug.val) console.writeln("DEBUG:adjustDialogToScreen, increase preview width to " + preview_width);
+                  if (this.par.debug.val) console.writeln("DEBUG:adjustDialogToScreen, increase preview width to " + preview_width);
             }
             if (maxsize && dialog_height < target_height + limit) {
                   preview_height = preview_height + step;
-                  if (par.debug.val) console.writeln("DEBUG:adjustDialogToScreen, increase preview height to " + preview_height);
+                  if (this.par.debug.val) console.writeln("DEBUG:adjustDialogToScreen, increase preview height to " + preview_height);
             }
             /* Make dialog smaller if it is bigger than target size.
              */
             if (dialog_width > target_width - limit) {
                   preview_width = preview_width - step;
-                  if (par.debug.val) console.writeln("DEBUG:adjustDialogToScreen, decrease preview width to " + preview_width);
+                  if (this.par.debug.val) console.writeln("DEBUG:adjustDialogToScreen, decrease preview width to " + preview_width);
             }
             if (dialog_height > target_height - limit) {
                   preview_height = preview_height - step;
-                  if (par.debug.val) console.writeln("DEBUG:adjustDialogToScreen, decrease preview height to " + preview_height);
+                  if (this.par.debug.val) console.writeln("DEBUG:adjustDialogToScreen, decrease preview height to " + preview_height);
             }
       }
       if (original_preview_width != preview_width || original_preview_height != preview_height) {
@@ -2838,13 +2830,13 @@ function adjustDialogToScreen(dialog, preview_control, maxsize, preview_width, p
                   console.writeln("Adjust Dialog to screen, screen size " + screen_width + "x" + screen_height + ", dialog size " + dialog_width + "x" + dialog_height + ", preview size " + preview_width + "x" + preview_height);
             }
       } else {
-            if (par.debug.val) console.writeln("DEBUG:adjustDialogToScreen, no changes, screen size " + screen_width + "x" + screen_height + ", dialog size " + dialog_width + "x" + dialog_height + ", preview size " + preview_width + "x" + preview_height);
+            if (this.par.debug.val) console.writeln("DEBUG:adjustDialogToScreen, no changes, screen size " + screen_width + "x" + screen_height + ", dialog size " + dialog_width + "x" + dialog_height + ", preview size " + preview_width + "x" + preview_height);
       }
 
       return { width: preview_width, height: preview_height, changes: changes };
 }
 
-function get_execute_time_str(start_time, end_time) 
+get_execute_time_str(start_time, end_time) 
 {
       var elapsed_time = (end_time - start_time) / 1000;
       var elapsed_time_str = "";
@@ -2867,17 +2859,17 @@ function get_execute_time_str(start_time, end_time)
       return elapsed_time_str;
 }
 
-function get_node_execute_time_str(node)
+get_node_execute_time_str(node)
 {
       if (node.end_time) {
-            return " (" + util.get_execute_time_str(node.start_time, node.end_time) + ")";
+            return " (" + this.get_execute_time_str(node.start_time, node.end_time) + ")";
       } else {
             return "";
       }
 }
 
 // Get exclusion areas scaled to the target image size
-function getScaledExclusionAreas(exclusionAreas, targetImage, rescale = true) 
+getScaledExclusionAreas(exclusionAreas, targetImage, rescale = true) 
 {
       if (exclusionAreas.polygons.length == 0) {
             // No exclusion areas
@@ -2896,8 +2888,8 @@ function getScaledExclusionAreas(exclusionAreas, targetImage, rescale = true)
 
             // Check for old format without image dimensions
             if (exclusionAreas.image_width == 0 || exclusionAreas.image_height == 0) {
-                  if (global.is_processing != global.processing_state.none) {
-                        util.addCriticalStatus("Exclusion areas image size is not defined, please recreate exclusion areas");
+                  if (this.global.is_processing != this.global.processing_state.none) {
+                        this.addCriticalStatus("Exclusion areas image size is not defined, please recreate exclusion areas");
                   } else {
                         console.criticalln("Exclusion areas image size is not defined, please recreate exclusion areas");
                   }
@@ -2908,23 +2900,23 @@ function getScaledExclusionAreas(exclusionAreas, targetImage, rescale = true)
             var exclusionAreasScale = exclusionAreas.image_width / exclusionAreas.image_height;
             var targetImageScale = targetImage.mainView.image.width / targetImage.mainView.image.height;
             if (Math.abs(exclusionAreasScale - targetImageScale) > 0.05) {
-                  if (global.is_processing != global.processing_state.none) {
-                        util.addCriticalStatus("Exclusion areas aspect ratio " + exclusionAreas.image_width + "x" + exclusionAreas.image_height + " does not match target aspect ratio " + targetImage.mainView.image.width + "x" + targetImage.mainView.image.height);
+                  if (this.global.is_processing != this.global.processing_state.none) {
+                        this.addCriticalStatus("Exclusion areas aspect ratio " + exclusionAreas.image_width + "x" + exclusionAreas.image_height + " does not match target aspect ratio " + targetImage.mainView.image.width + "x" + targetImage.mainView.image.height);
                   } else {
                         console.criticalln("Exclusion areas aspect ratio " + exclusionAreas.image_width + "x" + exclusionAreas.image_height + " does not match target aspect ratio " + targetImage.mainView.image.width + "x" + targetImage.mainView.image.height);
                   }
             }
 
-            var drizzle = util.findDrizzle(targetImage);
+            var drizzle = this.findDrizzle(targetImage);
 
             // Give a message if exclusionAreas image size is more than 5% different from target image size
             // Drizzle in target image may change the image size, so we that in the calculation
-            var limit = par.crop_check_limit.val / 100;
+            var limit = this.par.crop_check_limit.val / 100;
             if (Math.abs(exclusionAreas.image_width * drizzle - targetImage.mainView.image.width) > limit * targetImage.mainView.image.width ||
             Math.abs(exclusionAreas.image_height * drizzle - targetImage.mainView.image.height) > limit * targetImage.mainView.image.height) 
             {
-                  if (global.is_processing != global.processing_state.none) {
-                        util.addCriticalStatus("Exclusion areas size " + exclusionAreas.image_width + "x" + exclusionAreas.image_height + " does not match target image size " + targetImage.mainView.image.width + "x" + targetImage.mainView.image.height);
+                  if (this.global.is_processing != this.global.processing_state.none) {
+                        this.addCriticalStatus("Exclusion areas size " + exclusionAreas.image_width + "x" + exclusionAreas.image_height + " does not match target image size " + targetImage.mainView.image.width + "x" + targetImage.mainView.image.height);
                   } else {
                         console.criticalln("Exclusion areas size " + exclusionAreas.image_width + "x" + exclusionAreas.image_height + " does not match target image size " + targetImage.mainView.image.width + "x" + targetImage.mainView.image.height);
                   }
@@ -2947,38 +2939,231 @@ function getScaledExclusionAreas(exclusionAreas, targetImage, rescale = true)
       return { polygons: scaledExclusionAreas, image_width: targetImage.mainView.image.width, image_height: targetImage.mainView.image.height };
 }
 
-function beginLog()
+addExecutedProcess(obj, txt = "", imageId = null)
 {
-      if (self.beginLogCallback != null) {
-            self.beginLogCallback();
+      if (!this.global.get_flowchart_data
+          && this.global.is_processing != this.global.processing_state.none
+          && !this.global.creating_mask
+          && !this.global.skip_process_value_save)
+      {
+            this.executed_processes.push(
+                  { 
+                        src: obj.toSource("XPSM 1.0"), 
+                        src_js: obj.toSource(), 
+                        processId: obj.processId(),
+                        txt: txt,
+                        imageId: imageId,
+                        action: null
+                  }
+            );
       }
-      if (self.loggingEnabled) {
+}
+
+addExecutedProcessScriptAction(actiontxt, options)
+{
+      if (!this.global.get_flowchart_data
+          && this.global.is_processing != this.global.processing_state.none
+          && !this.global.creating_mask
+          && !this.global.skip_process_value_save)
+      {
+            if (actiontxt == "rename") {
+                  var action = "renameWindow('" + options[0] + "', '" + options[1] + "');";
+
+            } else if (actiontxt == "copyWindow") {
+                  var action = "copyWindow('" + options[0] + "', '" + options[1] + "');\n";
+
+            } else if (actiontxt == "closeWindow") {
+                  var action = "closeWindow('" + options[0] + "');\n";
+
+            } else if (actiontxt == "newWindow") {
+                  var action = "new ImageWindow(" + options[0] + ", " + options[1] + ", " + options[2] + ", " + options[3] + ", " + options[4] + ", " + options[5] + ", '" + options[6] + "');\n";
+
+            } else {
+                  this.throwFatalError("addExecutedProcessScriptAction, unknown action " + actiontxt);
+                  return;
+            }
+            this.executed_processes.push(
+                  { 
+                        src: null, 
+                        src_js: null, 
+                        processId: 0,
+                        txt: action,
+                        imageId: null,
+                        action: action
+                  }
+            );
+      }
+}
+
+writeExecutedProcessesToScript(filename)
+{
+      console.writeln("Write executed processes to script file " + filename);
+      var file = new File();
+      file.createForWriting(filename);
+      file.outText("// AutoIntegrate executed processes\n");
+      file.outText("// Generated on " + (new Date()).toString() + "\n");
+      file.outText("// PixInsight version " + this.global.pixinsight_version_str + "\n");
+      file.outText("// AutoIntegrate version " + this.global.autointegrate_version + "\n");
+      file.outTextLn("");
+      file.outTextLn("#engine v8");
+      file.outTextLn("");
+      file.outTextLn("function copyWindow(sourceId, targetId) {");
+      file.outTextLn("      console.writeln('Copying window: ' + sourceId + ' to ' + targetId);");
+      file.outTextLn("      var sourceWindow = ImageWindow.windowById(sourceId);");
+      file.outTextLn("      if (sourceWindow == null || sourceWindow.isNull) {");
+      file.outTextLn("            throw new Error('copyWindow:Source window ' + sourceId + ' is null');");
+      file.outTextLn("      }");
+      file.outTextLn("      var targetWindow = new ImageWindow(");
+      file.outTextLn("                              sourceWindow.mainView.image.width,");
+      file.outTextLn("                              sourceWindow.mainView.image.height,");
+      file.outTextLn("                              sourceWindow.mainView.image.numberOfChannels,");
+      file.outTextLn("                              sourceWindow.mainView.window.bitsPerSample,");
+      file.outTextLn("                              sourceWindow.mainView.window.isFloatSample,");
+      file.outTextLn("                              sourceWindow.mainView.image.colorSpace != ColorSpace.Gray,");
+      file.outTextLn("                              targetId);");
+      file.outTextLn("      targetWindow.mainView.beginProcess(UndoFlag.NoSwapFile);");
+      file.outTextLn("      targetWindow.mainView.image.assign(sourceWindow.mainView.image);");
+      file.outTextLn("      targetWindow.mainView.endProcess();");
+      file.outTextLn("      targetWindow.show();");
+      file.outTextLn("}");
+      file.outTextLn("function renameWindow(oldId, newId) {");
+      file.outTextLn("      console.writeln('Renaming window: ' + oldId + ' to ' + newId);");
+      file.outTextLn("      var sourceWindow = ImageWindow.windowById(oldId);");
+      file.outTextLn("      if (sourceWindow == null || sourceWindow.isNull) {");
+      file.outTextLn("            throw new Error('renameWindow: Source window ' + oldId + ' is null');");
+      file.outTextLn("      }");
+      file.outTextLn("      sourceWindow.mainView.id = newId;");
+      file.outTextLn("}");
+      file.outTextLn("function closeWindow(windowId) {");
+      file.outTextLn("      console.writeln('Closing window: ' + windowId);");
+      file.outTextLn("      var window = ImageWindow.windowById(windowId);");
+      file.outTextLn("      if (window == null || window.isNull) {");
+      file.outTextLn("            return;");
+      file.outTextLn("      }");
+      file.outTextLn("      window.forceClose();");
+      file.outTextLn("}");
+      file.outTextLn("function printMemoryStatus(txt = \"\") {");
+      file.outTextLn("      let memoryStatus = System.physicalMemoryStatus();");
+      file.outTextLn("      console.writeln(\"Memory status: \" + parseInt((memoryStatus.totalBytes - memoryStatus.availableBytes) / (1024 * 1024)) + \" MB used\" + (txt ? \" - \" + txt : \"\"));");
+      file.outTextLn("}");
+
+      file.outTextLn("");
+      file.outTextLn("console.beginLog();");
+      file.outTextLn("printMemoryStatus('Before processing');");
+
+      for (var i = 0; i < this.executed_processes.length; i++) {
+            var src_js = this.executed_processes[i].src_js;
+            if (src_js == null) {
+                  // This is a script action, write code to execute the action with options
+                  file.outTextLn(this.executed_processes[i].action);
+            } else {
+                  file.outTextLn("");
+                  file.outTextLn(src_js);
+                  if (this.executed_processes[i].imageId != null) {
+                        file.outTextLn("P.executeOn(ImageWindow.windowById('" + this.executed_processes[i].imageId + "').mainView, false);");
+                  } else {
+                        file.outTextLn("P.executeGlobal();");
+                  }
+                  var txt = this.executed_processes[i].txt ? " " + this.executed_processes[i].txt : "";
+                  file.outTextLn("printMemoryStatus('After " + this.executed_processes[i].processId + txt + "');");
+            }
+      }
+      file.outTextLn("");
+      file.outTextLn("printMemoryStatus('After processing');");
+      file.outTextLn("console.noteln('Processing completed');");
+      file.outTextLn("var logtxt = console.endLog();");
+      file.outTextLn("var file = new File();");
+      file.outTextLn("file.createForWriting('" + filename.replace(/\.js$/, ".log") + "');");
+      file.outTextLn("file.write(logtxt);");
+      file.outTextLn("file.close();");
+
+      file.close();
+}
+
+writeExecutedProcessesToXPSM(filename)
+{
+      console.writeln("Write executed processes to XPSM file " + filename);
+      var file = new File();
+      file.createForWriting(filename);
+
+      file.outTextLn('<?xml version="1.0" encoding="UTF-8"?>');
+      file.outTextLn('<!--');
+      file.outTextLn('********************************************************************');
+      file.outTextLn('PixInsight XML Process Serialization Module - XPSM 1.0');
+      file.outTextLn('AutoIntegrate processings steps');
+      file.outTextLn('********************************************************************');
+      file.outTextLn('Generated on ' + (new Date()).toString());
+      file.outTextLn('PixInsight version ' + this.global.pixinsight_version_str);
+      file.outTextLn('AutoIntegrate version ' + this.global.autointegrate_version);
+      file.outTextLn('********************************************************************');
+      file.outTextLn('-->');
+
+      file.outText('<xpsm version=\"1.0\"');
+      file.outText(' mlns="http://www.pixinsight.com/xpsm"');
+      file.outText(' xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"');
+      file.outText(' xsi:schemaLocation="http://www.pixinsight.com/xpsm');
+      file.outTextLn(' http://pixinsight.com/xpsm/xpsm-1.0.xsd">');
+
+      // Write process instances
+      for (var i = 0; i < this.executed_processes.length; i++) {
+            var src = this.executed_processes[i].src;
+            if (src == null) {
+                  continue;
+            }
+            var processId = this.executed_processes[i].processId;
+            file.outTextLn('<!-- ' + processId + (i+1) + ' -->');
+            src = src.replace(processId + "_instance", "ai_" + processId + "_instance" + (i+1));
+            src = src.replace(/Integration_([LRGBSHOC])_map/g, "Integration_$1");
+            src = src.replace(/Integration_RGB_map/g, "Integration_RGB");
+            file.outTextLn(src);
+      }
+
+      // write icons
+      for (var i = 0; i < this.executed_processes.length; i++) {
+            var processId = this.executed_processes[i].processId;
+            var txt = this.executed_processes[i].txt;
+            if (txt != "" && txt != null) {
+                  txt = '_' + txt;
+            }
+            file.outTextLn('<icon id="ai_' + processId + txt + '_' + (i+1) + '"' +
+                           ' instance="ai_' + processId + '_instance' + (i+1) + '"' +
+                           ' xpos="' + (this.global.screen_width - 600) + '" ypos="' + (5 + 32 * (i+1)) + '" workspace="Workspace01"/>');
+      }
+      file.outTextLn('</xpsm>\n');
+      file.close();
+}
+
+beginLog()
+{
+      if (this.beginLogCallback != null) {
+            this.beginLogCallback();
+      }
+      if (this.loggingEnabled) {
             console.beginLog();
       }
 }
 
-function endLog()
+endLog()
 {
-      if (self.loggingEnabled) {
+      if (this.loggingEnabled) {
             var logtext = console.endLog();
       } else {
             var logtext = null;
       }
-      if (self.endLogCallback != null) {
-            self.endLogCallback();
+      if (this.endLogCallback != null) {
+            this.endLogCallback();
       }
       return logtext;
 }
 
-function initStandalone()
+initStandalone()
 {
-    readParametersFromPersistentModuleSettings();
-    restoreLastDir();
-    restoreMasterDir();
+    this.readParametersFromPersistentModuleSettings();
+    this.restoreLastDir();
+    this.restoreMasterDir();
 }
 
 /* Interface functions.
- */
 
 // Setup
 this.setGUI = setGUI;
@@ -3126,7 +3311,6 @@ this.recordParam = recordParam;
 this.writeParameterToSettings = writeParameterToSettings;
 this.readParameterFromSettings = readParameterFromSettings;
 this.readParametersFromPersistentModuleSettings = readParametersFromPersistentModuleSettings
-this.readAndMigrateSetting = readAndMigrateSetting;
 
 // Character and name checking
 this.mapBadChars = mapBadChars;
@@ -3150,8 +3334,8 @@ this.getScaledExclusionAreas = getScaledExclusionAreas;
 
 this.initStandalone = initStandalone;
 
-}  /* AutoIntegrateUtil */
+ */
 
-AutoIntegrateUtil.prototype = new Object;
+}  /* AutoIntegrateUtil */
 
 #endif  /* AUTOINTEGRATEUTIL_JS */

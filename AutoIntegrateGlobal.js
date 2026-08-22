@@ -19,63 +19,42 @@ by Pleiades Astrophoto and its contributors (https://pixinsight.com/).
 #ifndef AUTOINTEGRATEGLOBAL_JS
 #define AUTOINTEGRATEGLOBAL_JS
 
-#include <pjsr/ColorSpace.jsh>
-#include <pjsr/Color.jsh>
-#include <pjsr/FrameStyle.jsh>
-#include <pjsr/Sizer.jsh>
-#include <pjsr/SampleType.jsh>
-#include <pjsr/StdButton.jsh>
-#include <pjsr/StdIcon.jsh>
-#include <pjsr/TextAlign.jsh>
-#include <pjsr/NumericControl.jsh>
-#include <pjsr/UndoFlag.jsh>
-#include <pjsr/SectionBar.jsh>
-#include <pjsr/ImageOp.jsh>
-#include <pjsr/DataType.jsh>
-#include <pjsr/StdCursor.jsh>
-
-
-#define SETTINGSKEY "AutoIntegrate"
-
-/*
- * Default STF Parameters
- */
-
-// Shadows clipping point in (normalized) MAD units from the median.
-#define DEFAULT_AUTOSTRETCH_SCLIP  -2.80
-// Target mean background in the [0,1] range.
-#define DEFAULT_AUTOSTRETCH_TBGND   0.25
-// Apply the same STF to all nominal channels (true), or treat each channel
-// separately (false).
-#define DEFAULT_AUTOSTRETCH_CLINK   true
-
-function AutoIntegrateGlobal()
+class AutoIntegrateGlobal extends Object
 {
 
-this.__base__ = Object;
-this.__base__();
+constructor() {
 
-var self = this;
+super();
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-this.autointegrate_version = "AutoIntegrate v1.85 test1";   // Version, also updated into updates.xri
-this.autointegrate_info = "Calibration updates, fixes";     // For updates.xri
+this.autointegrate_version = "AutoIntegrate v1.86.3";       // Version, also updated into updates.xri
+this.autointegrate_info = "V8 JavaScript engine";           // For updates.xri
 
 this.autointegrate_version_info = [
       "Changes since the previous version:",
-      "- Small updates.",
+      "- Runs on V8 JavaScript engine",
+      "- Updates to DBE",
+      "- New curves enhancement",
+      "- Enhance highlight color",
+      "- Fixes to AutoContinue with OSC image",
 ];
 
 /* Interface version changes:
  *    0: Initial version.
- *    1: Fixed settings keys to always use SETTINGSKEY prefix.
+ *    1: Fixed settings keys to always use "AutoIntegrate" prefix.
  */
 this.interface_version = 1;    // Interface version
 
 this.pixinsight_version_str = "";   // PixInsight version string, e.g. 1.8.8.10
 this.pixinsight_version_num = 0;    // PixInsight version number, e.h. 1080810
 this.pixinsight_build_num = 0;      // PixInsight build number, e.g. 1601
+
+/*
+ * Default STF Parameters
+ */
+this.DEFAULT_AUTOSTRETCH_SCLIP = -2.80;
+this.DEFAULT_AUTOSTRETCH_TBGND = 0.25;
 
 this.expert_mode = false;
 this.tabs = [];                     // Store tab controls for enabling/disabling
@@ -123,6 +102,8 @@ this.do_not_read_settings = false;      // do not read Settings from persistent 
 this.do_not_write_settings = false;     // do not write Settings to persistent module settings
 this.use_preview = true;
 this.is_processing = this.processing_state.none;
+this.creating_mask = false;          // flag for creating mask
+this.skip_process_value_save = false;   // flag for iterative stretching
 
 this.cancel_processing = false;
 
@@ -204,34 +185,6 @@ this.narrowbandAutoMapping = [
 ];
 
 
-// Set parameter value and check possible mappings
-function setParameterValue(param, val) {
-      if (param.name == "Target type") {
-            if (val == "Small bright nebula" || val == "Large nebula") {
-                  param.val = "Nebula";
-                  return;
-            }
-      }
-      param.val = val;
-      if (param.set_callback != undefined) {
-            if (this.debug) console.writeln("setParameterValue callback for " + param.name);
-            param.set_callback(param);
-      } else {
-            if (this.debug) console.writeln("setParameterValue default for " + param.name);
-      }
-};
-
-// Check if parameter value is changed from default
-function isParameterChanged(param) {
-      if (param.is_changed_callback != undefined) {
-            if (this.debug) console.writeln("isParameterChanged callback for " + param.name);
-            return param.is_changed_callback(param);
-      } else {
-            if (this.debug) console.writeln("isParameterChanged default for " + param.name);
-            return param.val != param.def;
-      }
-};
-
 /*
       Parameters that can be adjusted in the GUI
       These can be saved to persistent module settings or 
@@ -245,8 +198,8 @@ function isParameterChanged(param) {
 this.par = {
       // Image processing parameters
       local_normalization: { val: false, def: false, name : "Local normalization", type : 'B' },
-      fix_column_defects: { val: false, def: false, name : "Fix column defects", type : 'B' },
-      fix_row_defects: { val: false, def: false, name : "Fix row defects", type : 'B' },
+      fix_column_defects: { val: false, def: false, name : "Fix column defects", type : 'B', ignore_used: true }, // Does not work in V8
+      fix_row_defects: { val: false, def: false, name : "Fix row defects", type : 'B', ignore_used: true },       // Does not work in V8
       skip_cosmeticcorrection: { val: false, def: false, name : "No Cosmetic correction", type : 'B', oldname: "Cosmetic correction" },
       skip_subframeselector: { val: false, def: false, name : "No SubframeSelector", type : 'B', oldname : "SubframeSelector" },
       staralignment_sensitivity: { val: 0.5, def: 0.5, name : "StarAlignment sensitivity", type : 'R' },
@@ -323,8 +276,10 @@ this.par = {
       keep_temporary_images: { val: false, def: false, name : "Keep temporary images", type : 'B' },
       keep_processed_images: { val: false, def: false, name : "Keep processed images", type : 'B' },
       debug: { val: false, def: false, name : "Debug", type : 'B' },
+      null_processing: { val: false, def: false, name : "Null processing", type : 'B' },
       flowchart_debug: { val: false, def: false, name : "Flowchart debug", type : 'B' },
       print_process_values: { val: false, def: false, name : "Print process values", type : 'B' },
+      create_executed_processes_js: { val: false, def: false, name : "Create ExecutedProcesses.js file", type : 'B' },
       monochrome_image: { val: false, def: false, name : "Monochrome", type : 'B' },
       skip_imageintegration_clipping: { val: false, def: false, name : "No ImageIntegration clipping", type : 'B' },
       synthetic_l_image: { val: false, def: false, name : "Synthetic L", type : 'B' },
@@ -483,14 +438,14 @@ this.par = {
       mgc_scale_factor: { val: 1.0, def: 1.0, name : "MGC scale factor", type : 'R' },
       mgc_structure_separation: { val: 3, def: 3, name : "MGC structure separation", type : 'I' },
       
-      ABE_degree: { val: 4, def: 4, name : "ABE function degree", type : 'I' },
+      ABE_degree: { val: 4, def: 4, name : "ABE degree", type : 'I' },
       ABE_correction: { val: 'Subtraction', def: 'Subtraction', name : "ABE correction", type : 'S' },
       ABE_normalize: { val: false, def: false, name : "ABE normalize", type : 'B' },
 
-      dbe_use_background_neutralization: { val: false, def: false, name : "DBE use background neutralization", type : 'B' },
-      dbe_use_abe: { val: false, def: false, name : "DBE use ABE", type : 'B' },
+      dbe_use_background_neutralization: { val: true, def: true, name : "DBE use background neutralization", type : 'B' },
+      dbe_use_abe: { val: true, def: true, name : "DBE use ABE", type : 'B' },
       dbe_samples_per_row: { val: 10, def: 10, name : "DBE samples per row", type : 'I' },
-      dbe_normalize : { val: false, def: false, name : "DBE normalize", type : 'B' },
+      dbe_normalize : { val: true, def: true, name : "DBE normalize", type : 'B' },
       dbe_min_weight : { val: 0.75, def: 0.75, name : "DBE min weight", type : 'I' },
 
       graxpert_path: { val: "", def: "", name : "GraXpert path", type : 'S', skip_reset: true },
@@ -510,7 +465,7 @@ this.par = {
       crop_use_rejection_low: { val: true, def: true, name : "Crop use rejection low", type : 'B' },
       crop_rejection_low_limit: { val: 0.2, def: 0.2, name : "Crop rejection low limit", type : 'R' },
       crop_check_limit: { val: 5, def: 5, name : "Crop check limit", type : 'R' },
-      image_stretching: { val: self.image_stretching_values[0], def: self.image_stretching_values[0], name : "Image stretching", type : 'S' },
+      image_stretching: { val: this.image_stretching_values[0], def: this.image_stretching_values[0], name : "Image stretching", type : 'S' },
       stars_stretching: { val: 'Arcsinh Stretch', def: 'Arcsinh Stretch', name : "Stars stretching", type : 'S' },
       stars_combine: { val: 'Screen', def: 'Screen', name : "Stars combine", type : 'S' },
       STF_linking: { val: 'Auto', def: 'Auto', name : "RGB channel linking", type : 'S' },
@@ -626,7 +581,13 @@ this.par = {
       enhancements_selective_color: { val: false, def: false, name : "Enh selective color", type : 'B' },
       enhancements_selective_color_preset: { val: "None", def: "None", name : "Enh selective color preset", type : 'S' },
       enhancements_selective_color_data: { val: null, def: null, name : "Enh selective color data", type : 'O' },
-      
+
+      enhancements_curves: { val: false, def: false, name : "Enh curves", type : 'B' },
+      enhancements_curves_highlights: { val: 0, def: 0, name : "Enh curves highlights", type : 'R' },
+      enhancements_curves_lights: { val: 0, def: 0, name : "Enh curves lights", type : 'R' },
+      enhancements_curves_darks: { val: 0, def: 0, name : "Enh curves darks", type : 'R' },
+      enhancements_curves_shadows: { val: 0, def: 0, name : "Enh curves shadows", type : 'R' },
+
       leave_some_green: { val: false, def: false, name : "Enh narrowband leave some green", type : 'B', oldname: "Extra narrowband leave some green" },
       leave_some_green_amount: { val: 0.50, def: 0.50, name : "Enh narrowband leave some green amount", type : 'R', oldname: "Extra narrowband leave some green amount" },
       run_narrowband_SCNR: { val: false, def: false, name : "Enh narrowband remove green", type : 'B', oldname: "Extra narrowband remove green" },
@@ -728,6 +689,7 @@ this.par = {
       enhancements_annotate_image: { val: false, def: false, name : "Enh annotate image", type : 'B', oldname: "Extra annotate image" },
       enhancements_annotate_image_scale: { val: 4, def: 4, name : "Enh annotate image scale", type : 'B', oldname: "Extra annotate image scale" },
       enhancements_ha_mapping: { val: false, def: false, name : "Enh ha mapping", type : 'B', oldname: "Extra ha mapping" },
+      enhancements_highlight_color: { val: false, def: false, name : "Enh highlight color", type : 'B' },
 
       // Calibration settings
       debayer_pattern: { val: "Auto", def: "Auto", name : "Debayer", type : 'S' },
@@ -818,9 +780,9 @@ this.console_hidden = false;  // true if console is hidden
 this.debayerPattern_values = [ "Auto", "RGGB", "BGGR", "GBRG", 
                                "GRBG", "GRGB", "GBGR", "RGBG", 
                                "BGRG", "None" ];
-this.debayerPattern_enums = [ Debayer.prototype.Auto, Debayer.prototype.RGGB, Debayer.prototype.BGGR, Debayer.prototype.GBRG,
-                              Debayer.prototype.GRBG, Debayer.prototype.GRGB, Debayer.prototype.GBGR, Debayer.prototype.RGBG,
-                              Debayer.prototype.BGRG, Debayer.prototype.Auto ];
+this.debayerPattern_enums = [ Debayer.Auto, Debayer.RGGB, Debayer.BGGR, Debayer.GBRG,
+                              Debayer.GRBG, Debayer.GRGB, Debayer.GBGR, Debayer.RGBG,
+                              Debayer.BGRG, Debayer.Auto ];
 
 this.saved_measurements = null;
 this.saved_measurements_sorted = null;
@@ -1027,7 +989,56 @@ this.final_windows = [
 
 this.test_image_ids = [];      // Test images
 
-function getDirectoryInfo(simple_text) {
+this.ai_use_persistent_module_settings = true;  // read some defaults from persistent module settings
+this.testmode = false;                          // true if we are running in test mode
+this.testmode_log = "";                         // output for test mode, if any, to testmode.log file
+
+if (this.autointegrate_version.indexOf("test") > 0) {
+      this.autointegrateinfo_link = "https://ruuth.xyz/test/AutoIntegrateInfo.html";
+} else {
+      this.autointegrateinfo_link = "https://ruuth.xyz/AutoIntegrateInfo.html";
+}
+
+this.rootingArr = [];            // for rooting objects
+this.debug = false;              // true to enable debug output to console and additional debug checks
+
+/* Functions
+this.getDirectoryInfo = getDirectoryInfo;
+this.setParameterValue = setParameterValue;
+this.isParameterChanged = isParameterChanged;
+this.reportUnusedParameters = reportUnusedParameters;
+ */
+    } // constructor
+
+// Set parameter value and check possible mappings
+setParameterValue(param, val) {
+      if (param.name == "Target type") {
+            if (val == "Small bright nebula" || val == "Large nebula") {
+                  param.val = "Nebula";
+                  return;
+            }
+      }
+      param.val = val;
+      if (param.set_callback != undefined) {
+            if (this.debug) console.writeln("setParameterValue call set_callbacklback for " + param.name);
+            param.set_callback(param);
+      } else {
+            if (this.debug) console.writeln("setParameterValue, param.name=" + param.name + ", val=" + val);
+      }
+};
+
+// Check if parameter value is changed from default
+isParameterChanged(param) {
+      if (param.is_changed_callback != undefined) {
+            if (this.debug) console.writeln("isParameterChanged callback for " + param.name);
+            return param.is_changed_callback(param);
+      } else {
+            if (this.debug) console.writeln("isParameterChanged default for " + param.name);
+            return param.val != param.def;
+      }
+};
+
+getDirectoryInfo(simple_text) {
       var header = "<p>AutoIntegrate output files go to the following subdirectories:</p>";
       var info = [
             "AutoProcessed contains processed final images. Also integrated images and log output is here.",
@@ -1043,7 +1054,7 @@ function getDirectoryInfo(simple_text) {
 }
 
 // Go through all parameters and report unused ones
-function reportUnusedParameters()
+reportUnusedParameters()
 {
       if (!this.debug) {
             return;
@@ -1058,26 +1069,6 @@ function reportUnusedParameters()
       }
 }
 
-this.ai_use_persistent_module_settings = true;  // read some defaults from persistent module settings
-this.testmode = false;                          // true if we are running in test mode
-this.testmode_log = "";                         // output for test mode, if any, to testmode.log file
-
-if (this.autointegrate_version.indexOf("test") > 0) {
-      this.autointegrateinfo_link = "https://ruuth.xyz/test/AutoIntegrateInfo.html";
-} else {
-      this.autointegrateinfo_link = "https://ruuth.xyz/AutoIntegrateInfo.html";
-}
-
-this.rootingArr = [];            // for rooting objects
-this.debug = false;              // true to enable debug output to console and additional debug checks
-
-this.getDirectoryInfo = getDirectoryInfo;
-this.setParameterValue = setParameterValue;
-this.isParameterChanged = isParameterChanged;
-this.reportUnusedParameters = reportUnusedParameters;
-
 }   /* AutoIntegrateGlobal*/
-
-AutoIntegrateGlobal.prototype = new Object;
 
 #endif // AUTOINTEGRATEGLOBAL_JS
