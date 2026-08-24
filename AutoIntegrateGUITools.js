@@ -310,10 +310,10 @@ newTextEdit(parent, param, tooltip)
       edt.onTextUpdated = (value) => { 
             edt.aiParam.val = value; 
       };
-      edt.text = edt.aiParam.val;
+      edt.text = String(edt.aiParam.val);
       edt.toolTip = this.util.formatToolTip(tooltip);
       edt.aiParam.reset = () => {
-            edt.text = edt.aiParam.val;
+            edt.text = String(edt.aiParam.val);
       };
       this.util.recordParam(param);
       return edt;
