@@ -755,7 +755,7 @@ setFITSKeyword(imageWindow, name, value, comment)
 }
 
 // Append a new keyword, allows multiple keywords with same name
-appenFITSKeyword(imageWindow, name, value, comment) 
+appenFITSKeyword(imageWindow, name, value, comment)
 {
       imageWindow.keywords = imageWindow.keywords.concat([
          new FITSKeyword(
@@ -764,6 +764,26 @@ appenFITSKeyword(imageWindow, name, value, comment)
             comment
          )
       ]);
+}
+
+// Append multiple new keywords in a single operation. Reading and writing
+// imageWindow.keywords is expensive, so appending keywords one by one gets
+// very slow with a large number of keywords.
+// Values is an array of { name: name, value: value, comment: comment } objects.
+appenFITSKeywords(imageWindow, values)
+{
+      if (values.length == 0) {
+            return;
+      }
+      var newKeywords = [];
+      for (var i = 0; i < values.length; i++) {
+            newKeywords[newKeywords.length] = new FITSKeyword(
+                  values[i].name,
+                  values[i].value,
+                  values[i].comment
+            );
+      }
+      imageWindow.keywords = imageWindow.keywords.concat(newKeywords);
 }
 
 getKeywordValue(imageWindow, keywordname) 
@@ -3239,6 +3259,7 @@ this.findDrizzleScale = findDrizzleScale;
 this.copyKeywords = copyKeywords;
 this.setFITSKeyword = setFITSKeyword;
 this.appenFITSKeyword = appenFITSKeyword;
+this.appenFITSKeywords = appenFITSKeywords;
 this.getKeywordValue = getKeywordValue;
 this.findKeywordName = findKeywordName;
 this.setFITSKeywordNoOverwrite = setFITSKeywordNoOverwrite;

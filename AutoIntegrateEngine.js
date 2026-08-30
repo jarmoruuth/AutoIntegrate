@@ -1647,20 +1647,21 @@ saveProcessingHistoryToImage(imageWindow)
       console.writeln("saveProcessingHistoryToImage to " + imageWindow.mainView.id);
       this.setAutoIntegrateVersionIfNeeded(imageWindow);
       var processing_info = this.getProcessingInfo();
+      var keywords = [];
       for (var i = 0; i < processing_info.header.length; i++) {
-            this.util.appenFITSKeyword(
-                  imageWindow,
-                  "HISTORY",
-                  processing_info.header[i],
-                  "AutoIntegrate processing info");
+            keywords[keywords.length] = {
+                  name: "HISTORY",
+                  value: processing_info.header[i],
+                  comment: "AutoIntegrate processing info" };
       }
       for (var i = 0; i < processing_info.options.length; i++) {
-            this.util.appenFITSKeyword(
-                  imageWindow,
-                  "HISTORY",
-                  processing_info.options[i],
-                  "AutoIntegrate processing option " + (i + 1));
+            keywords[keywords.length] = {
+                  name: "HISTORY",
+                  value: processing_info.options[i],
+                  comment: "AutoIntegrate processing option " + (i + 1) };
       }
+      this.util.appenFITSKeywords(imageWindow, keywords);
+      console.writeln("saveProcessingHistoryToImage completed");
 }
 
 saveEnhancementsHistoryToImage(imageWindow) 
@@ -1673,13 +1674,14 @@ saveEnhancementsHistoryToImage(imageWindow)
       } else {
             enhancementscount = parseInt(enhancementscount);
       }
+      var keywords = [];
       for (var i = 0; i < this.global.enhancements_info.length; i++) {
-            this.util.appenFITSKeyword(
-                  imageWindow,
-                  "HISTORY",
-                  this.global.enhancements_info[i],
-                  "AutoIntegrate enhancements option " + (enhancementscount + i + 1));
+            keywords[keywords.length] = {
+                  name: "HISTORY",
+                  value: this.global.enhancements_info[i],
+                  comment: "AutoIntegrate enhancements option " + (enhancementscount + i + 1) };
       }
+      this.util.appenFITSKeywords(imageWindow, keywords);
       this.util.setFITSKeyword(
             imageWindow, 
             "AutoIntegrateEnhancementsCount", 
