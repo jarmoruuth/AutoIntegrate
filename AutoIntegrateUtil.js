@@ -70,6 +70,20 @@ runGarbageCollection()
       }
 }
 
+startTimer()
+{
+      return Date.now();
+}
+
+stopTimer(start_time, txt = "Timer")
+{
+      var end_time = Date.now();
+      var time_sec = (end_time-start_time)/1000;
+      if (time_sec >= 1.0) {
+            console.writeln("* " + txt + ", time " + time_sec + " sec");
+      }
+}
+
 checkEvents()
 {
       CoreApplication.processEvents();  // process events to keep GUI responsible
@@ -1033,6 +1047,7 @@ closeAllWindowsFromArray(arr, keep_base_image = false, print_names = false)
 // close all windows created by this script
 closeAllWindows(keep_integrated_imgs, force_close)
 {
+      var start_timer = this.startTimer();
       this.closeTempWindows();
 
       if (keep_integrated_imgs) {
@@ -1073,6 +1088,7 @@ closeAllWindows(keep_integrated_imgs, force_close)
       this.closeFinalWindowsFromArray(this.global.final_windows, force_close);
 
       this.runGarbageCollection();
+      this.stopTimer(start_timer, "Close all windows created by this script");
 }
 
 findFromArray(arr, id)

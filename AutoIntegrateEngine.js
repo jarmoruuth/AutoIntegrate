@@ -11226,6 +11226,7 @@ runMultiscaleLinearTransformSharpen(imgWin, maskWin)
 
 writeProcessingStepsAndEndLog(alignedFiles, autocontinue, basename, iserror)
 {
+      var start_timer = this.util.startTimer();
       if (basename == null) {
             if (autocontinue) {
                   basename = "AutoContinue";
@@ -11240,12 +11241,15 @@ writeProcessingStepsAndEndLog(alignedFiles, autocontinue, basename, iserror)
 
       if (!this.global.write_processing_log_file) {
             console.writeln(basename + " log file not written.");
+            this.util.stopTimer(start_timer, "writeProcessingStepsAndEndLog");
             return;
       }
 
       var dialogRet = this.util.ensureDialogFilePath(basename + ".log");
       if (dialogRet == 0) {
             // Canceled, do not save
+            console.writeln(basename + " log file not written.");
+            this.util.stopTimer(start_timer, "writeProcessingStepsAndEndLog");
             return;
       }
 
@@ -11300,10 +11304,12 @@ writeProcessingStepsAndEndLog(alignedFiles, autocontinue, basename, iserror)
             }
             file.close();
       }
+      this.util.stopTimer(start_timer, "Write processing errors to log file");
 }
 
 writeTestmodeLog(text, fname)
 {
+      var start_timer = this.util.startTimer();
       console.writeln("writeTestmodeLog: " + fname);
       fname = this.util.ensure_win_prefix(fname);
       var processedPath = this.util.combinePath(this.global.outputRootDir, this.global.AutoProcessedDir);
@@ -11315,6 +11321,7 @@ writeTestmodeLog(text, fname)
       file.createForWriting(this.global.run_results.testmode_log_name);
       file.outTextLn(text);
       file.close();
+      this.util.stopTimer(start_timer, "writeTestmodeLog");
 }
 
 // Find window and optionally search without a prefix
@@ -18466,6 +18473,7 @@ autointegrateProcessingEngine(parent, auto_continue, autocontinue_narrowband, tx
        console.writeln("--------------------------------------");
        if (this.global.flowchartData != null) {
             // Print this.flowchart
+            var start_timer = this.util.startTimer();
             this.flowchart.flowchartPrint(this.global.flowchartData);
             if (this.global.testmode) {
                   this.flowchart.flowchartPrint(this.global.flowchartData, true);
@@ -18480,6 +18488,7 @@ autointegrateProcessingEngine(parent, auto_continue, autocontinue_narrowband, tx
                   bitmap.clear();
                   this.global.flowchart_image = null;
             }
+            this.util.stopTimer(start_timer, "Print flowchart");
        }
  
        if (this.preprocessed_images != this.global.start_images.FINAL
@@ -18488,18 +18497,22 @@ autointegrateProcessingEngine(parent, auto_continue, autocontinue_narrowband, tx
            && create_channel_images_ret == this.retval.SUCCESS
            && !this.global.get_flowchart_data)
        {
+            var start_timer = this.util.startTimer();
              let json_file = "AutosaveSetup.json";
              if (this.par.win_prefix_to_log_files.val) {
                    json_file = this.util.ensure_win_prefix(json_file);
              }
              this.util.saveJsonFileEx(parent, true, json_file);
+             this.util.stopTimer(start_timer, "Save autosave setup");
        }
        if (this.alignedFiles != null) {
+            var start_timer = this.util.startTimer();
             console.writeln("--------------------------------------");
             console.noteln("Aligned files:");
             for (var i = 0; i < this.alignedFiles.length; i++) {
                   console.writeln(this.alignedFiles[i]);
             }
+            this.util.stopTimer(start_timer, "Print aligned files");
       }
 
        console.writeln("--------------------------------------");
@@ -18508,23 +18521,29 @@ autointegrateProcessingEngine(parent, auto_continue, autocontinue_narrowband, tx
        console.writeln("--------------------------------------");
        var processingOptions = this.getChangedProcessingOptions();
        if (processingOptions.length > 0) {
+            var start_timer = this.util.startTimer();
              console.writeln("Processing options:");
              for (var i = 0; i < processingOptions.length; i++) {
                    console.writeln(processingOptions[i][0] + " " + processingOptions[i][1]);
              }
+            this.util.stopTimer(start_timer, "Print processing options");
        } else {
              this.util.addProcessingStep("Default processing options were used");
  
        }
        console.writeln("--------------------------------------");
        if (this.global.processing_warnings.length > 0) {
+            var start_timer = this.util.startTimer();
             console.warningln("Processing warnings:");
             console.warningln(this.global.processing_warnings);
             console.writeln("");
+            this.util.stopTimer(start_timer, "Print processing warnings");
        }
        if (this.global.processing_errors.length > 0) {
+            var start_timer = this.util.startTimer();
             console.criticalln("Processing errors:");
             console.criticalln(this.global.processing_errors);
+            this.util.stopTimer(start_timer, "Print processing errors");
        }
 
        this.imageSolver.solved_imageId = null;
@@ -18539,28 +18558,36 @@ autointegrateProcessingEngine(parent, auto_continue, autocontinue_narrowband, tx
  
        if (this.global.debug) console.writeln("global.testmode " + this.global.testmode);
        if (this.global.testmode || this.global.debug) {
+            var start_timer = this.util.startTimer();
             this.global.testmode_log += "\n" + this.global.processing_steps;
             this.writeTestmodeLog(this.global.testmode_log, "TestMode.log");
             this.global.testmode_log = "";
+            this.util.stopTimer(start_timer, "Write testmode log");
        }
 
        console.noteln("Engine processing completed.");
 
        if (!this.global.get_flowchart_data && this.preprocessed_images != this.global.start_images.FINAL) {
+            var start_timer = this.util.startTimer();
             this.writeProcessingStepsAndEndLog(this.alignedFiles, auto_continue, null, false);
             console.noteln("Console output is written into file " + this.logfname);
+            this.util.stopTimer(start_timer, "Write processing steps and end log");
       }
 
       if (this.util.executed_processes.length > 0) {
             if (this.par.create_process_icons.val) {
+                  var start_timer = this.util.startTimer();
                   let filename = this.util.ensure_win_prefix("ExecutedProcesses.xpsm");
                   console.writeln("Write executed processes as process icons");
                   this.util.writeExecutedProcessesToXPSM(this.util.ensurePathEndSlash(this.global.outputRootDir) + filename);
+                  this.util.stopTimer(start_timer, "Write executed processes as process icons");
             }
             if (this.par.create_executed_processes_js.val || this.global.debug) {
+                  var start_timer = this.util.startTimer();
                   let filename = this.util.ensure_win_prefix("ExecutedProcesses.js");
                   console.writeln("Write executed processes as JavaScript file");
                   this.util.writeExecutedProcessesToScript(this.util.ensurePathEndSlash(this.global.outputRootDir) + filename);
+                  this.util.stopTimer(start_timer, "Write executed processes as JavaScript file");
             }
       }
       this.global.is_processing = this.global.processing_state.none;

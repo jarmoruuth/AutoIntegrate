@@ -234,6 +234,7 @@ this.exclusion_area_image_window_list = null;
 
 update_enhancements_target_image_window_list(current_item)
 {
+      var start_timer = this.util.startTimer();
       this.exclusion_area_image_window_list = this.enhancements_gui.update_enhancements_target_image_window_list(current_item);
 
       // Exclusion area image list is kept in sync with extra_target_image_window_list
@@ -241,6 +242,7 @@ update_enhancements_target_image_window_list(current_item)
       for (var i = 0; i < this.exclusion_area_image_window_list.length; i++) {
             this.guitools.exclusionAreasComboBox.addItem( this.exclusion_area_image_window_list[i] );
       }
+      this.util.stopTimer(start_timer, "Update enhancements target image window list");
 }
 
 close_undo_images()
@@ -475,6 +477,7 @@ setWindowPrefixHelpTip(default_prefix)
 
 fix_win_prefix_array()
 {
+      var start_timer = this.util.startTimer();
       var new_prefix_array = [];
 
       for (var i = 0; i < this.ppar.prefixArray.length; i++) {
@@ -488,6 +491,7 @@ fix_win_prefix_array()
             }
       }
       this.ppar.prefixArray = new_prefix_array;
+      this.util.stopTimer(start_timer, "Fix window prefix array");
 }
 
 get_win_prefix_combobox_array(default_prefix)
@@ -553,6 +557,7 @@ savePersistentSettings(from_exit)
       if (this.global.do_not_write_settings) {
             console.noteln("Do not save interface settings to persistent module settings.");
       } else {
+            var start_timer = this.util.startTimer();
             console.noteln("Save persistent settings");
             Settings.write ("AutoIntegrate" + "/prefixName", DataType.String, this.ppar.win_prefix);
             Settings.write ("AutoIntegrate" + "/prefixArray", DataType.String, JSON.stringify(this.ppar.prefixArray));
@@ -567,6 +572,7 @@ savePersistentSettings(from_exit)
             Settings.write ("AutoIntegrate" + "/startupImageName", DataType.String, this.ppar.startup_image_name);
             Settings.write ("AutoIntegrate" + "/savedVersion", DataType.String, this.global.autointegrate_version);
             Settings.write ("AutoIntegrate" + "/savedInterfaceVersion", DataType.Int32, this.global.interface_version);
+            this.util.stopTimer(start_timer, "Save persistent settings");
       }
       if (!from_exit) {
             this.setWindowPrefixHelpTip(this.ppar.win_prefix);
