@@ -1551,16 +1551,22 @@ setTargetFITSKeywordsForPixelmath(imageWindow, keywords)
 copySelectedFITSKeywords(sourceWindow, targetWindow)
 {
       var keywords = sourceWindow.keywords;
+      var copiedKeywords = [];
       for (var i = 0; i < keywords.length; i++) {
             var keyword = keywords[i];
             if (keyword.name == 'AutoIntegrateDrizzle'
                 || keyword.name == 'AutoIntegrateMEDFWHM'
-                || keyword.name == 'AutoLinearfit') 
+                || keyword.name == 'AutoLinearfit')
             {
                   // copy keyword
                   console.writeln("Copy keyword " + keyword.name + " to " + targetWindow.mainView.id);
-                  targetWindow.keywords = targetWindow.keywords.concat([keyword]);
+                  copiedKeywords[copiedKeywords.length] = keyword;
             }
+      }
+      if (copiedKeywords.length > 0) {
+            // Write keywords in a single operation, reading and writing
+            // keywords is expensive.
+            targetWindow.keywords = targetWindow.keywords.concat(copiedKeywords);
       }
 }
 
@@ -1577,15 +1583,26 @@ setSSWEIGHTkeyword(imageWindow, SSWEIGHT)
       this.ssweight_set = true;
 }
 
-setFinalImageKeyword(imageWindow) 
+setFinalImageKeyword(imageWindow)
 {
       console.writeln("setFinalImageKeyword to " + imageWindow.mainView.id);
-      this.setAutoIntegrateVersionIfNeeded(imageWindow);
-      this.util.setFITSKeyword(
+      // Update version and final image keywords in a single operation,
+      // reading and writing keywords is expensive.
+      this.util.updateFITSKeywords(
             imageWindow,
-            "AutoIntegrate",
-            "finalimage",
-            "AutoIntegrate processed final image");
+            null,
+            [ { name: "AutoIntegrate",
+                value: "finalimage",
+                comment: "AutoIntegrate processed final image" } ],
+            [ this.autoIntegrateVersionKeyword() ]);
+}
+
+// Keyword for the AutoIntegrate version, added only if it is not already set
+autoIntegrateVersionKeyword()
+{
+      return { name: "AutoIntegrateVersion",
+               value: this.global.autointegrate_version,
+               comment: "AutoIntegrate version" };
 }
 
 setAutoIntegrateVersionIfNeeded(imageWindow)
@@ -1593,18 +1610,13 @@ setAutoIntegrateVersionIfNeeded(imageWindow)
       if (!imageWindow) {
             return;
       }
-      if (!imageWindow.keywords) {
-            imageWindow.keywords = [];
-      }
-      var version = this.global.autointegrate_version;
-      var existingVersion = this.util.getKeywordValue(imageWindow, "AutoIntegrateVersion");
-      if (existingVersion == null) {
-            this.util.setFITSKeyword(
-                  imageWindow,
-                  "AutoIntegrateVersion",
-                  version,
-                  "AutoIntegrate version");
-      }
+      // Keywords are read only once and written only if the version
+      // keyword is not already set.
+      this.util.setFITSKeywordNoOverwrite(
+            imageWindow,
+            "AutoIntegrateVersion",
+            this.global.autointegrate_version,
+            "AutoIntegrate version");
 }
 
 getProcessingInfo()
@@ -1631,21 +1643,24 @@ getProcessingInfo()
       return { header : header, options : options };
 }
 
-saveProcessingStepToImage(imageWindow, step) 
+saveProcessingStepToImage(imageWindow, step)
 {
       console.writeln("saveProcessingStepToImage to " + imageWindow.mainView.id + ", step " + step);
-      this.setAutoIntegrateVersionIfNeeded(imageWindow);
-      this.util.appenFITSKeyword(
+      // This is called after every processing step so we update the version
+      // and the step keyword in a single operation. Reading and writing
+      // keywords is expensive with a large number of keywords.
+      this.util.updateFITSKeywords(
             imageWindow,
-            "HISTORY",
-            step,
-            "AutoIntegrate processing");
+            [ { name: "HISTORY",
+                value: step,
+                comment: "AutoIntegrate processing" } ],
+            null,
+            [ this.autoIntegrateVersionKeyword() ]);
 }
 
 saveProcessingHistoryToImage(imageWindow) 
 {
       console.writeln("saveProcessingHistoryToImage to " + imageWindow.mainView.id);
-      this.setAutoIntegrateVersionIfNeeded(imageWindow);
       var processing_info = this.getProcessingInfo();
       var keywords = [];
       for (var i = 0; i < processing_info.header.length; i++) {
@@ -1660,14 +1675,15 @@ saveProcessingHistoryToImage(imageWindow)
                   value: processing_info.options[i],
                   comment: "AutoIntegrate processing option " + (i + 1) };
       }
-      this.util.appenFITSKeywords(imageWindow, keywords);
+      // Update history and version keywords in a single operation,
+      // reading and writing keywords is expensive.
+      this.util.updateFITSKeywords(imageWindow, keywords, null, [ this.autoIntegrateVersionKeyword() ]);
       console.writeln("saveProcessingHistoryToImage completed");
 }
 
 saveEnhancementsHistoryToImage(imageWindow) 
 {
       console.writeln("saveEnhancementsHistoryToImage to " + imageWindow.mainView.id);
-      this.setAutoIntegrateVersionIfNeeded(imageWindow);
       var enhancementscount = this.util.getKeywordValue(imageWindow, "AutoIntegrateEnhancementsCount");
       if (enhancementscount == null) {
             enhancementscount = 0;
@@ -1681,12 +1697,15 @@ saveEnhancementsHistoryToImage(imageWindow)
                   value: this.global.enhancements_info[i],
                   comment: "AutoIntegrate enhancements option " + (enhancementscount + i + 1) };
       }
-      this.util.appenFITSKeywords(imageWindow, keywords);
-      this.util.setFITSKeyword(
-            imageWindow, 
-            "AutoIntegrateEnhancementsCount", 
-            (enhancementscount + this.global.enhancements_info.length).toString(), 
-            "AutoIntegrate enhancements step count");
+      // Update history, count and version keywords in a single operation,
+      // reading and writing keywords is expensive.
+      this.util.updateFITSKeywords(
+            imageWindow,
+            keywords,
+            [ { name: "AutoIntegrateEnhancementsCount",
+                value: (enhancementscount + this.global.enhancements_info.length).toString(),
+                comment: "AutoIntegrate enhancements step count" } ],
+            [ this.autoIntegrateVersionKeyword() ]);
 }
 
 setDrizzleKeyword(imageWindow, val) 
@@ -3787,6 +3806,7 @@ writeAstrobinInfo()
       if (this.astrobin_info == null || Object.keys(this.astrobin_info).length == 0) {
             return;
       }
+      var start_timer = this.util.startTimer();
       // Write this.astrobin_info to a file in CSV format
       var outputDir = this.global.outputRootDir + this.global.AutoProcessedDir;
       var outputFile = this.util.ensurePathEndSlash(outputDir) + "AstrobinInfo.csv";
@@ -3803,6 +3823,7 @@ writeAstrobinInfo()
             }
       }
       file.close();
+      this.util.stopTimer(start_timer, "writeAstrobinInfo");
 }
 
 // Filter files based on filter keyword/file name.
@@ -7182,8 +7203,9 @@ runImageIntegration(channel_images, name, save_to_file, flowchartname)
             // Add exposure time and number of images to the image metadata
             var win = ImageWindow.windowById(image_id);
             if (win != null) {
-                  this.util.setFITSKeyword(win, "AutoIntegrateExposure", channel_images.exptime.toString(), "Exposure time in seconds");
-                  this.util.setFITSKeyword(win, "AutoIntegrateNumImages", images.length.toString(), "Number of images used for integration");
+                  this.util.setFITSKeywords(win, [
+                        { name: "AutoIntegrateExposure", value: channel_images.exptime.toString(), comment: "Exposure time in seconds" },
+                        { name: "AutoIntegrateNumImages", value: images.length.toString(), comment: "Number of images used for integration" } ]);
             }
       }
       console.writeln("runImageIntegration completed, new name " + image_id);
@@ -7229,8 +7251,9 @@ setIntegrationInfoKeywords(imageId)
             }
             numImages += parseInt(num);
       }
-      this.util.setFITSKeyword(targetWin, "AutoIntegrateExposure", exptime.toString(), "Exposure time in seconds");
-      this.util.setFITSKeyword(targetWin, "AutoIntegrateNumImages", numImages.toString(), "Number of images used for integration");
+      this.util.setFITSKeywords(targetWin, [
+            { name: "AutoIntegrateExposure", value: exptime.toString(), comment: "Exposure time in seconds" },
+            { name: "AutoIntegrateNumImages", value: numImages.toString(), comment: "Number of images used for integration" } ]);
 }
 
 cropHandleDrizzle(name)
@@ -18348,6 +18371,7 @@ autointegrateProcessingEngine(parent, auto_continue, autocontinue_narrowband, tx
              this.setFinalImageKeyword(ImageWindow.windowById(this.RGB_stars_win_HT.mainView.id));   /* Integration_RGB_stars (non-linear) */
        }
 
+      var start_timer = this.util.startTimer();
        for (var i = 0; i < this.iconized_debug_image_ids.length; i++) {
             if (this.par.debug.val) {
                   this.util.windowIconizeAndKeywordif(this.iconized_debug_image_ids[i]);
@@ -18355,6 +18379,8 @@ autointegrateProcessingEngine(parent, auto_continue, autocontinue_narrowband, tx
                   this.util.closeOneWindowById(this.iconized_debug_image_ids[i]);
             }
       }
+      this.util.stopTimer(start_timer, "iconized_debug_image_ids");
+
       for (var i = 0; i < this.iconized_image_ids.length; i++) {
             this.util.windowIconizeAndKeywordif(this.iconized_image_ids[i]);
       }
@@ -18373,7 +18399,7 @@ autointegrateProcessingEngine(parent, auto_continue, autocontinue_narrowband, tx
  
        this.util.windowIconizeAndKeywordif(RGB_processed_HT_id);
        this.util.windowIconizeAndKeywordif(this.L_processed_HT_id);
-       this.util.windowIconizeAndKeywordif(LRGB_Combined);           /* LRGB Combined image */
+       this.util.windowIconizeAndKeywordif(LRGB_Combined);                /* LRGB Combined image */
        this.util.windowIconizeAndKeywordif(this.mask_win_id);             /* AutoMask window */
        this.util.windowIconizeAndKeywordif(this.star_mask_win_id);        /* AutoStarMask or star_mask window */
        this.util.windowIconizeAndKeywordif(this.star_fix_mask_win_id);    /* AutoStarFixMask or star_fix_mask window */
@@ -18392,6 +18418,7 @@ autointegrateProcessingEngine(parent, auto_continue, autocontinue_narrowband, tx
              /* Rename image based on first file directory name. 
               * First check possible device in Windows (like c:)
               */
+             var start_timer = this.util.startTimer();
              var fname = this.lightFileNames[0];
              console.writeln("Batch mode, get directory from file " + fname);
              var ss = fname.split(':');
@@ -18416,7 +18443,8 @@ autointegrateProcessingEngine(parent, auto_continue, autocontinue_narrowband, tx
              this.util.addProcessingStep("Batch mode, rename " + LRGB_processed_HT_id + " to " + fname);
              LRGB_processed_HT_id = this.util.windowRenameKeepifEx(LRGB_processed_HT_id, fname, true, true);
              this.saveProcessedWindow(LRGB_processed_HT_id);          /* Final renamed batch image. */
-       }
+             this.util.stopTimer(start_timer, "batch_mode_rename");
+      }
 
        this.writeAstrobinInfo();
  
@@ -18431,6 +18459,7 @@ autointegrateProcessingEngine(parent, auto_continue, autocontinue_narrowband, tx
        {
              /* Output some info of files.
              */
+             var start_timer = this.util.startTimer();
              this.util.addProcessingStep("* All data files *");
              this.util.addProcessingStep(this.alignedFiles.length + " files accepted");
              this.util.addProcessingStep("best_ssweight="+this.global.best_ssweight);
@@ -18460,6 +18489,7 @@ autointegrateProcessingEngine(parent, auto_continue, autocontinue_narrowband, tx
                    this.printImageInfo(this.C_images, "Color");
              }
              var full_run = true;
+             this.util.stopTimer(start_timer, "Output info of files");         
        } else {
              var full_run = false;
        }

@@ -77,10 +77,13 @@ find_pixel_size()
 
 findCurrentTelescope(imgWin)
 {
-      for (var i = 0; i < imgWin.keywords.length; i++) {
-            switch (imgWin.keywords[i].name) {
+      // Read imgWin.keywords only once, it is expensive with a large
+      // number of keywords.
+      var keywords = imgWin.keywords;
+      for (var i = 0; i < keywords.length; i++) {
+            switch (keywords[i].name) {
                   case "TELESCOP":
-                        this.current_telescope_name = imgWin.keywords[i].strippedValue.trim();
+                        this.current_telescope_name = keywords[i].strippedValue.trim();
                         console.writeln("TELESCOP=" +  this.current_telescope_name);
                         return;
                   default:
@@ -91,10 +94,13 @@ findCurrentTelescope(imgWin)
 
 findBinning(imgWin)
 {
-      for (var i = 0; i < imgWin.keywords.length; i++) {
-            switch (imgWin.keywords[i].name) {
+      // Read imgWin.keywords only once, it is expensive with a large
+      // number of keywords.
+      var keywords = imgWin.keywords;
+      for (var i = 0; i < keywords.length; i++) {
+            switch (keywords[i].name) {
                   case "XBINNING":
-                        var value = imgWin.keywords[i].strippedValue.trim();
+                        var value = keywords[i].strippedValue.trim();
                         console.writeln("XBINNING=" + value);
                         var binning = parseInt(value);
                         return binning;

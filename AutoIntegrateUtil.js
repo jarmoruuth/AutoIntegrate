@@ -279,7 +279,20 @@ findWindow(id)
       if (id == null || id == undefined) {
             return null;
       }
-      //return ImageWindow.windowById(id);
+      /* Try first the fast lookup by id. It has sometimes failed to find
+         the window so if it fails we fall back to scanning all windows.
+       */
+      try {
+            var w = ImageWindow.windowById(id);
+            if (w != null && w != undefined && !w.isNull
+                && w.mainView != null && w.mainView != undefined
+                && w.mainView.id == id)
+            {
+                  return w;
+            }
+      } catch (err) {
+            // Ignore errors, fall back to scanning all windows.
+      }
       var images = ImageWindow.windows;
       if (images == null || images == undefined) {
             return null;
@@ -517,6 +530,8 @@ windowIconizeEx(id, columnCount, iconStartRow, haveIconizedCount)
             return null;
       }
 
+      var start_timer = this.startTimer();
+
       console.writeln("windowIconizeEx " + id + " columnCount " + columnCount + " iconStartRow " + iconStartRow + " haveIconizedCount " + haveIconizedCount);
 
       var w = this.findWindow(id);
@@ -554,6 +569,7 @@ windowIconizeEx(id, columnCount, iconStartRow, haveIconizedCount)
             w.position = oldpos;                // restore window position
       }
       // console.writeln("windowIconizeEx done");
+      this.stopTimer(start_timer, "windowIconizeEx");
       return w;
 }
 
@@ -612,11 +628,14 @@ windowIconizeFindPosition(id, keep_iconized)
 // only as a convenience to this.windowIconizeAndKeywordif()
 windowIconizeif(id, show_image)
 {
+      var start_timer = this.startTimer();
       if (id == null) {
+            this.stopTimer(start_timer, "windowIconizeif");
             return null;
       }
       if (this.global.get_flowchart_data) {
             this.closeOneWindowById(id);
+            this.stopTimer(start_timer, "windowIconizeif");
             return null;
       }
 
@@ -627,7 +646,7 @@ windowIconizeif(id, show_image)
                   w.show();
             }
       }
-
+      this.stopTimer(start_timer, "windowIconizeif");
       return w;
 }
 
@@ -724,10 +743,13 @@ findDrizzleScale(imageWindow)
 
 findDrizzle(imgWin)
 {
-      for (var i = 0; i < imgWin.keywords.length; i++) {
-            switch (imgWin.keywords[i].name) {
+      // Read imageWindow.keywords only once, it is expensive with a large
+      // number of keywords.
+      var keywords = imgWin.keywords;
+      for (var i = 0; i < keywords.length; i++) {
+            switch (keywords[i].name) {
                   case "AutoIntegrateDrizzle":
-                        var value = imgWin.keywords[i].strippedValue.trim();
+                        var value = keywords[i].strippedValue.trim();
                         console.writeln("AutoIntegrateDrizzle=" + value);
                         var drizzle = parseInt(value);
                         return drizzle;
@@ -780,24 +802,103 @@ appenFITSKeyword(imageWindow, name, value, comment)
       ]);
 }
 
-// Append multiple new keywords in a single operation. Reading and writing
-// imageWindow.keywords is expensive, so appending keywords one by one gets
-// very slow with a large number of keywords.
+// Update keywords with a single read and write of imageWindow.keywords.
+// Reading and writing imageWindow.keywords is expensive, so updating keywords
+// one by one gets very slow with a large number of keywords.
+// All values are arrays of { name: name, value: value, comment: comment }
+// objects and can be null or an empty array.
+//    append_values - always appended, allows multiple keywords with same name
+//    set_values    - replace all old keywords with the same name, or add a new keyword
+//    add_values    - added only if a keyword with the same name does not already exist
+updateFITSKeywords(imageWindow, append_values, set_values, add_values)
+{
+      if (!imageWindow) {
+            return;
+      }
+      var keywords = imageWindow.keywords;
+      if (!keywords) {
+            keywords = [];
+      }
+      var newKeywords = [];
+
+      // Keep old keywords that are not replaced by set_values
+      for (var i = 0; i < keywords.length; i++) {
+            var replaced = false;
+            if (set_values) {
+                  for (var j = 0; j < set_values.length; j++) {
+                        if (keywords[i].name == set_values[j].name) {
+                              replaced = true;
+                              break;
+                        }
+                  }
+            }
+            if (!replaced) {
+                  newKeywords[newKeywords.length] = keywords[i];
+            }
+      }
+      var addedKeywords = [];
+      if (append_values) {
+            for (var i = 0; i < append_values.length; i++) {
+                  addedKeywords[addedKeywords.length] = new FITSKeyword(
+                        append_values[i].name,
+                        append_values[i].value,
+                        append_values[i].comment
+                  );
+            }
+      }
+      if (set_values) {
+            for (var i = 0; i < set_values.length; i++) {
+                  addedKeywords[addedKeywords.length] = new FITSKeyword(
+                        set_values[i].name,
+                        set_values[i].value,
+                        set_values[i].comment
+                  );
+            }
+      }
+      if (add_values) {
+            for (var i = 0; i < add_values.length; i++) {
+                  var found = false;
+                  for (var j = 0; j < keywords.length; j++) {
+                        if (keywords[j].name == add_values[i].name) {
+                              found = true;
+                              break;
+                        }
+                  }
+                  if (!found) {
+                        addedKeywords[addedKeywords.length] = new FITSKeyword(
+                              add_values[i].name,
+                              add_values[i].value,
+                              add_values[i].comment
+                        );
+                  }
+            }
+      }
+      if (addedKeywords.length == 0 && newKeywords.length == keywords.length) {
+            // Nothing to do, do not write keywords back
+            return;
+      }
+      imageWindow.keywords = newKeywords.concat(addedKeywords);
+}
+
+// Append multiple new keywords in a single operation.
 // Values is an array of { name: name, value: value, comment: comment } objects.
 appenFITSKeywords(imageWindow, values)
 {
       if (values.length == 0) {
             return;
       }
-      var newKeywords = [];
-      for (var i = 0; i < values.length; i++) {
-            newKeywords[newKeywords.length] = new FITSKeyword(
-                  values[i].name,
-                  values[i].value,
-                  values[i].comment
-            );
+      this.updateFITSKeywords(imageWindow, values, null, null);
+}
+
+// Set multiple keywords in a single operation, old keywords with the
+// same name are replaced.
+// Values is an array of { name: name, value: value, comment: comment } objects.
+setFITSKeywords(imageWindow, values)
+{
+      if (values.length == 0) {
+            return;
       }
-      imageWindow.keywords = imageWindow.keywords.concat(newKeywords);
+      this.updateFITSKeywords(imageWindow, null, values, null);
 }
 
 getKeywordValue(imageWindow, keywordname) 
@@ -832,11 +933,29 @@ findKeywordName(imageWindow, keywordname)
 
 setFITSKeywordNoOverwrite(imageWindow, name, value, comment)
 {
-      if (this.findKeywordName(imageWindow, name)) {
-            console.writeln("keyword already set");
-            return;
+      /* Read imageWindow.keywords only once, it is expensive with a large
+         number of keywords. See also appenFITSKeywords().
+       */
+      var keywords = imageWindow.keywords;
+      if (keywords) {
+            for (var i = 0; i < keywords.length; i++) {
+                  if (keywords[i].name == name) {
+                        if (this.par.debug.val) {
+                              console.writeln("keyword " + name + " already set");
+                        }
+                        return;
+                  }
+            }
+      } else {
+            keywords = [];
       }
-      this.setFITSKeyword(imageWindow, name, value, comment);
+      imageWindow.keywords = keywords.concat([
+         new FITSKeyword(
+            name,
+            value,
+            comment
+         )
+      ]);
 }
 
 setProcessedImageKeyword(imageWindow) 
@@ -851,6 +970,7 @@ setProcessedImageKeyword(imageWindow)
 
 windowIconizeAndKeywordif(id, show_image, find_prefix)
 {
+      var start_timer = this.startTimer();
       if (find_prefix) {
             var w = this.windowIconizeFindPosition(id, true);
       } else {
@@ -863,10 +983,11 @@ windowIconizeAndKeywordif(id, show_image, find_prefix)
             // keyword. If we later set a final image keyword it will overwrite
             // this keyword.
             this.setProcessedImageKeyword(w);
+            if (show_image) {
+                  w.show();
+            }
       }
-      if (show_image) {
-            w.show();
-      }
+      this.stopTimer(start_timer, "windowIconizeAndKeywordif");
 }
 
 // Add a script window that will be closed when close all is clicked
@@ -987,6 +1108,7 @@ closeTempWindowsForOneImage(id)
 
 closeTempWindows()
 {
+      var start_timer = this.startTimer();
       for (var i = 0; i < this.global.integration_LRGB_windows.length; i++) {
             this.closeTempWindowsForOneImage(this.global.integration_LRGB_windows[i]);
             this.closeTempWindowsForOneImage(this.global.integration_LRGB_windows[i] + "_BE");
@@ -997,11 +1119,13 @@ closeTempWindows()
       }
       this.closeWindowsFromArray(this.global.temporary_windows);
       this.global.temporary_windows = [];
+      this.stopTimer(start_timer, "Close all temporary windows");
 }
 
 // close all windows from an array
 closeAllWindowsFromArray(arr, keep_base_image = false, print_names = false)
 {
+      var start_timer = this.startTimer();
       for (var i = 0; i < arr.length; i++) {
             if (print_names) {
                   console.writeln("closeAllWindowsFromArray: " + arr[i]);
@@ -1042,6 +1166,7 @@ closeAllWindowsFromArray(arr, keep_base_image = false, print_names = false)
                   }
             }
       }
+      this.stopTimer(start_timer, "closeAllWindowsFromArray");
 }
 
 // close all windows created by this script
@@ -1508,6 +1633,11 @@ saveAllFinalImageWindows(bits)
             if (keywords != null && keywords != undefined) {
                   for (var j = 0; j != keywords.length; j++) {
                         var keyword = keywords[j].name;
+                        if (keyword != "AutoIntegrate") {
+                              // Check the name first, getting the value is
+                              // expensive with a large number of keywords.
+                              continue;
+                        }
                         var value = keywords[j].strippedValue.trim();
                         if (this.par.save_all_files.val) {
                               var savefile = keyword == "AutoIntegrate" && (value == "finalimage" || value == "processedimage");
@@ -3276,6 +3406,8 @@ this.copyKeywords = copyKeywords;
 this.setFITSKeyword = setFITSKeyword;
 this.appenFITSKeyword = appenFITSKeyword;
 this.appenFITSKeywords = appenFITSKeywords;
+this.setFITSKeywords = setFITSKeywords;
+this.updateFITSKeywords = updateFITSKeywords;
 this.getKeywordValue = getKeywordValue;
 this.findKeywordName = findKeywordName;
 this.setFITSKeywordNoOverwrite = setFITSKeywordNoOverwrite;

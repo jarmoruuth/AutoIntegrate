@@ -783,11 +783,16 @@ calibrateEngine(filtered_lights)
                    }
                    var masterdarkid = this.runImageIntegrationBiasDarks(darkimages, this.ppar.win_prefix + "AutoMasterDark_" + groupName, "dark", groupExptime);
                    let win = this.util.findWindow(masterdarkid);
-                   this.util.setFITSKeyword(win, "EXPTIME", groupExptime.toString(), "Exposure time for master dark");
-                   this.engine.setImagetypKeyword(win, "Master dark");
+                   // Set keywords in a single operation, reading and writing
+                   // keywords is expensive.
+                   let master_keywords = [
+                         { name: "EXPTIME", value: groupExptime.toString(), comment: "Exposure time for master dark" },
+                         { name: "IMAGETYP", value: "Master dark", comment: "Type of image" } ];
                    if (this.par.pre_calibrate_darks.val && masterbiasPath != null) {
-                         this.util.setFITSKeyword(win, "CALSTAT", "B", "Calibration status: B=bias subtracted");
+                         master_keywords[master_keywords.length] =
+                               { name: "CALSTAT", value: "B", comment: "Calibration status: B=bias subtracted" };
                    }
+                   this.util.setFITSKeywords(win, master_keywords);
                    var masterdarkPath = this.engine.saveMasterWindow(this.global.outputRootDir, masterdarkid);
                    this.engine.guiUpdatePreviewId(masterdarkid);
              } else {
@@ -815,11 +820,16 @@ calibrateEngine(filtered_lights)
                                }
                                var masterdarkid = this.runImageIntegrationBiasDarks(darkimages, this.ppar.win_prefix + "AutoMasterDark_" + groupName, "dark", groupExptime);
                                let win = this.util.findWindow(masterdarkid);
-                               this.engine.setImagetypKeyword(win, "Master dark");
-                               this.util.setFITSKeyword(win, "EXPTIME", groupExptime.toString(), "Exposure time for master dark");
+                               // Set keywords in a single operation, reading and writing
+                               // keywords is expensive.
+                               let master_keywords = [
+                                     { name: "IMAGETYP", value: "Master dark", comment: "Type of image" },
+                                     { name: "EXPTIME", value: groupExptime.toString(), comment: "Exposure time for master dark" } ];
                                if (this.par.pre_calibrate_darks.val && masterbiasPath != null) {
-                                     this.util.setFITSKeyword(win, "CALSTAT", "B", "Calibration status: B=bias subtracted");
+                                     master_keywords[master_keywords.length] =
+                                           { name: "CALSTAT", value: "B", comment: "Calibration status: B=bias subtracted" };
                                }
+                               this.util.setFITSKeywords(win, master_keywords);
                                var groupMasterPath = this.engine.saveMasterWindow(this.global.outputRootDir, masterdarkid);
                                this.engine.guiUpdatePreviewId(masterdarkid);
                                masterdarkPath.push({ exptime: groupExptime, path: groupMasterPath });
