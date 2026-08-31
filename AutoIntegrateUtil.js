@@ -452,7 +452,7 @@ closeAllWindowsSubstr(id_substr)
                 && images[i].mainView != undefined
                 && images[i].mainView.id.indexOf(id_substr) != -1) 
             {
-               images[i].close;
+               images[i].forceClose();
             }
       }
 }
@@ -1069,99 +1069,188 @@ closeOneWindowById(id, force_close = true)
       }
 }
 
-closeWindowsFromArray(arr)
+/* Get a snapshot of all image windows. Enumerating ImageWindow.windows is
+   expensive so when we need to check a lot of window names we do it only
+   once and use the snapshot for all lookups.
+   Snapshot has:
+      list  - array of { id: id, win: win } entries, id is set to null
+              when the window is closed
+      map   - mapping from "#" + id to the entry in the list
+   Note that the snapshot is valid only as long as windows are closed
+   using the snapshot functions below.
+ */
+getWindowSnapshot()
 {
+      var snapshot = { list: [], map: {} };
+      var images = ImageWindow.windows;
+      if (images == null || images == undefined) {
+            return snapshot;
+      }
+      for (var i = 0; i < images.length; i++) {
+            if (images[i].mainView == null || images[i].mainView == undefined) {
+                  continue;
+            }
+            var entry = { id: images[i].mainView.id, win: images[i] };
+            snapshot.list[snapshot.list.length] = entry;
+            snapshot.map["#" + entry.id] = entry;
+      }
+      return snapshot;
+}
+
+// Find a snapshot entry using an exact window id
+snapshotFindEntry(snapshot, id)
+{
+      if (id == null || id == undefined) {
+            return null;
+      }
+      var entry = snapshot.map["#" + id];
+      if (entry == undefined || entry.id == null) {
+            return null;
+      }
+      return entry;
+}
+
+// Find a snapshot entry with an id that starts with the given string
+snapshotFindEntryStartsWith(snapshot, id)
+{
+      if (id == null || id == undefined) {
+            return null;
+      }
+      for (var i = 0; i < snapshot.list.length; i++) {
+            if (snapshot.list[i].id != null && snapshot.list[i].id.startsWith(id)) {
+                  return snapshot.list[i];
+            }
+      }
+      return null;
+}
+
+// Close a window in the snapshot and mark it closed in the snapshot
+snapshotCloseEntry(entry, force_close = true)
+{
+      entry.id = null;
+      this.closeOneWindow(entry.win, force_close);
+}
+
+// Close a window with the given id using the snapshot
+snapshotCloseOneWindowById(snapshot, id, force_close = true)
+{
+      var entry = this.snapshotFindEntry(snapshot, id);
+      if (entry != null) {
+            this.snapshotCloseEntry(entry, force_close);
+      }
+}
+
+closeWindowsFromArray(arr, snapshot = null)
+{
+      if (snapshot == null) {
+            snapshot = this.getWindowSnapshot();
+      }
       for (var i = 0; i < arr.length; i++) {
-            this.closeOneWindowById(arr[i]);
+            this.snapshotCloseOneWindowById(snapshot, arr[i]);
       }
 }
 
 // For the final window, we may have more different names with
 // both prefix or postfix added
-closeFinalWindowsFromArray(arr, force_close)
+closeFinalWindowsFromArray(arr, force_close, snapshot = null)
 {
+      if (snapshot == null) {
+            snapshot = this.getWindowSnapshot();
+      }
       for (var i = 0; i < arr.length; i++) {
-            this.closeOneWindowById(arr[i], force_close);
-            this.closeOneWindowById(arr[i]+"_stars", force_close);
-            this.closeOneWindowById(arr[i]+"_starless", force_close);
-            this.closeOneWindowById(arr[i]+"_enh", force_close);
-            this.closeOneWindowById(arr[i]+"_enh_starless", force_close);
-            this.closeOneWindowById(arr[i]+"_enh_stars", force_close);
-            this.closeOneWindowById(arr[i]+"_enh_combined", force_close);
+            this.snapshotCloseOneWindowById(snapshot, arr[i], force_close);
+            this.snapshotCloseOneWindowById(snapshot, arr[i]+"_stars", force_close);
+            this.snapshotCloseOneWindowById(snapshot, arr[i]+"_starless", force_close);
+            this.snapshotCloseOneWindowById(snapshot, arr[i]+"_enh", force_close);
+            this.snapshotCloseOneWindowById(snapshot, arr[i]+"_enh_starless", force_close);
+            this.snapshotCloseOneWindowById(snapshot, arr[i]+"_enh_stars", force_close);
+            this.snapshotCloseOneWindowById(snapshot, arr[i]+"_enh_combined", force_close);
       }
 }
 
-closeTempWindowsForOneImage(id)
+closeTempWindowsForOneImage(id, snapshot = null)
 {
-      this.closeOneWindowById(id + "_max");
-      this.closeOneWindowById(id + "_map");
-      this.closeOneWindowById(id + "_map_linear_fit_reference");
-      this.closeOneWindowById(id + "_stars");
-      this.closeOneWindowById(id + "_map_mask");
-      this.closeOneWindowById(id + "_map_stars");
-      this.closeOneWindowById(id + "_map_pm");
-      this.closeOneWindowById(id + "_mask");
-      this.closeOneWindowById(id + "_tmp");
-      this.closeOneWindowById(id + "_solvercopy");
-      this.closeOneWindowById(id + "_combined_solvercopy");
+      if (snapshot == null) {
+            snapshot = this.getWindowSnapshot();
+      }
+      this.snapshotCloseOneWindowById(snapshot, id + "_max");
+      this.snapshotCloseOneWindowById(snapshot, id + "_map");
+      this.snapshotCloseOneWindowById(snapshot, id + "_map_linear_fit_reference");
+      this.snapshotCloseOneWindowById(snapshot, id + "_stars");
+      this.snapshotCloseOneWindowById(snapshot, id + "_map_mask");
+      this.snapshotCloseOneWindowById(snapshot, id + "_map_stars");
+      this.snapshotCloseOneWindowById(snapshot, id + "_map_pm");
+      this.snapshotCloseOneWindowById(snapshot, id + "_mask");
+      this.snapshotCloseOneWindowById(snapshot, id + "_tmp");
+      this.snapshotCloseOneWindowById(snapshot, id + "_solvercopy");
+      this.snapshotCloseOneWindowById(snapshot, id + "_combined_solvercopy");
 }
 
 closeTempWindows()
 {
       var start_timer = this.startTimer();
+      // Get the window list only once, there are a lot of names to check
+      var snapshot = this.getWindowSnapshot();
       for (var i = 0; i < this.global.integration_LRGB_windows.length; i++) {
-            this.closeTempWindowsForOneImage(this.global.integration_LRGB_windows[i]);
-            this.closeTempWindowsForOneImage(this.global.integration_LRGB_windows[i] + "_BE");
+            this.closeTempWindowsForOneImage(this.global.integration_LRGB_windows[i], snapshot);
+            this.closeTempWindowsForOneImage(this.global.integration_LRGB_windows[i] + "_BE", snapshot);
       }
       for (var i = 0; i < this.global.integration_color_windows.length; i++) {
-            this.closeTempWindowsForOneImage(this.global.integration_color_windows[i]);
-            this.closeTempWindowsForOneImage(this.global.integration_color_windows[i] + "_BE");
+            this.closeTempWindowsForOneImage(this.global.integration_color_windows[i], snapshot);
+            this.closeTempWindowsForOneImage(this.global.integration_color_windows[i] + "_BE", snapshot);
       }
-      this.closeWindowsFromArray(this.global.temporary_windows);
+      this.closeWindowsFromArray(this.global.temporary_windows, snapshot);
       this.global.temporary_windows = [];
       this.stopTimer(start_timer, "Close all temporary windows");
 }
 
 // close all windows from an array
-closeAllWindowsFromArray(arr, keep_base_image = false, print_names = false)
+closeAllWindowsFromArray(arr, keep_base_image = false, print_names = false, snapshot = null)
 {
       var start_timer = this.startTimer();
+      /* Arrays can be long and for every name we check a lot of different
+         postfix names. Enumerating all image windows for every name is slow
+         so we get the window list only once and use it for all lookups.
+       */
+      if (snapshot == null) {
+            snapshot = this.getWindowSnapshot();
+      }
       for (var i = 0; i < arr.length; i++) {
             if (print_names) {
                   console.writeln("closeAllWindowsFromArray: " + arr[i]);
             }
-            if (this.findWindowStartsWith(arr[i])) {
-                  this.closeOneWindowById(arr[i]+"_stars");
-                  this.closeOneWindowById(arr[i]+"_for_stars");
-                  this.closeOneWindowById(arr[i]+"_for_stars_HT");
-                  this.closeOneWindowById(arr[i]+"_starless");
-                  this.closeOneWindowById(arr[i]+"_map");
-                  this.closeOneWindowById(arr[i]+"_MGC_gradient_model");
-                  this.closeOneWindowById(arr[i]+"_model");
-                  this.closeOneWindowById(arr[i]+"_highpass");
-                  this.closeOneWindowById(arr[i]+"_lowpass");
-                  this.closeOneWindowById(arr[i]+"_DBEsamples");
-                  this.closeOneWindowById(arr[i]+"_map_DBEsamples");
+            if (this.snapshotFindEntryStartsWith(snapshot, arr[i])) {
+                  this.snapshotCloseOneWindowById(snapshot, arr[i]+"_stars");
+                  this.snapshotCloseOneWindowById(snapshot, arr[i]+"_for_stars");
+                  this.snapshotCloseOneWindowById(snapshot, arr[i]+"_for_stars_HT");
+                  this.snapshotCloseOneWindowById(snapshot, arr[i]+"_starless");
+                  this.snapshotCloseOneWindowById(snapshot, arr[i]+"_map");
+                  this.snapshotCloseOneWindowById(snapshot, arr[i]+"_MGC_gradient_model");
+                  this.snapshotCloseOneWindowById(snapshot, arr[i]+"_model");
+                  this.snapshotCloseOneWindowById(snapshot, arr[i]+"_highpass");
+                  this.snapshotCloseOneWindowById(snapshot, arr[i]+"_lowpass");
+                  this.snapshotCloseOneWindowById(snapshot, arr[i]+"_DBEsamples");
+                  this.snapshotCloseOneWindowById(snapshot, arr[i]+"_map_DBEsamples");
                   if (!keep_base_image) {
-                        this.closeOneWindowById(arr[i]);
+                        this.snapshotCloseOneWindowById(snapshot, arr[i]);
                   }
                   if (arr[i].indexOf("Integration_") != -1) {
                         // For possible old images
-                        this.closeOneWindowById(arr[i] + "_NB_enhanced");
-                        this.closeOneWindowById(arr[i] + "_NB_combine");
-                        this.closeOneWindowById(arr[i] + "_NB_max");
-                        this.closeOneWindowById(arr[i] + "_processed_starless");
-                        this.closeOneWindowById(arr[i] + "_background");
-                        this.closeOneWindowById(arr[i] + "_map_background");
+                        this.snapshotCloseOneWindowById(snapshot, arr[i] + "_NB_enhanced");
+                        this.snapshotCloseOneWindowById(snapshot, arr[i] + "_NB_combine");
+                        this.snapshotCloseOneWindowById(snapshot, arr[i] + "_NB_max");
+                        this.snapshotCloseOneWindowById(snapshot, arr[i] + "_processed_starless");
+                        this.snapshotCloseOneWindowById(snapshot, arr[i] + "_background");
+                        this.snapshotCloseOneWindowById(snapshot, arr[i] + "_map_background");
                   }
                   if (arr[i].indexOf("AutoMasterDark") != -1) {
                         // Close all windows starting with AutoMasterDark, as we may have multiple master darks with different integration settings
                         for (;;) {
-                              var win = this.findWindowStartsWith(arr[i]);
-                              if (win == null) {
+                              var entry = this.snapshotFindEntryStartsWith(snapshot, arr[i]);
+                              if (entry == null) {
                                     break;
                               }
-                              this.closeOneWindow(win);
+                              this.snapshotCloseEntry(entry);
                         }
                   }
             }
