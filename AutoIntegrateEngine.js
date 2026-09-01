@@ -7773,6 +7773,7 @@ runGCProcess(win, replaceTarget, postfix, from_lights)
       P.generateGradientModel = this.par.GC_output_background_model.val;
 
       if (this.par.debug.val) {
+            this.util.closeOneWindowById(win.mainView.id + "_GC_before");
             this.util.copyWindowEx(win, win.mainView.id + "_GC_before", true);
       }
 
@@ -7781,6 +7782,7 @@ runGCProcess(win, replaceTarget, postfix, from_lights)
             this.util.addCriticalStatus("GradientCorrection failed");
       } else {
             if (this.par.debug.val) {
+                  this.util.closeOneWindowById(win.mainView.id + "_GC_after");
                   this.util.copyWindowEx(win, win.mainView.id + "_GC_after", true);
             }
       }

@@ -1269,15 +1269,24 @@ closeAllWindows(keep_integrated_imgs, force_close)
             for (var i = 0; i < this.global.integration_LRGB_windows.length; i++) {
                   if (this.findWindow(this.global.integration_LRGB_windows[i]) != null) {
                         // we have LRGB images
+                        if (this.par.debug.val) {
+                              console.writeln("closeAllWindows, found image " + this.global.integration_LRGB_windows[i] + " in integration_LRGB_windows");
+                        }
                         isLRGB = true;
                         break;
                   }
             }
             if (isLRGB) {
+                  if (this.par.debug.val) {
+                        console.writeln("closeAllWindows, keep integrated LRGB images");
+                  }
                   this.closeAllWindowsFromArray(this.global.integration_LRGB_windows, true);        // keep_base_image = true
                   this.closeAllWindowsFromArray(this.global.integration_color_windows, false);
                   var integration_windows = this.global.integration_LRGB_windows;
             } else {
+                  if (this.par.debug.val) {
+                        console.writeln("closeAllWindows, keep integrated color images");
+                  }
                   this.closeAllWindowsFromArray(this.global.integration_color_windows, true);       // keep_base_image = true
                   this.closeAllWindowsFromArray(this.global.integration_LRGB_windows, false);
                   var integration_windows = this.global.integration_color_windows;
@@ -1295,8 +1304,29 @@ closeAllWindows(keep_integrated_imgs, force_close)
             this.closeAllWindowsFromArray(this.global.integration_LRGB_windows);
             this.closeAllWindowsFromArray(this.global.integration_color_windows);
             this.closeAllWindowsFromArray(this.global.integration_data_windows);
+            var integration_windows = [];
       }
-      this.closeAllWindowsFromArray(this.global.fixed_windows);
+      /* Fixed windows list contains also integration window names, for example
+         Integration_RGB. If we want to keep integrated images we must not close
+         the base image for those windows, only the temporary images created
+         from them.
+       */
+      var keep_fixed_windows = [];
+      var close_fixed_windows = [];
+      for (var i = 0; i < this.global.fixed_windows.length; i++) {
+            if (this.findFromArray(integration_windows, this.global.fixed_windows[i])) {
+                  keep_fixed_windows[keep_fixed_windows.length] = this.global.fixed_windows[i];
+            } else {
+                  close_fixed_windows[close_fixed_windows.length] = this.global.fixed_windows[i];
+            }
+      }
+      if (keep_fixed_windows.length > 0) {
+            if (this.par.debug.val) {
+                  console.writeln("closeAllWindows, keep fixed windows " + keep_fixed_windows.toString());
+            }
+            this.closeAllWindowsFromArray(keep_fixed_windows, true);       // keep_base_image = true
+      }
+      this.closeAllWindowsFromArray(close_fixed_windows);
       this.closeAllWindowsFromArray(this.global.calibrate_windows);
 
       this.closeFinalWindowsFromArray(this.global.final_windows, force_close);
