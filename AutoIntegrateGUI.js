@@ -3574,6 +3574,7 @@ processingCompletedText(success)
             console.noteln("* Processing stopped with errors *");
             console.noteln("**********************************");
       }
+      console.flush();
 }
 
 runAction(parent)
@@ -3621,6 +3622,8 @@ newRunButton(parent, toolbutton)
       {
             if (!this.global.get_flowchart_data) {
                   this.runAction(parent);
+                  console.writeln("Run button finished");
+                  console.flush();
             }
       };
       return this.guitools.newPushOrToolButton(

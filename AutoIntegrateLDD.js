@@ -58,6 +58,28 @@ constructor(util) {
     this.util = util;
 }
 
+/* Set an existing Rect to cover one line (column or row) in the image.
+   We reuse the same Rect object because creating a lot of Rect objects
+   is slow to clean up when the script ends.
+ */
+SetLineRect( lineRect, detectColumns, columnOrRow, startPixel, endPixel )
+{
+    if ( detectColumns )
+    {
+        lineRect.x0 = columnOrRow;
+        lineRect.y0 = startPixel;
+        lineRect.x1 = columnOrRow + 1;
+        lineRect.y1 = endPixel + 1;
+    }
+    else
+    {
+        lineRect.x0 = startPixel;
+        lineRect.y0 = columnOrRow;
+        lineRect.x1 = endPixel + 1;
+        lineRect.y1 = columnOrRow + 1;
+    }
+}
+
 LDDEngine( win, detectColumns, detectPartialLines,
     layersToRemove, rejectionLimit, imageShift,
     detectionThreshold, partialLineDetectionThreshold )
@@ -106,19 +128,13 @@ LDDEngine( win, detectColumns, detectPartialLines,
     // by their respective median values.
     console.writeln( "<end><cbr><br>Analyzing " + lines.columnOrRow.length + " lines in the image<br>" );
     let lineValues = new Array;
+    /* Rect is not a JavaScript object and there can be one line for every
+       column or row in the image so we reuse the same Rect for all lines.
+     */
+    let lineRect = new Rect( 0 );
     for ( let i = 0; i < lines.columnOrRow.length; ++i )
     {
-        let lineRect;
-        if ( detectColumns )
-        {
-            lineRect = new Rect( 1, lines.endPixel[i] - lines.startPixel[i] + 1 );
-            lineRect.moveTo( lines.columnOrRow[i], lines.startPixel[i] );
-        }
-        else
-        {
-            lineRect = new Rect( lines.endPixel[i] - lines.startPixel[i] + 1, 1 );
-            lineRect.moveTo( lines.startPixel[i], lines.columnOrRow[i] );
-        }
+        this.SetLineRect( lineRect, detectColumns, lines.columnOrRow[i], lines.startPixel[i], lines.endPixel[i] );
 
         let lineStatistics = this.IterativeStatistics( WI.referenceSSImage, lineRect, rejectionLimit );
         WI.lineModelImage.selectedRect = lineRect;
@@ -135,19 +151,9 @@ LDDEngine( win, detectColumns, detectPartialLines,
     this.detectedEndPixel = new Array;
     let lineModelMedian = WI.lineModelImage.median();
     let lineModelMAD = WI.lineModelImage.MAD();
-    let lineRect;
     for ( let i = 0; i < lineValues.length; ++i )
     {
-        if ( detectColumns )
-        {
-            lineRect = new Rect( 1, lines.endPixel[i] - lines.startPixel[i] + 1 );
-            lineRect.moveTo( lines.columnOrRow[i], lines.startPixel[i] );
-        }
-        else
-        {
-            lineRect = new Rect( lines.endPixel[i] - lines.startPixel[i] + 1, 1 );
-            lineRect.moveTo( lines.startPixel[i], lines.columnOrRow[i] );
-        }
+        this.SetLineRect( lineRect, detectColumns, lines.columnOrRow[i], lines.startPixel[i], lines.endPixel[i] );
 
         WI.lineDetectionImage.selectedRect = lineRect;
         let sigma = Math.abs( lineValues[i] - lineModelMedian ) / ( lineModelMAD * 1.4826 );
@@ -303,24 +309,27 @@ IterativeStatistics( image, rectangle, rejectionLimit )
     // pixels are already rejected in the first iteration.
     let currentHighRejectionLimit = 0.99;
     let j = 0;
+    /* Construct the statistics object to rectangle statistics.
+       This function is called for every line in the image and the loop below
+       is run at least ten times for every line. ImageStatistics is not a
+       JavaScript object and creating that many of them is very slow to clean
+       up so we create the object only once and reuse it. Only the high
+       rejection limit is updated at the end of every iteration.
+     */
+    if ( this.iterativeRectangleStatistics == undefined )
+        this.iterativeRectangleStatistics = new ImageStatistics;
+    let irs = this.iterativeRectangleStatistics;
+    irs.medianEnabled = true;
+    irs.lowRejectionEnabled = false;
+    irs.highRejectionEnabled = true;
     while ( formerHighRejectionLimit / currentHighRejectionLimit > 1.001 || j < 10 )
     {
-        // Construct the statistics object to rectangle statistics.
-        // These statistics are updated with the new high rejection limit
-        // calculated at the end of the iteration.
-        let iterativeRectangleStatistics = new ImageStatistics;
-        let irs =  iterativeRectangleStatistics 
-        {
-            irs.medianEnabled = true;
-            irs.lowRejectionEnabled = false;
-            irs.highRejectionEnabled = true;
-            irs.rejectionHigh = currentHighRejectionLimit;
-        }
-        iterativeRectangleStatistics.generate( image );
-        this.median = iterativeRectangleStatistics.median;
-        this.MAD = iterativeRectangleStatistics.mad;
+        irs.rejectionHigh = currentHighRejectionLimit;
+        irs.generate( image );
+        this.median = irs.median;
+        this.MAD = irs.mad;
         formerHighRejectionLimit = currentHighRejectionLimit;
-        currentHighRejectionLimit = parseFloat( this.median + ( iterativeRectangleStatistics.mad * 1.4826 * rejectionLimit ) );
+        currentHighRejectionLimit = parseFloat( this.median + ( irs.mad * 1.4826 * rejectionLimit ) );
         ++j;
     }
     image.resetSelections();

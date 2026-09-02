@@ -404,10 +404,15 @@ exportExclusionMask(targetWindow, exclusionAreaPolygons) {
    // we'll just use the isPointInPolygon to set each pixel
    maskView.beginProcess(UndoFlag.NoSwapFile);
    
+   /* Save the image into a variable. Every maskView.image reference creates a
+      new object that is not a JavaScript object and creating one for every
+      pixel is very slow to clean up.
+    */
+   var maskImage = maskView.image;
    for (var y = 0; y < height; y++) {
       for (var x = 0; x < width; x++) {
-         if (this.engine.isPointExcluded(x, y)) {
-            maskView.image.setSample(x, y, 0, 1); // Set to white (1)
+         if (this.engine.isPointExcluded(x, y, exclusionAreaPolygons)) {
+            maskImage.setSample(x, y, 0, 1); // Set to white (1)
          }
       }
    }

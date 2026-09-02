@@ -284,11 +284,16 @@ findWindow(id)
        */
       try {
             var w = ImageWindow.windowById(id);
-            if (w != null && w != undefined && !w.isNull
-                && w.mainView != null && w.mainView != undefined
-                && w.mainView.id == id)
-            {
-                  return w;
+            if (w != null && w != undefined && !w.isNull) {
+                  /* Every w.mainView reference creates a new object that is
+                     not a JavaScript object so we save it into a variable.
+                   */
+                  var mainView = w.mainView;
+                  if (mainView != null && mainView != undefined
+                      && mainView.id == id)
+                  {
+                        return w;
+                  }
             }
       } catch (err) {
             // Ignore errors, fall back to scanning all windows.
@@ -298,9 +303,13 @@ findWindow(id)
             return null;
       }
       for (var i = 0; i < images.length; i++) {
-            if (images[i].mainView != null
-                && images[i].mainView != undefined
-                && images[i].mainView.id == id)
+            /* Every images[i].mainView reference creates a new object that is
+               not a JavaScript object so we save it into a variable.
+             */
+            var mainView = images[i].mainView;
+            if (mainView != null
+                && mainView != undefined
+                && mainView.id == id)
             {
                return images[i];
             }
@@ -364,8 +373,12 @@ findWindowOrFile(id)
       if (this.global.debug) console.writeln("findWindowOrFile: Window with id " + id + " not found, try to find by file name");
       var found_win = null;
       for (var i = 0; i < images.length; i++) {
-            if (images[i].mainView == null
-                || images[i].mainView == undefined)
+            /* Every images[i].mainView reference creates a new object that is
+               not a JavaScript object so we save it into a variable.
+             */
+            var mainView = images[i].mainView;
+            if (mainView == null
+                || mainView == undefined)
             {
                   continue;
             }
@@ -401,9 +414,13 @@ findWindowStartsWith(id)
             return null;
       }
       for (var i = 0; i < images.length; i++) {
-            if (images[i].mainView != null
-                && images[i].mainView != undefined
-                && images[i].mainView.id.startsWith(id))
+            /* Every images[i].mainView reference creates a new object that is
+               not a JavaScript object so we save it into a variable.
+             */
+            var mainView = images[i].mainView;
+            if (mainView != null
+                && mainView != undefined
+                && mainView.id.startsWith(id))
             {
                return images[i];
             }
@@ -421,9 +438,13 @@ findWindowRe(re)
             return null;
       }
       for (var i = 0; i < images.length; i++) {
-            if (images[i].mainView != null
-                && images[i].mainView != undefined
-                && images[i].mainView.id.match(re))
+            /* Every images[i].mainView reference creates a new object that is
+               not a JavaScript object so we save it into a variable.
+             */
+            var mainView = images[i].mainView;
+            if (mainView != null
+                && mainView != undefined
+                && mainView.id.match(re))
             {
                return images[i];
             }
@@ -448,9 +469,13 @@ closeAllWindowsSubstr(id_substr)
             return;
       }
       for (var i = 0; i < images.length; i++) {
-            if (images[i].mainView != null
-                && images[i].mainView != undefined
-                && images[i].mainView.id.indexOf(id_substr) != -1) 
+            /* Every images[i].mainView reference creates a new object that is
+               not a JavaScript object so we save it into a variable.
+             */
+            var mainView = images[i].mainView;
+            if (mainView != null
+                && mainView != undefined
+                && mainView.id.indexOf(id_substr) != -1) 
             {
                images[i].forceClose();
             }
@@ -466,10 +491,12 @@ getWindowList()
       }
       for (var i = 0; i < images.length; i++) {
             try {
-                  if (images[i].mainView == null || images[i].mainView == undefined) {
+                  // Save mainView into a variable, see comments in findWindow
+                  var mainView = images[i].mainView;
+                  if (mainView == null || mainView == undefined) {
                         continue;
                   }
-                  windowList[windowList.length] = images[i].mainView.id;
+                  windowList[windowList.length] = mainView.id;
             } catch (err) {
                   // ignore errors
             }
@@ -1087,10 +1114,12 @@ getWindowSnapshot()
             return snapshot;
       }
       for (var i = 0; i < images.length; i++) {
-            if (images[i].mainView == null || images[i].mainView == undefined) {
+            // Save mainView into a variable, see comments in findWindow
+            var mainView = images[i].mainView;
+            if (mainView == null || mainView == undefined) {
                   continue;
             }
-            var entry = { id: images[i].mainView.id, win: images[i] };
+            var entry = { id: mainView.id, win: images[i] };
             snapshot.list[snapshot.list.length] = entry;
             snapshot.map["#" + entry.id] = entry;
       }
@@ -1765,10 +1794,12 @@ saveAllFinalImageWindows(bits)
                         }
                         if (savefile) {
                               // we need to save this image window 
-                              if (imageWindow.mainView != null 
-                                  && imageWindow.mainView != undefined
-                                  && imageWindow.mainView.id
-                                  && imageWindow.mainView.id.match(/undo[1-9]*/g) == null)
+                              // Save mainView into a variable, see comments in findWindow
+                              var mainView = imageWindow.mainView;
+                              if (mainView != null 
+                                  && mainView != undefined
+                                  && mainView.id
+                                  && mainView.id.match(/undo[1-9]*/g) == null)
                               {
                                     finalimages[finalimages.length] = imageWindow;
                               }

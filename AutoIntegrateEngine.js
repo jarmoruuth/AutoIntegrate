@@ -3806,12 +3806,14 @@ writeAstrobinInfo()
       if (this.astrobin_info == null || Object.keys(this.astrobin_info).length == 0) {
             return;
       }
+      console.writeln("writeAstrobinInfo:start");
       var start_timer = this.util.startTimer();
       // Write this.astrobin_info to a file in CSV format
       var outputDir = this.global.outputRootDir + this.global.AutoProcessedDir;
       var outputFile = this.util.ensurePathEndSlash(outputDir) + "AstrobinInfo.csv";
       console.writeln("Writing astrobin info to " + outputFile);
       var file = new File();
+      if (this.par.debug.val) console.writeln("writeAstrobinInfo:createForWriting");
       file.createForWriting(outputFile);
       file.outTextLn("date,filter,number,duration,binning");
       for (var date in this.astrobin_info) {
@@ -3822,8 +3824,10 @@ writeAstrobinInfo()
                   }
             }
       }
+      if (this.par.debug.val) console.writeln("writeAstrobinInfo:close");
       file.close();
       this.util.stopTimer(start_timer, "writeAstrobinInfo");
+      if (this.par.debug.val) console.writeln("writeAstrobinInfo:done");
 }
 
 // Filter files based on filter keyword/file name.
@@ -9893,9 +9897,13 @@ findBackgroundRegions(w, windowSize, imageStats, testmode)
       var tiles_excluded = 0;
       var scaled_exclusion_areas = this.util.getScaledExclusionAreas(this.global.exclusion_areas, w);
       var polygons = scaled_exclusion_areas.polygons;
+      /* Rect is not a JavaScript object and creating a new one for every checked
+         position is very slow to clean up with big images. We create the Rect
+         only once and move it to the current position.
+       */
+      var rect = new Rect(0, 0, windowSize, windowSize);
       for (var y = windowSize, cnt = 0; y <= height - windowSize; y += 10, cnt++) {
             for (var x = windowSize; x <= width - windowSize; x += 10) {
-                  var rect = new Rect(x, y, x + windowSize, y + windowSize);
                   if (polygons.length > 0) {
                         // Check if some part of the tile is inside the exclusion area
                         if (this.isPointExcluded(x, y, polygons)) {
@@ -9916,8 +9924,14 @@ findBackgroundRegions(w, windowSize, imageStats, testmode)
                         }
                   }
 
-                  var windowMedian = w.mainView.image.median(rect);
-                  var windowStdDev = w.mainView.image.stdDev(rect);
+                  rect.moveTo(x, y);
+
+                  /* Use the image variable saved above. Every w.mainView and
+                     .image reference creates a new object that is not a
+                     JavaScript object and cleaning them up is very slow.
+                   */
+                  var windowMedian = image.median(rect);
+                  var windowStdDev = image.stdDev(rect);
 
                   // Check if the window meets the background criteria
                   if (windowMedian < imageStats.median
@@ -10056,7 +10070,7 @@ findTrueBackground(w, testmode)
 
             if (0 && !this.util.findKeywordName(w, "AutoIntegrateNonLinear") && this.imageIsLinear(w, imageStats.median, imageStats.stdDev)) {
                   // Autostretch for the convenience of the user
-                  // For now keep original forat so pixel values are not changed
+                  // For now keep original format so pixel values are not changed
                   this.applyAutoSTF(
                         bw.mainView,
                         this.global.DEFAULT_AUTOSTRETCH_SCLIP,
@@ -10413,9 +10427,13 @@ findDBEsamples(w)
       var tiles_excluded = 0;
       var scaled_exclusion_areas = this.util.getScaledExclusionAreas(this.global.exclusion_areas, w);
       var polygons = scaled_exclusion_areas.polygons;
+      /* Rect is not a JavaScript object and creating a new one for every checked
+         position is very slow to clean up with big images. We create the Rect
+         only once and move it to the current position.
+       */
+      var rect = new Rect(0, 0, windowSize, windowSize);
       for (var y = windowSize, cnt = 0; y < height - 2 * windowSize - 1; y += stepsize, cnt++) {
             for (var x = windowSize; x < width - 2 * windowSize - 1; x += stepsize) {
-                  var rect = new Rect(x, y, x + windowSize, y + windowSize);
                   if (polygons.length > 0) {
                         // Check if some part of the tile is inside the exclusion area
                         if (this.isPointExcluded(x, y, polygons)) {
@@ -10436,6 +10454,8 @@ findDBEsamples(w)
                         }
                   }
                   
+                  rect.moveTo(x, y);
+
                   var windowMedian = image.median(rect);
                   var windowStdDev = image.stdDev(rect);
 
@@ -10522,10 +10542,11 @@ findDBEsamples(w)
 
             // Channel based values
             var channelStats = [];
+            var wholeImageRect = new Rect(0);
             for (var j = 0; j < image.numberOfChannels; j++) {
                   channelStats[j] = {
-                        median: image.median(new Rect(0), j, j),
-                        stdDev: image.stdDev(new Rect(0), j, j)
+                        median: image.median(wholeImageRect, j, j),
+                        stdDev: image.stdDev(wholeImageRect, j, j)
                   };
                   console.writeln("findDBEsamples:Channel " + j + ", median " + channelStats[j].median + ", std dev " + channelStats[j].stdDev);
             }
@@ -10540,19 +10561,24 @@ findDBEsamples(w)
             // x, y, radius, symmetries, axialCount, isFixed, z0, w0, z1, w1, z2, w2
             var samples = [];
             var firstSample = true;
+            // Reuse the same Rect for all regions, see comments above
+            var sampleRect = new Rect(0);
             CoreApplication.processEvents();
             for (var i = 0; i < selectedRegions.length; i++) {
                   var region = selectedRegions[i];
                   var datarow = [ region.x / width, region.y / height ];      // Normalize x and y to [0, 1]
                   var samplerow = [ Math.floor(region.x + region.size / 2), Math.floor(region.y + region.size / 2) ];   // x, y
                   samplerow.push(Math.floor(region.size / 2), 0, 6, 0);       // radius, symmetries, axialCount, isFixed
-                  var rect = new Rect(region.x, region.y, region.x + region.size, region.y + region.size);
+                  sampleRect.x0 = region.x;
+                  sampleRect.y0 = region.y;
+                  sampleRect.x1 = region.x + region.size;
+                  sampleRect.y1 = region.y + region.size;
                   var min_weight_ok_count = 0;
                   for (var j = 0; j < image.numberOfChannels; j++) {
                         var regionStats = {
-                              mean: image.mean(rect, j, j),
-                              median: image.median(rect, j, j),
-                              stdDev: image.stdDev(rect, j, j)
+                              mean: image.mean(sampleRect, j, j),
+                              median: image.median(sampleRect, j, j),
+                              stdDev: image.stdDev(sampleRect, j, j)
                         };
                         var sampleWeight = this.calculateOptimalWeight(image, region, j, channelStats[j], regionStats, firstSample, imageStats);
                         firstSample = false;
@@ -17052,6 +17078,8 @@ findBounding_box(lowClipImageWindow)
       let left_bottom_valid = false;
       let right_bottom_valid = false;
 
+      // Points are reused in the loop below with moveTo, they are not
+      // JavaScript objects and creating a lot of them is slow to clean up.
       let left_top = new Point(left_col,top_row);
       let right_top = new Point(right_col,top_row);
       let left_bottom = new Point(left_col, bottom_row);
@@ -17072,7 +17100,7 @@ findBounding_box(lowClipImageWindow)
                         {
                               // If not yet valid, check if the current point is valid
                               if (!left_top_valid) {
-                                    left_top = new Point(left_col,top_row);
+                                    left_top.moveTo(left_col,top_row);
                                     left_top_valid = this.pointIsValidCrop(image.sample(left_top)); 
                                     // if invalid move the corner inwards
                                     if (!left_top_valid)
@@ -17088,7 +17116,7 @@ findBounding_box(lowClipImageWindow)
                         {
                               // If not yet valid, check if the current point is valid
                               if (!right_bottom_valid) {
-                                    right_bottom = new Point(right_col,bottom_row);
+                                    right_bottom.moveTo(right_col,bottom_row);
                                     right_bottom_valid = this.pointIsValidCrop(image.sample(right_bottom)); 
                                     // if invalid move the corner inwards
                                     if (!right_bottom_valid)
@@ -17105,7 +17133,7 @@ findBounding_box(lowClipImageWindow)
                               // If not yet valid, check if the current point is valid
                               //
                               if (!left_bottom_valid) {
-                                    left_bottom = new Point(left_col,bottom_row);
+                                    left_bottom.moveTo(left_col,bottom_row);
                                     left_bottom_valid = this.pointIsValidCrop(image.sample(left_bottom)); 
                                     // if invalid move the corner inwards
                                     if (!left_bottom_valid)
@@ -17122,7 +17150,7 @@ findBounding_box(lowClipImageWindow)
                               // If not yet valid, check if the current point is valid
                               //
                               if (!right_top_valid) {
-                                    right_top = new Point(right_col,top_row);
+                                    right_top.moveTo(right_col,top_row);
                                     right_top_valid = this.pointIsValidCrop(image.sample(right_top)); 
                                     // if invalid move the corner inwards
                                     if (!right_top_valid)
@@ -18447,8 +18475,11 @@ autointegrateProcessingEngine(parent, auto_continue, autocontinue_narrowband, tx
              this.saveProcessedWindow(LRGB_processed_HT_id);          /* Final renamed batch image. */
              this.util.stopTimer(start_timer, "batch_mode_rename");
       }
+      console.flush();
+      this.util.runGarbageCollection();
 
-       this.writeAstrobinInfo();
+      this.writeAstrobinInfo();
+      console.flush();
  
        if (this.preprocessed_images == this.global.start_images.NONE
            && !this.par.image_weight_testing.val
@@ -18491,6 +18522,7 @@ autointegrateProcessingEngine(parent, auto_continue, autocontinue_narrowband, tx
                    this.printImageInfo(this.C_images, "Color");
              }
              var full_run = true;
+             console.flush();
              this.util.stopTimer(start_timer, "Output info of files");         
        } else {
              var full_run = false;
@@ -18500,6 +18532,7 @@ autointegrateProcessingEngine(parent, auto_continue, autocontinue_narrowband, tx
        console.noteln("======================================");
        this.util.addProcessingStepAndStatusInfo("Script completed, time "+(end_time-this.script_start_time)/1000+" sec");
        console.noteln("======================================");
+       console.flush();
 
 
        console.writeln("--------------------------------------");
@@ -18520,6 +18553,7 @@ autointegrateProcessingEngine(parent, auto_continue, autocontinue_narrowband, tx
                   bitmap.clear();
                   this.global.flowchart_image = null;
             }
+            console.flush();
             this.util.stopTimer(start_timer, "Print flowchart");
        }
  
@@ -18535,6 +18569,7 @@ autointegrateProcessingEngine(parent, auto_continue, autocontinue_narrowband, tx
                    json_file = this.util.ensure_win_prefix(json_file);
              }
              this.util.saveJsonFileEx(parent, true, json_file);
+             console.flush();
              this.util.stopTimer(start_timer, "Save autosave setup");
        }
        if (this.alignedFiles != null) {
@@ -18544,6 +18579,7 @@ autointegrateProcessingEngine(parent, auto_continue, autocontinue_narrowband, tx
             for (var i = 0; i < this.alignedFiles.length; i++) {
                   console.writeln(this.alignedFiles[i]);
             }
+            console.flush();
             this.util.stopTimer(start_timer, "Print aligned files");
       }
 
@@ -18558,6 +18594,7 @@ autointegrateProcessingEngine(parent, auto_continue, autocontinue_narrowband, tx
              for (var i = 0; i < processingOptions.length; i++) {
                    console.writeln(processingOptions[i][0] + " " + processingOptions[i][1]);
              }
+            console.flush();
             this.util.stopTimer(start_timer, "Print processing options");
        } else {
              this.util.addProcessingStep("Default processing options were used");
@@ -18569,12 +18606,14 @@ autointegrateProcessingEngine(parent, auto_continue, autocontinue_narrowband, tx
             console.warningln("Processing warnings:");
             console.warningln(this.global.processing_warnings);
             console.writeln("");
+            console.flush();
             this.util.stopTimer(start_timer, "Print processing warnings");
        }
        if (this.global.processing_errors.length > 0) {
             var start_timer = this.util.startTimer();
             console.criticalln("Processing errors:");
             console.criticalln(this.global.processing_errors);
+            console.flush();
             this.util.stopTimer(start_timer, "Print processing errors");
        }
 
@@ -18598,15 +18637,18 @@ autointegrateProcessingEngine(parent, auto_continue, autocontinue_narrowband, tx
        }
 
        console.noteln("Engine processing completed.");
+       console.flush();
 
        if (!this.global.get_flowchart_data && this.preprocessed_images != this.global.start_images.FINAL) {
             var start_timer = this.util.startTimer();
             this.writeProcessingStepsAndEndLog(this.alignedFiles, auto_continue, null, false);
             console.noteln("Console output is written into file " + this.logfname);
+            console.flush();
             this.util.stopTimer(start_timer, "Write processing steps and end log");
       }
 
       if (this.util.executed_processes.length > 0) {
+            console.flush();
             if (this.par.create_process_icons.val) {
                   var start_timer = this.util.startTimer();
                   let filename = this.util.ensure_win_prefix("ExecutedProcesses.xpsm");
@@ -18623,6 +18665,8 @@ autointegrateProcessingEngine(parent, auto_continue, autocontinue_narrowband, tx
             }
       }
       this.global.is_processing = this.global.processing_state.none;
+
+      console.flush();
 
        return LRGB_processed_HT_id; // end: autointegrateProcessingEngine
 }
