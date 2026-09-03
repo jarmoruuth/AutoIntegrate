@@ -448,7 +448,9 @@ this.par = {
       dbe_use_abe: { val: true, def: true, name : "DBE use ABE", type : 'B' },
       dbe_samples_per_row: { val: 10, def: 10, name : "DBE samples per row", type : 'I' },
       dbe_normalize : { val: true, def: true, name : "DBE normalize", type : 'B' },
-      dbe_min_weight : { val: 0.75, def: 0.75, name : "DBE min weight", type : 'I' },
+      dbe_min_weight : { val: 0.75, def: 0.75, name : "DBE min weight", type : 'R' },
+      dbe_weight_mode : { val: 'Balanced', def: 'Balanced', name : "DBE weight mode", type : 'S' },
+      dbe_edge_weight : { val: 'Neutral', def: 'Neutral', name : "DBE edge weight", type : 'S' },
 
       graxpert_path: { val: "", def: "", name : "GraXpert path", type : 'S', skip_reset: true },
       graxpert_correction: { val: "Subtraction", def: "Subtraction", name : "GraXpert correction", type : 'S' },

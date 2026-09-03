@@ -40,6 +40,8 @@ constructor(parent, global, util, engine) {
       this.adjust_shadows_values = [ 'none', 'before', 'after', 'both' ];
       this.graxpert_correction_values = [ 'Subtraction', 'Division' ];
       this.ABE_correction_values = [ 'Subtraction', 'Division' ];
+      this.dbe_weight_mode_values = [ 'Strict', 'Balanced', 'Background noise' ];
+      this.dbe_edge_weight_values = [ 'Neutral', 'Favor center', 'Favor edges' ];
       this.mgc_scale_valuestxt = [ '128', '192', '256', '384', '512', '768', '1024', '1536', '2048', '3072', '4096', '6144', '8192' ];
       this.mas_scale_valuestxt = [ '8', '16', '32', '64', '128', '192', '256', '384', '512', '768', '1024' ];
 
@@ -1546,10 +1548,32 @@ createGradientCorrectionSizer(parent, level = 1)
       this.dbe_samples_per_row_Label = this.newLabel(parent, "Samples per row/col", "Number of sample points placed for each row and column.", true);
       this.dbe_samples_per_row_SpinBox = this.newSpinBox(parent, this.par.dbe_samples_per_row, 5, 20, this.dbe_samples_per_row_Label.toolTip);
       this.dbe_min_weight_Edit = this.newNumericEdit(parent, "Min weight", this.par.dbe_min_weight, 0, 1, "<p>Minimum sample weight to be included in the samples.");
+      this.dbe_weight_mode_Label = this.newLabel(parent, "Weight mode", 
+            "<p>Selects how the sample weight is calculated from the sample region statistics.</p>" +
+            "<p><b>Strict</b> penalizes the sample using the full noise ratio of the region. " +
+            "Only very flat regions get a high weight.</p>" +
+            "<p><b>Balanced</b> penalizes only the noise that exceeds the noise level of the image. " +
+            "A region that is pure background noise gets full weight. This is the default.</p>" +
+            "<p><b>Background noise</b> works like Balanced but uses the measured noise level of the " +
+            "selected sample regions as a reference instead of the whole image noise level. It also " +
+            "uses the image noise level when detecting samples that are brighter than the background.</p>",
+            true);
+      this.dbe_weight_mode_ComboBox = this.newComboBox(parent, this.par.dbe_weight_mode, this.dbe_weight_mode_values, this.dbe_weight_mode_Label.toolTip);
+      this.dbe_edge_weight_Label = this.newLabel(parent, "Edge weight", 
+            "<p>Selects how the distance of the sample from the image edge affects the sample weight.</p>" +
+            "<p><b>Neutral</b> does not change the weight based on the distance from the edge. This is the default.</p>" +
+            "<p><b>Favor center</b> reduces the weight of samples close to the edge. This helps to prevent " +
+            "edge artifacts from affecting the background model.</p>" +
+            "<p><b>Favor edges</b> increases the weight of samples close to the edge. This helps the " +
+            "background model to better fit edge vignetting.</p>",
+            true);
+      this.dbe_edge_weight_ComboBox = this.newComboBox(parent, this.par.dbe_edge_weight, this.dbe_edge_weight_values, this.dbe_edge_weight_Label.toolTip);
 
       this.DBESizer1 = this.newHorizontalSizer(2, true, [this.dbe_use_background_neutralization_CheckBox, this.dbe_use_abe_CheckBox,
                                                     this.dbe_normalize_CheckBox ]);
       this.DBESizer11 = this.newHorizontalSizer(2, true, [this.dbe_samples_per_row_Label, this.dbe_samples_per_row_SpinBox, this.dbe_min_weight_Edit ]);
+      this.DBESizer12 = this.newHorizontalSizer(2, true, [this.dbe_weight_mode_Label, this.dbe_weight_mode_ComboBox,
+                                                    this.dbe_edge_weight_Label, this.dbe_edge_weight_ComboBox ]);
 
 #ifndef AUTOINTEGRATE_STANDALONE
       this.exclusionAreaImageLabel = this.newLabel(parent, "Image:");
@@ -1579,7 +1603,7 @@ createGradientCorrectionSizer(parent, level = 1)
       this.DBESizer2 = this.newHorizontalSizer(2, true, [this.exclusionAreasButton, this.exclusionAreaCountLabel, this.exclusionAreaImageLabel, this.exclusionAreasComboBox ]);
 #endif
 
-      this.DBEMainSizer = this.newVerticalSizer(2, true, [ this.DBESizer1, this.DBESizer11, this.DBESizer2 ]);
+      this.DBEMainSizer = this.newVerticalSizer(2, true, [ this.DBESizer1, this.DBESizer11, this.DBESizer12, this.DBESizer2 ]);
 
       this.DBESettingsSection = this.newSectionBarAddArray(parent, null, "DBE settings", "DBE_Settings_Section",
                                           [ this.DBEMainSizer ], level);
