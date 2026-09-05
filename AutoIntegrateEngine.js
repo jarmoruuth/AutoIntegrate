@@ -1597,6 +1597,45 @@ setFinalImageKeyword(imageWindow)
             [ this.autoIntegrateVersionKeyword() ]);
 }
 
+/* Should info windows (LowRejectionMap_ALL, AutoBackgroundModel) be closed
+ * at the end of processing.
+ */
+closeInfoWindowsAtEnd()
+{
+      return this.par.windows_at_end.val == 'Close info windows' || this.keepOnlyFinalImagesAtEnd();
+}
+
+/* Should all but the final images be closed at the end of processing.
+ */
+keepOnlyFinalImagesAtEnd()
+{
+      return this.par.windows_at_end.val == 'Keep only final images';
+}
+
+/* Check if the image is marked as a final image with the AutoIntegrate keyword.
+ */
+isFinalImage(id)
+{
+      var w = this.util.findWindow(id);
+      if (w == null) {
+            return false;
+      }
+      return this.util.getKeywordValue(w, "AutoIntegrate") == "finalimage";
+}
+
+/* Iconize an intermediate window at the end of processing. If only final
+ * images are kept the window is closed instead. Images marked as final
+ * images are never closed here.
+ */
+endProcessingIconizeAndKeywordif(id, show_image, find_prefix)
+{
+      if (this.keepOnlyFinalImagesAtEnd() && !this.isFinalImage(id)) {
+            this.util.closeOneWindowById(id);
+      } else {
+            this.util.windowIconizeAndKeywordif(id, show_image, find_prefix);
+      }
+}
+
 // Keyword for the AutoIntegrate version, added only if it is not already set
 autoIntegrateVersionKeyword()
 {
@@ -5778,6 +5817,9 @@ createStarsImageFromFinalImage(id)
 
       if (stars_win != null) {
             stars_win.mainView.id = starless_name;
+
+            // Mark as a final image, it is created from the final image
+            this.setFinalImageKeyword(stars_win);
 
             // Save stars image in .xisf and .tif format
             this.save_id_as_xisf_and_tif(stars_win.mainView.id, starless_name);
@@ -17768,9 +17810,9 @@ enhancementsProcessingEngine(parent, enhancements_target_image, enhancements_nar
  
        console.noteln("enhancementsProcessingEngine " + enhancements_target_image + " completed.");
  
-       this.util.windowIconizeAndKeywordif(this.mask_win_id, false, true);             /* AutoMask window */
-       this.util.windowIconizeAndKeywordif(this.star_mask_win_id, false, true);        /* AutoStarMask or star_mask window */
-       this.util.windowIconizeAndKeywordif(this.star_fix_mask_win_id, false, true);    /* AutoStarFixMask or star_fix_mask window */
+       this.setNewMaskWindow(null);                                                    /* AutoMask window is always closed */
+       this.endProcessingIconizeAndKeywordif(this.star_mask_win_id, false, true);      /* AutoStarMask or star_mask window */
+       this.endProcessingIconizeAndKeywordif(this.star_fix_mask_win_id, false, true);  /* AutoStarFixMask or star_fix_mask window */
 
        for (var i = 0; i < enhancements_wins.length; i++) {
             this.util.windowIconizeFindPosition(enhancements_wins[i]);
@@ -18471,28 +18513,35 @@ autointegrateProcessingEngine(parent, auto_continue, autocontinue_narrowband, tx
              this.util.closeAllWindowsFromArray(this.global.calibrate_windows);
        }
  
-       this.util.windowIconizeAndKeywordif(this.L_id);                    /* Integration_L */
-       this.util.windowIconizeAndKeywordif(this.R_id);                    /* Integration_R */
-       this.util.windowIconizeAndKeywordif(this.G_id);                    /* Integration_G */
-       this.util.windowIconizeAndKeywordif(this.B_id);                    /* Integration_B */
-       this.util.windowIconizeAndKeywordif(this.H_id);                    /* Integration_H */
-       this.util.windowIconizeAndKeywordif(this.S_id);                    /* Integration_S */
-       this.util.windowIconizeAndKeywordif(this.O_id);                    /* Integration_O */
-       this.util.windowIconizeAndKeywordif(this.RGB_color_id);            /* Integration_RGB */
+       this.endProcessingIconizeAndKeywordif(this.L_id);                  /* Integration_L */
+       this.endProcessingIconizeAndKeywordif(this.R_id);                  /* Integration_R */
+       this.endProcessingIconizeAndKeywordif(this.G_id);                  /* Integration_G */
+       this.endProcessingIconizeAndKeywordif(this.B_id);                  /* Integration_B */
+       this.endProcessingIconizeAndKeywordif(this.H_id);                  /* Integration_H */
+       this.endProcessingIconizeAndKeywordif(this.S_id);                  /* Integration_S */
+       this.endProcessingIconizeAndKeywordif(this.O_id);                  /* Integration_O */
+       this.endProcessingIconizeAndKeywordif(this.RGB_color_id);          /* Integration_RGB */
        if (this.crop_lowClipImageName != null) {
-             this.util.windowIconizeif(this.crop_lowClipImageName);       /* LowRejectionMap_ALL */
+             if (this.closeInfoWindowsAtEnd()) {
+                   this.util.closeOneWindowById(this.crop_lowClipImageName);   /* LowRejectionMap_ALL */
+             } else {
+                   this.util.windowIconizeif(this.crop_lowClipImageName);      /* LowRejectionMap_ALL */
+             }
+       }
+       if (this.closeInfoWindowsAtEnd()) {
+             this.util.closeOneWindowById(this.util.ensure_win_prefix("AutoBackgroundModel"));
        }
        if (this.RGB_win_id != null && this.RGB_win_id.endsWith("_map")) {
             // close map window
             this.util.closeOneWindowById(this.RGB_win_id);
             this.RGB_win_id = null;
        } else {
-            this.util.windowIconizeAndKeywordif(this.RGB_win_id);         /* Integration_RGB_combined */
+            this.endProcessingIconizeAndKeywordif(this.RGB_win_id);       /* Integration_RGB_combined */
        }
-       this.util.windowIconizeAndKeywordif(this.luminance_crop_id);       /* Integration_L_crop */
- 
+       this.endProcessingIconizeAndKeywordif(this.luminance_crop_id);     /* Integration_L_crop */
+
        if (this.RGB_stars_win != null) {
-             this.util.windowIconizeAndKeywordif(this.RGB_stars_win.mainView.id); /* Integration_RGB_stars (linear) */
+             this.endProcessingIconizeAndKeywordif(this.RGB_stars_win.mainView.id); /* Integration_RGB_stars (linear) */
        }
        if (this.RGB_stars_win_HT != null) {
              this.setFinalImageKeyword(ImageWindow.windowById(this.RGB_stars_win_HT.mainView.id));   /* Integration_RGB_stars (non-linear) */
@@ -18501,7 +18550,7 @@ autointegrateProcessingEngine(parent, auto_continue, autocontinue_narrowband, tx
       var start_timer = this.util.startTimer();
        for (var i = 0; i < this.iconized_debug_image_ids.length; i++) {
             if (this.par.debug.val) {
-                  this.util.windowIconizeAndKeywordif(this.iconized_debug_image_ids[i]);
+                  this.endProcessingIconizeAndKeywordif(this.iconized_debug_image_ids[i]);
             } else {
                   this.util.closeOneWindowById(this.iconized_debug_image_ids[i]);
             }
@@ -18509,27 +18558,27 @@ autointegrateProcessingEngine(parent, auto_continue, autocontinue_narrowband, tx
       this.util.stopTimer(start_timer, "iconized_debug_image_ids");
 
       for (var i = 0; i < this.iconized_image_ids.length; i++) {
-            this.util.windowIconizeAndKeywordif(this.iconized_image_ids[i]);
+            this.endProcessingIconizeAndKeywordif(this.iconized_image_ids[i]);
       }
       for (var i = 0; i < this.global.test_image_ids.length; i++) {
-            this.util.windowIconizeAndKeywordif(this.global.test_image_ids[i]);
+            this.endProcessingIconizeAndKeywordif(this.global.test_image_ids[i]);
       }
- 
+
        for (var i = 0; i < this.global.processed_channel_images.length; i++) {
-             this.util.windowIconizeAndKeywordif(this.global.processed_channel_images[i]);
+             this.endProcessingIconizeAndKeywordif(this.global.processed_channel_images[i]);
        }
- 
-       this.util.windowIconizeAndKeywordif(this.L_processed_id);
-       this.util.windowIconizeAndKeywordif(this.RGB_processed_id);
- 
+
+       this.endProcessingIconizeAndKeywordif(this.L_processed_id);
+       this.endProcessingIconizeAndKeywordif(this.RGB_processed_id);
+
        this.util.closeAllWindowsFromArray(this.RGB_stars_channel_ids);
- 
-       this.util.windowIconizeAndKeywordif(RGB_processed_HT_id);
-       this.util.windowIconizeAndKeywordif(this.L_processed_HT_id);
-       this.util.windowIconizeAndKeywordif(LRGB_Combined);                /* LRGB Combined image */
-       this.util.windowIconizeAndKeywordif(this.mask_win_id);             /* AutoMask window */
-       this.util.windowIconizeAndKeywordif(this.star_mask_win_id);        /* AutoStarMask or star_mask window */
-       this.util.windowIconizeAndKeywordif(this.star_fix_mask_win_id);    /* AutoStarFixMask or star_fix_mask window */
+
+       this.endProcessingIconizeAndKeywordif(RGB_processed_HT_id);
+       this.endProcessingIconizeAndKeywordif(this.L_processed_HT_id);
+       this.endProcessingIconizeAndKeywordif(LRGB_Combined);              /* LRGB Combined image */
+       this.setNewMaskWindow(null);                                       /* AutoMask window is always closed */
+       this.endProcessingIconizeAndKeywordif(this.star_mask_win_id);      /* AutoStarMask or star_mask window */
+       this.endProcessingIconizeAndKeywordif(this.star_fix_mask_win_id);  /* AutoStarFixMask or star_fix_mask window */
 
        if (iconize_final_image) {
             this.util.windowIconizeif(LRGB_processed_HT_id, true);

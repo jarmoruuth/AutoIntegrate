@@ -214,6 +214,7 @@ this.RGBHa_combine_method_values = [ 'Bright structure add', 'Screen', 'Med subt
 this.color_calibration_time_values = [ 'auto', 'linear', 'nonlinear', 'both' ];
 this.RGBHa_test_values = [ 'Mapping', 'Continuum', 'All mappings' ];
 this.fast_mode_values = [ 'S', 'M' ];
+this.windows_at_end_values = [ 'Default', 'Close info windows', 'Keep only final images' ];
 this.drizzle_function_values = [ 'Square', 'Circular', 'Gaussian' ];
 
 this.screen_size = "Unknown";       // Screen wxh size as a string
@@ -4847,8 +4848,30 @@ AutoIntegrateDialog()
             "<p>Weight limit is set in <i>Preprocessing / Filtering</i> section.</p>" );
       this.ChannelCombinationOnlyCheckBox = this.guitools.newCheckBox(this, "ChannelCombination only", this.par.channelcombination_only, 
             "<p>Run only channel combination to linear RGB file. No auto stretch or color calibration.</p>" );
-      this.keepIntegratedImagesCheckBox = this.guitools.newCheckBox(this, "Keep integrated images", this.par.keep_integrated_images, 
+      this.keepIntegratedImagesCheckBox = this.guitools.newCheckBox(this, "Keep integrated images", this.par.keep_integrated_images,
             "<p>Keep integrated images when closing all windows</p>" );
+      var windows_at_end_toolTip =
+            "<p>Select which windows are left on the desktop at the end of processing.</p>" +
+            "<p><b>Default</b>, info windows and intermediate images are iconized and left on the desktop.</p>" +
+            "<p><b>Close info windows</b>, close info windows that are only helper images and not part of the " +
+            "actual processing result:</p>" +
+            "<ul>" +
+            "<li>LowRejectionMap_ALL, contains the cropping information</li>" +
+            "<li>AutoBackgroundModel, contains the automatically detected background area as a preview</li>" +
+            "</ul>" +
+            "<p><b>Keep only final images</b>, close info windows and all intermediate images and leave only the " +
+            "final images on the desktop. Intermediate images include for example integrated channel images, " +
+            "processed channel images and masks.</p>" +
+            "<p>Note that info windows and intermediate images are not always generated.</p>" +
+            "<p>Note also that closed images cannot be reused in AutoContinue. If images are saved on disk they " +
+            "can be opened again before running AutoContinue.</p>";
+      this.windowsAtEndLabel = this.guitools.newLabel(this, "Windows at end of processing", windows_at_end_toolTip);
+      this.windowsAtEndComboBox = this.guitools.newComboBox(this, this.par.windows_at_end, this.windows_at_end_values, windows_at_end_toolTip);
+      this.windowsAtEndSizer = new HorizontalSizer;
+      this.windowsAtEndSizer.spacing = 4;
+      this.windowsAtEndSizer.add( this.windowsAtEndLabel );
+      this.windowsAtEndSizer.add( this.windowsAtEndComboBox );
+      this.windowsAtEndSizer.addStretch();
       this.resetOnSetupLoadCheckBox = this.guitools.newCheckBox(this, "Reset", this.par.reset_on_setup_load, 
             "<p>Reset parameters to default values before loading a setup.</p>" + 
             "<p>This ensures that only parameters from the setup file are set and user saved default parameters are not set.</p>" +
@@ -5248,7 +5271,7 @@ AutoIntegrateDialog()
       this.otherParamsSet1.add( this.otherParamsSet11 );
       this.otherParamsSet1.add( this.otherParamsSet12 );
 
-      // System parameters set 2.
+      // System parameters set 1.
       this.systemParamsSet1 = new VerticalSizer;
       this.systemParamsSet1.margin = 6;
       this.systemParamsSet1.spacing = 4;
@@ -5260,6 +5283,7 @@ AutoIntegrateDialog()
       this.systemParamsSet1.add( this.no_subdirs_CheckBox );
       this.systemParamsSet1.add( this.create_process_icons_CheckBox );
 
+      // System parameters set 2.
       this.systemParamsSet2 = new VerticalSizer;
       this.systemParamsSet2.margin = 6;
       this.systemParamsSet2.spacing = 4;
@@ -5271,6 +5295,7 @@ AutoIntegrateDialog()
       this.systemParamsSet2.add( this.AutoSaveSetupBox );
       this.systemParamsSet2.add( this.UseProcessedFilesBox );
       this.systemParamsSet2.add( this.saveCroppedImagesBox );
+      this.systemParamsSet2.add( this.windowsAtEndSizer );
 
       this.systemParamsSet = new HorizontalSizer;
       this.systemParamsSet.margin = 6;

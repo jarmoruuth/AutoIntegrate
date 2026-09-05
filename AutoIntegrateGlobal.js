@@ -274,6 +274,7 @@ this.par = {
       drizzle_scale: { val: 2, def: 2, name : "Drizzle scale", type : 'I' },
       drizzle_drop_shrink: { val: 0.9, def: 0.9, name : "Drizzle drop shrink", type : 'R' },
       keep_integrated_images: { val: false, def: false, name : "Keep integrated images", type : 'B' },
+      windows_at_end: { val: 'Default', def: 'Default', name : "Windows at end of processing", type : 'S' },
       reset_on_setup_load: { val: true, def: true, name : "Reset on setup load", type : 'B' },
       keep_temporary_images: { val: false, def: false, name : "Keep temporary images", type : 'B' },
       keep_processed_images: { val: false, def: false, name : "Keep processed images", type : 'B' },
