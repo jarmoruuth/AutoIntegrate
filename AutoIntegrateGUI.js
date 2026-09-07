@@ -826,7 +826,12 @@ showOrHideFilterSectionBar(pageIndex)
 
 lightsOptions(parent)
 {
-      var sizer = this.filesOptionsSizer(parent, "Add light images", parent.filesToolTip[this.global.pages.LIGHTS]);
+      var main_sizer = this.filesOptionsSizer(parent, "Add light images", parent.filesToolTip[this.global.pages.LIGHTS]);
+
+      var control = new Control( parent );
+      var sizer = new VerticalSizer;
+      sizer.margin = 6;
+      sizer.spacing = 4;
 
       var debayerLabel = new Label( parent );
       this.global.rootingArr.push(debayerLabel);
@@ -936,12 +941,22 @@ lightsOptions(parent)
       sizer.add(metricsVisualizerButton);
       sizer.add(exclusionAreasButton);
 
-      return sizer;
+      control.sizer = sizer;
+      main_sizer.add(control);
+
+      this.global.expert_mode_controls.push(control);
+
+      return main_sizer;
 }
 
 biasOptions(parent)
 {
-      var sizer = this.filesOptionsSizer(parent, "Add bias images", parent.filesToolTip[this.global.pages.BIAS]);
+      var main_sizer = this.filesOptionsSizer(parent, "Add bias images", parent.filesToolTip[this.global.pages.BIAS]);
+
+      var control = new Control( parent );
+      var sizer = new VerticalSizer;
+      sizer.margin = 6;
+      sizer.spacing = 4;
 
       var checkbox = this.guitools.newCheckBox(parent, "SuperBias", this.par.create_superbias, 
             "<p>Create SuperBias from bias files.</p>" +
@@ -965,12 +980,22 @@ biasOptions(parent)
       sizer.add(checkbox4);
       sizer.addStretch();
 
-      return sizer;
+      control.sizer = sizer;
+      main_sizer.add(control);
+
+      this.global.expert_mode_controls.push(control);
+
+      return main_sizer;
 }
 
 darksOptions(parent)
 {
-      var sizer = this.filesOptionsSizer(parent, "Add dark images", parent.filesToolTip[this.global.pages.DARKS]);
+      var main_sizer = this.filesOptionsSizer(parent, "Add dark images", parent.filesToolTip[this.global.pages.DARKS]);
+
+      var control = new Control( parent );
+      var sizer = new VerticalSizer;
+      sizer.margin = 6;
+      sizer.spacing = 4;
 
       var checkbox = this.guitools.newCheckBox(parent, "Pre-calibrate", this.par.pre_calibrate_darks, 
             "<p>If checked darks are pre-calibrated with bias and not during ImageCalibration.</p>" );
@@ -987,13 +1012,24 @@ darksOptions(parent)
       sizer.add(checkbox2);
       sizer.add(checkbox3);
       sizer.addStretch();
+      sizer.addStretch();
 
-      return sizer;
+      control.sizer = sizer;
+      main_sizer.add(control);
+
+      this.global.expert_mode_controls.push(control);
+
+      return main_sizer;
 }
-
 flatsOptions(parent)
 {
-      var sizer = this.filesOptionsSizer(parent, "Add flat images", parent.filesToolTip[this.global.pages.FLATS]);
+      var main_sizer = this.filesOptionsSizer(parent, "Add flat images", parent.filesToolTip[this.global.pages.FLATS]);
+      
+      var control = new Control( parent );
+      var sizer = new VerticalSizer;
+      sizer.margin = 6;
+      sizer.spacing = 4;
+
 
       var checkboxMaster = this.guitools.newCheckBox(parent, "Master files", this.par.flat_master_files,
             "<p>Files are master files.</p>" +
@@ -1021,12 +1057,23 @@ flatsOptions(parent)
       sizer.add(checkboxManual);
       sizer.addStretch();
 
-      return sizer;
+      control.sizer = sizer;
+      main_sizer.add(control);
+
+      this.global.expert_mode_controls.push(control);
+
+      return main_sizer;
 }
 
 flatdarksOptions(parent)
 {
-      var sizer = this.filesOptionsSizer(parent, "Add flat dark images", parent.filesToolTip[this.global.pages.FLAT_DARKS]);
+      var main_sizer = this.filesOptionsSizer(parent, "Add flat dark images", parent.filesToolTip[this.global.pages.FLAT_DARKS]);
+
+      var control = new Control( parent );
+      var sizer = new VerticalSizer;
+      sizer.margin = 6;
+      sizer.spacing = 4;
+
 
       var checkbox = this.guitools.newCheckBox(parent, "Master files", this.par.flat_dark_master_files,
             "<p>Files are master files.</p>" +
@@ -1044,8 +1091,13 @@ flatdarksOptions(parent)
       sizer.add(checkbox);
       sizer.add(checkboxManual);
       sizer.addStretch();
-      
-      return sizer;
+
+      control.sizer = sizer;
+      main_sizer.add(control);
+
+      this.global.expert_mode_controls.push(control);
+
+      return main_sizer;
 }
 
 updatePreviewImage(updPreviewControl, image, txt, histogramControl, histogramInfo, force_setimage = false)
