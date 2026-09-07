@@ -3172,6 +3172,14 @@ optionControlLocation(control)
             if (location.section == "" && a.aiTitle != undefined) {
                   location.section = a.aiTitle;
             }
+            if (a.aiTab != undefined) {
+                  /* Control or container that tells itself where it is shown. Used for
+                   * places that are not in the sizer hierarchy of a tab page, like the
+                   * pages of the files tab box and the controls around the tab box.
+                   */
+                  location.tab = a.aiTab;
+                  location.found = true;
+            }
             for (var j = 0; j < this.global.expert_mode_controls.length; j++) {
                   if (this.global.expert_mode_controls[j] == a) {
                         location.expert = true;
@@ -3639,6 +3647,24 @@ findPageIndexByName(tabBox, name)
             }
       }
       return -1;
+}
+
+/* Add one page into the files tab box.
+ *
+ * The page control is marked with the tab and the section name it represents so
+ * that the options in it can be located when the option metadata file is written.
+ * Pages added with TabBox.addPage are not in the sizer hierarchy of the tab they
+ * are shown in, so they cannot be found by walking up from a control.
+ */
+addFilesPage(name, optionsSizer, pageIndex)
+{
+      var page = this.filesTreeBox( this, optionsSizer, pageIndex );
+      page.aiTab = "Files";
+      page.aiTitle = name;
+      this.global.rootingArr.push(page);
+      this.tabBox.addPage( page, name );
+
+      return page;
 }
 
 filesTreeBox(parent, optionsSizer, pageIndex)
@@ -5054,25 +5080,11 @@ AutoIntegrateDialog()
 
       this.tabBox = new TabBox( this );
 
-      let newFilesTreeBox = this.filesTreeBox( this, this.lightsOptions(this), this.global.pages.LIGHTS );
-      this.global.rootingArr.push(newFilesTreeBox);
-      this.tabBox.addPage( newFilesTreeBox, "Lights" );
-
-      newFilesTreeBox = this.filesTreeBox( this, this.biasOptions(this), this.global.pages.BIAS );
-      this.global.rootingArr.push(newFilesTreeBox);
-      this.tabBox.addPage( newFilesTreeBox, "Bias" );
-
-      newFilesTreeBox = this.filesTreeBox( this, this.darksOptions(this), this.global.pages.DARKS );
-      this.global.rootingArr.push(newFilesTreeBox);
-      this.tabBox.addPage( newFilesTreeBox, "Darks" );
-
-      newFilesTreeBox = this.filesTreeBox( this, this.flatsOptions(this), this.global.pages.FLATS );
-      this.global.rootingArr.push(newFilesTreeBox);
-      this.tabBox.addPage( newFilesTreeBox, "Flats" );
-
-      newFilesTreeBox = this.filesTreeBox( this, this.flatdarksOptions(this), this.global.pages.FLAT_DARKS );
-      this.global.rootingArr.push(newFilesTreeBox);
-      this.tabBox.addPage( newFilesTreeBox, "Flat Darks" );
+      this.addFilesPage( "Lights", this.lightsOptions(this), this.global.pages.LIGHTS );
+      this.addFilesPage( "Bias", this.biasOptions(this), this.global.pages.BIAS );
+      this.addFilesPage( "Darks", this.darksOptions(this), this.global.pages.DARKS );
+      this.addFilesPage( "Flats", this.flatsOptions(this), this.global.pages.FLATS );
+      this.addFilesPage( "Flat Darks", this.flatdarksOptions(this), this.global.pages.FLAT_DARKS );
 
       /* Parameters check boxes. */
       this.useLocalNormalizationCheckBox = this.guitools.newCheckBox(this, "Local Normalization", this.par.local_normalization, 
@@ -7566,6 +7578,7 @@ AutoIntegrateDialog()
                               }
                         }
                   });
+            this.showFlowchartCheckBox.aiTab = "Main window";   // Shown in the button row, not in a tab
 
             var showFlowchartToolTip = 
                   "<h4>Generate Flowchart</h4>" +
@@ -8393,6 +8406,7 @@ AutoIntegrateDialog()
       this.topButtonsSizer2.addSpacing( 4 );
       this.topButtonsSizer2.add( this.winprefixOutputdirSizer );
       this.top2ndRowControl = new Control( this );
+      this.top2ndRowControl.aiTab = "Main window";   // Not in a tab, see optionControlLocation
       this.top2ndRowControl.sizer = new HorizontalSizer;
       this.top2ndRowControl.sizer.add(this.topButtonsSizer2);
       this.baseSizer.add( this.top2ndRowControl );

@@ -18,11 +18,11 @@ Interface tab, Debug settings section. It is also needed for the simple mode pag
 
 Options are put into groups and tagged so that it is possible to see if an option
 changes the processed image or only the user interface, and if an option applies
-to color images or is specific to OSC/RAW, narrowband or mono data. The tags come from the applies
-field of the option in this.par, so they are maintained together with the option
-itself. Groups are given by the GROUPS and RULES tables below. When new options
-are added they are picked up automatically, but a new option may need a new
-grouping rule.
+to color images or is specific to OSC/RAW, narrowband or mono data. The tags
+come from the applies field of the option in this.par, so they are maintained
+together with the option itself. Groups are given by the GROUPS and RULES tables
+below. When new options are added they are picked up automatically, but a new
+option may need a new grouping rule.
 
 Usage:
 
@@ -988,6 +988,12 @@ def print_stats(options):
         nogui = [o['key'] for o in options if o['in_gui'] is False]
         print('%4d  with no GUI control%s' % (len(nogui),
                                               ': ' + ', '.join(nogui) if nogui else ''))
+        bytab = {}
+        for o in options:
+            for tab in o['tabs'] or ([] if not o['in_gui'] else ['(not located)']):
+                bytab[tab] = bytab.get(tab, 0) + 1
+        for tab in sorted(bytab, key=lambda x: -bytab[x]):
+            print('%4d  tab %s' % (bytab[tab], tab))
 
 
 def main():

@@ -1,6 +1,6 @@
 {
  "version": "AutoIntegrate v1.87 test1",
- "generated": "Mon Sep 07 2026 22:52:29 GMT+0300 (FLE Daylight Time)",
+ "generated": "Mon Sep 07 2026 23:23:51 GMT+0300 (FLE Daylight Time)",
  "options": [
   {
    "key": "local_normalization",
@@ -2597,14 +2597,16 @@
      "values": null,
      "min": null,
      "max": null,
-     "tab": "",
+     "tab": "Main window",
      "section": "",
-     "expert": true,
-     "located": false
+     "expert": false,
+     "located": true
     }
    ],
-   "expert": true,
-   "tabs": [],
+   "expert": false,
+   "tabs": [
+    "Main window"
+   ],
    "sections": [],
    "in_gui": true,
    "kind": "checkbox",
@@ -2881,15 +2883,19 @@
      "values": null,
      "min": null,
      "max": null,
-     "tab": "",
-     "section": "",
+     "tab": "Files",
+     "section": "Lights",
      "expert": true,
-     "located": false
+     "located": true
     }
    ],
    "expert": true,
-   "tabs": [],
-   "sections": [],
+   "tabs": [
+    "Files"
+   ],
+   "sections": [
+    "Lights"
+   ],
    "in_gui": true,
    "kind": "checkbox",
    "label": "Force monochrome",
@@ -9576,14 +9582,16 @@
      ],
      "min": null,
      "max": null,
-     "tab": "",
+     "tab": "Main window",
      "section": "",
-     "expert": true,
-     "located": false
+     "expert": false,
+     "located": true
     }
    ],
-   "expert": true,
-   "tabs": [],
+   "expert": false,
+   "tabs": [
+    "Main window"
+   ],
    "sections": [],
    "in_gui": true,
    "kind": "list",
@@ -17234,15 +17242,19 @@
      ],
      "min": null,
      "max": null,
-     "tab": "",
-     "section": "",
+     "tab": "Files",
+     "section": "Lights",
      "expert": true,
-     "located": false
+     "located": true
     }
    ],
    "expert": true,
-   "tabs": [],
-   "sections": [],
+   "tabs": [
+    "Files"
+   ],
+   "sections": [
+    "Lights"
+   ],
    "in_gui": true,
    "kind": "list",
    "label": "",
@@ -17390,15 +17402,19 @@
      ],
      "min": null,
      "max": null,
-     "tab": "",
-     "section": "",
+     "tab": "Files",
+     "section": "Lights",
      "expert": true,
-     "located": false
+     "located": true
     }
    ],
    "expert": true,
-   "tabs": [],
-   "sections": [],
+   "tabs": [
+    "Files"
+   ],
+   "sections": [
+    "Lights"
+   ],
    "in_gui": true,
    "kind": "list",
    "label": "",
@@ -17427,15 +17443,19 @@
      "values": null,
      "min": null,
      "max": null,
-     "tab": "",
-     "section": "",
+     "tab": "Files",
+     "section": "Bias",
      "expert": true,
-     "located": false
+     "located": true
     }
    ],
    "expert": true,
-   "tabs": [],
-   "sections": [],
+   "tabs": [
+    "Files"
+   ],
+   "sections": [
+    "Bias"
+   ],
    "in_gui": true,
    "kind": "checkbox",
    "label": "SuperBias",
@@ -17459,15 +17479,19 @@
      "values": null,
      "min": null,
      "max": null,
-     "tab": "",
-     "section": "",
+     "tab": "Files",
+     "section": "Bias",
      "expert": true,
-     "located": false
+     "located": true
     }
    ],
    "expert": true,
-   "tabs": [],
-   "sections": [],
+   "tabs": [
+    "Files"
+   ],
+   "sections": [
+    "Bias"
+   ],
    "in_gui": true,
    "kind": "checkbox",
    "label": "Use on lights",
@@ -17491,15 +17515,19 @@
      "values": null,
      "min": null,
      "max": null,
-     "tab": "",
-     "section": "",
+     "tab": "Files",
+     "section": "Bias",
      "expert": true,
-     "located": false
+     "located": true
     }
    ],
    "expert": true,
-   "tabs": [],
-   "sections": [],
+   "tabs": [
+    "Files"
+   ],
+   "sections": [
+    "Bias"
+   ],
    "in_gui": true,
    "kind": "checkbox",
    "label": "Use on darks",
@@ -17523,15 +17551,19 @@
      "values": null,
      "min": null,
      "max": null,
-     "tab": "",
-     "section": "",
+     "tab": "Files",
+     "section": "Bias",
      "expert": true,
-     "located": false
+     "located": true
     }
    ],
    "expert": true,
-   "tabs": [],
-   "sections": [],
+   "tabs": [
+    "Files"
+   ],
+   "sections": [
+    "Bias"
+   ],
    "in_gui": true,
    "kind": "checkbox",
    "label": "Master files",
@@ -17555,15 +17587,19 @@
      "values": null,
      "min": null,
      "max": null,
-     "tab": "",
-     "section": "",
+     "tab": "Files",
+     "section": "Darks",
      "expert": true,
-     "located": false
+     "located": true
     }
    ],
    "expert": true,
-   "tabs": [],
-   "sections": [],
+   "tabs": [
+    "Files"
+   ],
+   "sections": [
+    "Darks"
+   ],
    "in_gui": true,
    "kind": "checkbox",
    "label": "Pre-calibrate",
@@ -17587,15 +17623,19 @@
      "values": null,
      "min": null,
      "max": null,
-     "tab": "",
-     "section": "",
+     "tab": "Files",
+     "section": "Darks",
      "expert": true,
-     "located": false
+     "located": true
     }
    ],
    "expert": true,
-   "tabs": [],
-   "sections": [],
+   "tabs": [
+    "Files"
+   ],
+   "sections": [
+    "Darks"
+   ],
    "in_gui": true,
    "kind": "checkbox",
    "label": "Optimize",
@@ -17619,15 +17659,19 @@
      "values": null,
      "min": null,
      "max": null,
-     "tab": "",
-     "section": "",
+     "tab": "Files",
+     "section": "Darks",
      "expert": true,
-     "located": false
+     "located": true
     }
    ],
    "expert": true,
-   "tabs": [],
-   "sections": [],
+   "tabs": [
+    "Files"
+   ],
+   "sections": [
+    "Darks"
+   ],
    "in_gui": true,
    "kind": "checkbox",
    "label": "Master files",
@@ -17651,15 +17695,19 @@
      "values": null,
      "min": null,
      "max": null,
-     "tab": "",
-     "section": "",
+     "tab": "Files",
+     "section": "Flat Darks",
      "expert": true,
-     "located": false
+     "located": true
     }
    ],
    "expert": true,
-   "tabs": [],
-   "sections": [],
+   "tabs": [
+    "Files"
+   ],
+   "sections": [
+    "Flat Darks"
+   ],
    "in_gui": true,
    "kind": "checkbox",
    "label": "Master files",
@@ -17683,15 +17731,19 @@
      "values": null,
      "min": null,
      "max": null,
-     "tab": "",
-     "section": "",
+     "tab": "Files",
+     "section": "Flats",
      "expert": true,
-     "located": false
+     "located": true
     }
    ],
    "expert": true,
-   "tabs": [],
-   "sections": [],
+   "tabs": [
+    "Files"
+   ],
+   "sections": [
+    "Flats"
+   ],
    "in_gui": true,
    "kind": "checkbox",
    "label": "Master files",
@@ -17715,15 +17767,19 @@
      "values": null,
      "min": null,
      "max": null,
-     "tab": "",
-     "section": "",
+     "tab": "Files",
+     "section": "Flats",
      "expert": true,
-     "located": false
+     "located": true
     }
    ],
    "expert": true,
-   "tabs": [],
-   "sections": [],
+   "tabs": [
+    "Files"
+   ],
+   "sections": [
+    "Flats"
+   ],
    "in_gui": true,
    "kind": "checkbox",
    "label": "Stars in flats",
@@ -17747,15 +17803,19 @@
      "values": null,
      "min": null,
      "max": null,
-     "tab": "",
-     "section": "",
+     "tab": "Files",
+     "section": "Flats",
      "expert": true,
-     "located": false
+     "located": true
     }
    ],
    "expert": true,
-   "tabs": [],
-   "sections": [],
+   "tabs": [
+    "Files"
+   ],
+   "sections": [
+    "Flats"
+   ],
    "in_gui": true,
    "kind": "checkbox",
    "label": "Use darks",
@@ -17779,15 +17839,19 @@
      "values": null,
      "min": null,
      "max": null,
-     "tab": "",
-     "section": "",
+     "tab": "Files",
+     "section": "Lights",
      "expert": true,
-     "located": false
+     "located": true
     }
    ],
    "expert": true,
-   "tabs": [],
-   "sections": [],
+   "tabs": [
+    "Files"
+   ],
+   "sections": [
+    "Lights"
+   ],
    "in_gui": true,
    "kind": "checkbox",
    "label": "Add manually",
@@ -17811,15 +17875,19 @@
      "values": null,
      "min": null,
      "max": null,
-     "tab": "",
-     "section": "",
+     "tab": "Files",
+     "section": "Lights",
      "expert": true,
-     "located": false
+     "located": true
     }
    ],
    "expert": true,
-   "tabs": [],
-   "sections": [],
+   "tabs": [
+    "Files"
+   ],
+   "sections": [
+    "Lights"
+   ],
    "in_gui": true,
    "kind": "checkbox",
    "label": "Integrated lights",
@@ -17843,15 +17911,19 @@
      "values": null,
      "min": null,
      "max": null,
-     "tab": "",
-     "section": "",
+     "tab": "Files",
+     "section": "Flats",
      "expert": true,
-     "located": false
+     "located": true
     }
    ],
    "expert": true,
-   "tabs": [],
-   "sections": [],
+   "tabs": [
+    "Files"
+   ],
+   "sections": [
+    "Flats"
+   ],
    "in_gui": true,
    "kind": "checkbox",
    "label": "Add manually",
@@ -17875,15 +17947,19 @@
      "values": null,
      "min": null,
      "max": null,
-     "tab": "",
-     "section": "",
+     "tab": "Files",
+     "section": "Flat Darks",
      "expert": true,
-     "located": false
+     "located": true
     }
    ],
    "expert": true,
-   "tabs": [],
-   "sections": [],
+   "tabs": [
+    "Files"
+   ],
+   "sections": [
+    "Flat Darks"
+   ],
    "in_gui": true,
    "kind": "checkbox",
    "label": "Add manually",
@@ -17998,14 +18074,16 @@
      "values": null,
      "min": null,
      "max": null,
-     "tab": "",
+     "tab": "Main window",
      "section": "",
-     "expert": true,
-     "located": false
+     "expert": false,
+     "located": true
     }
    ],
-   "expert": true,
-   "tabs": [],
+   "expert": false,
+   "tabs": [
+    "Main window"
+   ],
    "sections": [],
    "in_gui": true,
    "kind": "checkbox",
