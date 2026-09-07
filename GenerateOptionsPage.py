@@ -719,6 +719,10 @@ a { color: #0b7285; }
 .header { background: #1abc9c; color: #fff; padding: 22px 20px 18px; }
 .header h1 { margin: 0 0 4px; font-size: 26px; }
 .header p { margin: 0; opacity: .95; font-size: 14px; }
+.header .crosslink { margin: 12px 0 0; }
+.header .crosslink a { display: inline-block; color: #fff; text-decoration: none; font-size: 14px;
+                       font-weight: bold; padding: 7px 13px; border: 1px solid rgba(255,255,255,.75); }
+.header .crosslink a:hover { background: #fff; color: #16a085; border-color: #fff; }
 .wrap { max-width: 1400px; margin: 0 auto; padding: 0 20px 60px; }
 .intro { background: whitesmoke; border: 1px solid #e2e2e2; padding: 14px 18px; margin: 20px 0; }
 .intro h2, .toc h2 { font-size: 17px; margin: 0 0 8px; }
@@ -788,6 +792,7 @@ tr:hover td { background: #fafcfc; }
 <div class="header">
   <h1>__PAGETITLE__</h1>
   <p>__SUBTITLE__</p>
+  __CROSSLINK__
 </div>
 <div class="wrap">
 
@@ -800,7 +805,6 @@ tr:hover td { background: #fafcfc; }
   <p>Use the search box to find an option by name or by words in its description, and the buttons to
   show only the options of a certain kind. Selecting several buttons shows the options that have all
   of the selected tags.</p>
-  __CROSSLINK__
   <ul class="legend">__LEGEND__</ul>
   <p class="stats">__NPROC__ options change processing, __NINT__ options affect only the interface,
   files or logging. __NCOL__ options apply to color images and __NNB__ options are
@@ -880,12 +884,10 @@ __ROWS__
 SIMPLE_TITLE = 'AutoIntegrate Simple Mode Options'
 FULL_TITLE = 'AutoIntegrate Options Reference'
 
-SIMPLE_LINK = ('<p>This page lists only the options that are shown in simple mode. It is a good '
-               'place to start, the rest of the options are in the '
-               '<a href="%s">full options reference</a>.</p>' % DEFAULT_OUTPUT)
-FULL_LINK = ('<p>This page lists all options. If you are starting with the script, the shorter '
-             '<a href="%s">simple mode options</a> page lists only the options that are shown '
-             'in simple mode.</p>' % DEFAULT_SIMPLE_OUTPUT)
+SIMPLE_LINK = ('<p class="crosslink"><a href="%s">Show all options &rarr;</a></p>'
+               % DEFAULT_OUTPUT)
+FULL_LINK = ('<p class="crosslink"><a href="%s">New to the script? Simple mode options only '
+             '&rarr;</a></p>' % DEFAULT_SIMPLE_OUTPUT)
 
 
 def build_page(options, version, simple=False, have_metadata=True):
