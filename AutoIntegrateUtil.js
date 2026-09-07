@@ -2430,7 +2430,20 @@ setParameterDefaults()
       }
 }
 
-recordParam(param)
+/* Record that a GUI control was created for an option in global.par.
+ *
+ * Control and info are optional. When they are given the control is saved into
+ * global.gui_controls so that the option metadata file can be written with the
+ * real GUI texts, value lists and value ranges. Info can have the following
+ * members, all of them are optional:
+ *
+ *    kind      Control type as a documentation friendly name, for example checkbox.
+ *    label     Text shown next to the control.
+ *    tooltip   Tooltip text as it is given to the control, may contain simple HTML.
+ *    values    Array of possible values for combo boxes.
+ *    min, max  Value range for numeric controls.
+ */
+recordParam(param, control, info)
 {
       if (this.global.debug) {
             if (param.used) {
@@ -2438,6 +2451,21 @@ recordParam(param)
             } else {
                   param.used = true;
             }
+      }
+      if (control != undefined && control != null) {
+            if (info == undefined || info == null) {
+                  info = {};
+            }
+            this.global.gui_controls.push({
+                  param: param,
+                  control: control,
+                  kind: info.kind != undefined ? info.kind : "",
+                  label: info.label != undefined && info.label != null ? info.label : "",
+                  tooltip: info.tooltip != undefined && info.tooltip != null ? info.tooltip : "",
+                  values: info.values != undefined ? info.values : null,
+                  min: info.min != undefined ? info.min : null,
+                  max: info.max != undefined ? info.max : null
+            });
       }
 }
 

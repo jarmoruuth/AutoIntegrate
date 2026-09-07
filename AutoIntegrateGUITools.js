@@ -245,8 +245,8 @@ newHorizontalSizer(margin, add_stretch, items, spacing)
        cb.aiParam.reset = () => {
              cb.checked = cb.aiParam.val;
        };
-       this.util.recordParam(param);
- 
+       this.util.recordParam(param, cb, { kind: "checkbox", label: checkboxText, tooltip: toolTip });
+
        return cb;
  }
  
@@ -317,7 +317,7 @@ newTextEdit(parent, param, tooltip)
       edt.aiParam.reset = () => {
             edt.text = String(edt.aiParam.val);
       };
-      this.util.recordParam(param);
+      this.util.recordParam(param, edt, { kind: "text", tooltip: tooltip });
       return edt;
 }
 
@@ -353,7 +353,7 @@ newNumericEditPrecision(parent, txt, param, min, max, tooltip, precision, update
             }
       };
       edt.textAlignment = TextAlignment.Left|TextAlignment.VertCenter;
-      this.util.recordParam(param);
+      this.util.recordParam(param, edt, { kind: "number", label: txt, tooltip: tooltip, min: min, max: max });
       return edt;
 }
 
@@ -398,7 +398,7 @@ newNumericControlPrecision(parent, txt, param, min, max, tooltip, precision, upd
             }
       };
       edt.textAlignment = TextAlignment.Left|TextAlignment.VertCenter;
-      this.util.recordParam(param);
+      this.util.recordParam(param, edt, { kind: "number", label: txt, tooltip: tooltip, min: min, max: max });
       return edt;
 }
 
@@ -433,7 +433,7 @@ newSpinBox(parent, param, min, max, tooltip)
       edt.aiParam.reset = () => {
             edt.value = edt.aiParam.val;
       };
-      this.util.recordParam(param);
+      this.util.recordParam(param, edt, { kind: "integer", tooltip: tooltip, min: min, max: max });
 
       return edt;
 }
@@ -476,7 +476,7 @@ newComboBox(parent, param, valarray, tooltip, updatedCallback = null)
       cb.aiParam.reset = () => {
             cb.currentItem = cb.aiValarray.indexOf(cb.aiParam.val);
       }
-      this.util.recordParam(param);
+      this.util.recordParam(param, cb, { kind: "list", tooltip: tooltip, values: valarray });
       
       return cb;
 }
@@ -496,7 +496,7 @@ newComboBoxIndex(parent, param, valarray, tooltip)
       cb.aiParam.reset = () => {
             cb.currentItem = cb.aiParam.val;
       }
-      this.util.recordParam(param);
+      this.util.recordParam(param, cb, { kind: "list", tooltip: tooltip, values: valarray });
       
       return cb;
 }
@@ -516,7 +516,7 @@ newComboBoxStrvalsToInt(parent, param, valarray, tooltip)
       cb.aiParam.reset = () => {
             cb.currentItem = cb.aiValarray.indexOf(cb.aiParam.val.toString());
       }
-      this.util.recordParam(param);
+      this.util.recordParam(param, cb, { kind: "list", tooltip: tooltip, values: valarray });
       
       return cb;
 }
@@ -536,7 +536,7 @@ newComboBoxpalette(parent, param, valarray, tooltip)
       cb.aiParam.reset = () => {
             cb.editText = cb.aiParam.val;
       }
-      this.util.recordParam(param);
+      this.util.recordParam(param, cb, { kind: "text or list", tooltip: tooltip, values: valarray });
       return cb;
 }
 
@@ -608,6 +608,7 @@ newSectionBarAdd(parent, groupbox, control, title, name, level = 1)
       sb.aiControl = control;
       sb.aiName = name;
       control.aiName = name;
+      control.aiTitle = title;      // Section title, used when writing the option metadata file
       if (level == 2) {
             sb.backgroundColor = this.global.sectionBackgroundColor;
       }

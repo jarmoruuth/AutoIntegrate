@@ -9,18 +9,27 @@ options that would need to be kept up to date:
   - descriptions are the tooltip texts of the GUI controls that use the option
   - possible values come from the *_values arrays used by the combo boxes
 
+When file AutoIntegrateOptions.json is found in the source directory, descriptions,
+possible values, default values and simple/expert mode are taken from it. The file
+is written by AutoIntegrate itself from the running GUI, so everything in it comes
+from the real GUI controls and no tooltip texts need to be searched from the
+sources. The file is written with the Write options metadata button in the
+Interface tab, Debug settings section. It is also needed for the simple mode page.
+
 Options are put into groups and tagged so that it is possible to see if an option
-changes the processed image or only the user interface, and if an option is
-specific to color/OSC, narrowband or mono data. Grouping and tagging rules are in
-the GROUPS, RULES, INTERFACE, COLOR, OSC, NARROWBAND and MONO tables below. When
-new options are added they are picked up automatically, but the new option may
-need a new rule or a new entry in the tag tables.
+changes the processed image or only the user interface, and if an option applies
+to color images or is specific to OSC/RAW, narrowband or mono data. The tags come from the applies
+field of the option in this.par, so they are maintained together with the option
+itself. Groups are given by the GROUPS and RULES tables below. When new options
+are added they are picked up automatically, but a new option may need a new
+grouping rule.
 
 Usage:
 
     python GenerateOptionsPage.py [-o OUTPUT.html] [--stats]
+    python GenerateOptionsPage.py --simple
 
-The script only reads the AutoIntegrate sources, it does not need PixInsight.
+The script only reads files, it does not need PixInsight.
 """
 
 import argparse
@@ -45,6 +54,15 @@ GUI_FILES = [
 ]
 
 DEFAULT_OUTPUT = 'AutoIntegrateOptions.html'
+DEFAULT_SIMPLE_OUTPUT = 'AutoIntegrateOptionsSimple.html'
+
+# Option metadata written by AutoIntegrate, see writeOptionsMetadata in
+# AutoIntegrateGUI.js. The file is written from the running GUI, so it has the
+# real tooltips, value lists, value ranges and the tab and section of every
+# option, and it tells which options are shown in simple mode. When the file is
+# missing the page is generated from the sources only and simple mode options
+# are not known.
+METADATA_FILE = 'AutoIntegrateOptions.json'
 
 # Options that are not shown on the page.
 SKIP_OPTIONS = {
@@ -232,7 +250,8 @@ TAGINFO = {
     'processing': ('Processing', 'Changes the processed image.'),
     'interface':  ('Interface',
                    'Affects only the user interface, files on disk or logging, not the image.'),
-    'color':      ('Color / OSC', 'Applies to color images: OSC, DSLR or RGB data.'),
+    'color':      ('Color image', 'Applies to color images, both OSC/DSLR data and RGB '
+                                 'combined from mono channels.'),
     'osc':        ('OSC / RAW', 'Applies only to undebayered OSC, DSLR or RAW data.'),
     'narrowband': ('Narrowband', 'Applies to narrowband data or narrowband palettes.'),
     'mono':       ('Mono / LRGB', 'Applies to mono data with separate filter channels.'),
@@ -242,75 +261,11 @@ TAGINFO = {
 }
 TAG_ORDER = ['processing', 'interface', 'color', 'osc', 'narrowband', 'mono', 'tool']
 
-# Options that do not change the processed image.
-INTERFACE = set("""
-show_flowchart preview_autostf preview_resample preview_resample_target flowchart_background_image
-flowchart_time flowchart_saveimage run_get_flowchart_data start_with_empty_window_prefix
-use_manual_icon_column windows_at_end create_process_icons reset_on_setup_load autosave_setup
-skip_blink open_directory directory_files select_all_files debug null_processing flowchart_debug
-print_process_values create_executed_processes_js image_weight_testing save_all_files
-save_final_image_tiff save_final_image_jpg save_final_image_jpg_quality save_processed_channel_images
-save_stretched_starless_channel_images save_cropped_images no_subdirs unique_file_names
-keep_integrated_images keep_temporary_images keep_processed_images win_prefix_to_log_files
-generate_xdrz lights_add_manually flats_add_manually flatdarks_add_manually integrated_lights
-enhancements_auto_reset enhancements_apply_no_copy_image enhancements_highpass_sharpen_keep_images
-RGBHa_test_value
-astrobin_L astrobin_R astrobin_G astrobin_B astrobin_H astrobin_S astrobin_O astrobin_C
-""".split())
-
-# Options for color images: OSC, DSLR or RGB data.
-COLOR = set("""
-debayer_pattern debayer_only extract_channel_mapping extract_channels_only banding_reduction
-banding_reduction_protect_highlights banding_reduction_amount skip_SCNR use_color_noise_reduction
-STF_linking use_chrominance linear_increase_saturation non_linear_increase_saturation
-LRGBCombination_lightness LRGBCombination_saturation LRGBCombination_linearfit RRGB_image
-skip_color_calibration use_spcc color_calibration_time color_calibration_narrowband
-skip_auto_background use_background_neutralization use_linear_fit
-MAS_colorSaturation MAS_colorSaturation_amount MAS_colorSaturation_boost
-MAS_colorSaturation_lightness veralux_color_strategy veralux_color_grip create_RGB_stars
-enhancements_color_noise enhancements_saturation enhancements_saturation_iterations
-enhancements_less_saturation enhancements_selective_color enhancements_selective_color_preset
-enhancements_selective_color_data enhancements_adjust_channels enhancements_adjust_channels_only_k
-enhancements_adjust_R enhancements_adjust_G enhancements_adjust_B enhancements_color_calibration
-enhancements_normalize_channels enhancements_normalize_channels_reference
-enhancements_normalize_channels_mask enhancements_normalize_channels_rescale
-enhancements_highlight_color enhancements_HDRMLT_color
-spcc_detection_scales spcc_noise_scales spcc_min_struct_size spcc_red_wavelength spcc_red_bandwidth
-spcc_green_wavelength spcc_green_bandwidth spcc_blue_wavelength spcc_blue_bandwidth
-spcc_narrowband_mode spcc_background_neutralization spcc_auto_narrowband spcc_white_reference
-spcc_limit_magnitude spcc_saturation_threshold spcc_min_SNR
-""".split())
-
-# Options that apply only to undebayered OSC, DSLR or RAW data.
-OSC = set("""
-debayer_pattern debayer_only extract_channel_mapping extract_channels_only banding_reduction
-banding_reduction_protect_highlights banding_reduction_amount stars_in_flats
-""".split())
-
-# Options for narrowband data. Also all RGBHa and RGBNB options are added below.
-NARROWBAND = set("""
-mapping_on_nonlinear_data force_narrowband_mapping run_foraxx_mapping foraxx_palette
-run_enhancements_narrowband_mapping enhancements_narrowband_mapping_source_palette
-enhancements_narrowband_mapping_target_palette run_orangeblue_colors run_orange_hue_shift
-run_hue_shift leave_some_green leave_some_green_amount run_narrowband_SCNR remove_magenta_color
-fix_narrowband_star_color skip_star_fix_mask enhancements_ha_mapping spcc_narrowband_mode
-spcc_auto_narrowband color_calibration_narrowband narrowband_mapping custom_R_mapping
-custom_G_mapping custom_B_mapping custom_L_mapping narrowband_linear_fit
-use_narrowband_multiple_mappings narrowband_multiple_mappings_list
-""".split())
-
-# Options for mono data with separate filter channels.
-MONO = set("""
-synthetic_l_image synthetic_missing_images monochrome_image channel_noise_reduction
-luminance_noise_reduction_strength LRGBCombination_lightness LRGBCombination_saturation
-LRGBCombination_linearfit use_chrominance GC_before_channel_combination channelcombination_only
-save_processed_channel_images save_stretched_starless_channel_images stretched_channel_auto_contrast
-remove_stars_channel bxt_correct_channels enhancements_normalize_channels
-enhancements_normalize_channels_reference enhancements_normalize_channels_mask
-enhancements_normalize_channels_rescale enhancements_auto_contrast_channels custom_L_mapping
-RRGB_image extract_channel_mapping extract_channels_only
-""".split())
-
+# Tags interface, color, osc, narrowband and mono come from the applies field of
+# the option in this.par, see AutoIntegrateGlobal.js. An option with no applies
+# field is a processing option that is not specific to any data type.
+#
+# The external tool tag is recognized from the option name.
 TOOL_RE = re.compile(r'(blurxterminator|^bxt_|noisexterminator|^nxt_|starxterminator|starnet2'
                      r'|deepsnr|graxpert)')
 
@@ -421,11 +376,13 @@ def parse_options(srcdir):
         name = re.search(r'name\s*:\s*"((?:[^"\\]|\\.)*)"', body)
         vtype = re.search(r"type\s*:\s*'(\w)'", body)
         default = re.search(r'def\s*:\s*(.+?),\s*name', body)
+        applies = re.search(r'applies\s*:\s*"([^"]*)"', body)
         options.append({
             'key': key,
             'label': name.group(1) if name else key,
             'type': vtype.group(1) if vtype else '?',
             'def': default.group(1).strip() if default else '',
+            'applies': applies.group(1) if applies else '',
         })
     return options
 
@@ -594,22 +551,82 @@ def group_of(key):
     return DEFAULT_GROUP
 
 
-def tags_of(key):
-    tags = ['interface' if key in INTERFACE else 'processing']
-    if key in COLOR:
-        tags.append('color')
-    if key in OSC:
-        tags.append('osc')
-    if key in NARROWBAND:
-        tags.append('narrowband')
-    if key in MONO:
-        tags.append('mono')
-    if TOOL_RE.search(key):
+def tags_of(key, applies):
+    """Return the tags of an option from its applies field and from its name."""
+    words = applies.split()
+    unknown = [w for w in words if w not in TAGINFO or w == 'processing']
+    if unknown:
+        print('Warning: option %s has unknown applies values: %s' % (key, ' '.join(unknown)))
+    tags = [t for t in TAG_ORDER if t in words]
+    if 'interface' not in tags:
+        tags.insert(0, 'processing')
+    if TOOL_RE.search(key) and 'tool' not in tags:
         tags.append('tool')
     return tags
 
 
-def collect(srcdir):
+def load_metadata(srcdir):
+    """Return the option metadata written by AutoIntegrate as key -> option, or None."""
+    path = os.path.join(srcdir, METADATA_FILE)
+    if not os.path.isfile(path):
+        return None
+    with open(path, encoding='utf-8') as f:
+        data = json.load(f)
+    return {o['key']: o for o in data.get('options', [])}
+
+
+def metadata_version(srcdir):
+    path = os.path.join(srcdir, METADATA_FILE)
+    if not os.path.isfile(path):
+        return None
+    with open(path, encoding='utf-8') as f:
+        return json.load(f).get('version', '')
+
+
+def apply_metadata(options, meta):
+    """Merge the metadata from the GUI into the options read from the sources.
+
+    The sources give the list of options, the metadata gives the descriptions and
+    everything else that is known only when the GUI has been built. Options that
+    are not in the metadata keep the values that were read from the sources, so
+    an out of date metadata file does not drop options from the page.
+    """
+    stale = []
+    for o in options:
+        m = meta.get(o['key'])
+        if m is None:
+            stale.append(o['key'])
+            o['expert'] = None
+            o['in_gui'] = None
+            continue
+        if m.get('applies'):
+            o['applies'] = m['applies']
+            o['tags'] = tags_of(o['key'], o['applies'])
+        o['expert'] = m.get('expert', True)
+        o['in_gui'] = m.get('in_gui', False)
+        o['tabs'] = m.get('tabs', [])
+        o['sections'] = m.get('sections', [])
+        if m.get('tooltip'):
+            o['tip'] = tooltip_to_text(m['tooltip'])
+        if m.get('tip'):
+            o['tip'] = tooltip_to_text(m['tip'])
+        if m.get('values'):
+            o['values'] = m['values']
+        if m.get('def') is not None:
+            o['default'] = format_default(m['def'])
+    return stale
+
+
+def format_default(value):
+    """Format a default value from the metadata the same way as in the sources."""
+    if isinstance(value, bool):
+        return 'true' if value else 'false'
+    if isinstance(value, (dict, list)):
+        return json.dumps(value)
+    return str(value)
+
+
+def collect(srcdir, meta=None):
     """Read the sources and return the options with descriptions, groups and tags."""
     options = [o for o in parse_options(srcdir) if o['key'] not in SKIP_OPTIONS]
     values = parse_value_arrays(srcdir)
@@ -620,22 +637,40 @@ def collect(srcdir):
                and o['key'] not in TIP_OVERRIDE}
     before = parse_tooltips_before(srcdir, missing) if missing else {}
 
-    # all Ha to RGB and narrowband to RGB options are narrowband options
-    NARROWBAND.update(o['key'] for o in options
-                      if o['key'].startswith(('RGBHa_', 'RGBNB_', 'use_RGBHa', 'use_RGBNB')))
-
     for o in options:
         key = o['key']
         o['tip'] = TIP_OVERRIDE.get(key) or tips.get(key) or loose.get(key) or before.get(key, '')
         o['values'] = valmap.get(key, [])
         o['group'] = group_of(key)
-        o['tags'] = tags_of(key)
+        o['tags'] = tags_of(key, o['applies'])
         o['typename'] = TYPE_NAMES.get(o['type'], o['type'])
         default = str(o['def']).strip().strip(',')
         if default.startswith('this.'):
             default = DEFAULT_OVERRIDE.get(default, '')
         o['default'] = default.strip('"\'')
+        o['expert'] = None
+        o['in_gui'] = None
+        o['tabs'] = []
+        o['sections'] = []
+
+    if meta:
+        stale = apply_metadata(options, meta)
+        if stale:
+            print('Warning: %d options are not in %s, it may be out of date: %s'
+                  % (len(stale), METADATA_FILE, name_list(stale)))
+        extra = sorted(set(meta) - {o['key'] for o in options} - SKIP_OPTIONS)
+        if extra:
+            print('Warning: %d options in %s are not in the sources: %s'
+                  % (len(extra), METADATA_FILE, name_list(extra)))
     return options
+
+
+def name_list(names, limit=12):
+    """Format a list of option names for a message, without filling the screen."""
+    names = sorted(names)
+    if len(names) <= limit:
+        return ', '.join(names)
+    return '%s and %d more' % (', '.join(names[:limit]), len(names) - limit)
 
 
 # ---------------------------------------------------------------------------
@@ -675,7 +710,7 @@ PAGE = '''<!DOCTYPE html>
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>AutoIntegrate Options Reference</title>
+<title>__PAGETITLE__</title>
 <style>
 * { box-sizing: border-box; }
 body { font-family: Arial, Helvetica, sans-serif; margin: 0; color: #222; background: #fff;
@@ -751,8 +786,8 @@ tr:hover td { background: #fafcfc; }
 </head>
 <body>
 <div class="header">
-  <h1>AutoIntegrate Options Reference</h1>
-  <p>All __TOTAL__ options of __VERSION__, grouped by what they do.</p>
+  <h1>__PAGETITLE__</h1>
+  <p>__SUBTITLE__</p>
 </div>
 <div class="wrap">
 
@@ -765,9 +800,10 @@ tr:hover td { background: #fafcfc; }
   <p>Use the search box to find an option by name or by words in its description, and the buttons to
   show only the options of a certain kind. Selecting several buttons shows the options that have all
   of the selected tags.</p>
+  __CROSSLINK__
   <ul class="legend">__LEGEND__</ul>
   <p class="stats">__NPROC__ options change processing, __NINT__ options affect only the interface,
-  files or logging. __NCOL__ options are specific to color and OSC processing and __NNB__ options are
+  files or logging. __NCOL__ options apply to color images and __NNB__ options are
   specific to narrowband data.</p>
 </div>
 
@@ -841,7 +877,18 @@ __ROWS__
 '''
 
 
-def build_page(options, version):
+SIMPLE_TITLE = 'AutoIntegrate Simple Mode Options'
+FULL_TITLE = 'AutoIntegrate Options Reference'
+
+SIMPLE_LINK = ('<p>This page lists only the options that are shown in simple mode. It is a good '
+               'place to start, the rest of the options are in the '
+               '<a href="%s">full options reference</a>.</p>' % DEFAULT_OUTPUT)
+FULL_LINK = ('<p>This page lists all options. If you are starting with the script, the shorter '
+             '<a href="%s">simple mode options</a> page lists only the options that are shown '
+             'in simple mode.</p>' % DEFAULT_SIMPLE_OUTPUT)
+
+
+def build_page(options, version, simple=False, have_metadata=True):
     bygroup = {}
     for o in options:
         bygroup.setdefault(o['group'], []).append(o)
@@ -895,10 +942,23 @@ def build_page(options, version):
     def count(tag):
         return str(sum(1 for o in options if tag in o['tags']))
 
+    if simple:
+        subtitle = ('The %d options of %s that are shown in simple mode.'
+                    % (len(options), version))
+    else:
+        subtitle = 'All %d options of %s, grouped by what they do.' % (len(options), version)
+
+    crosslink = ''
+    if have_metadata:
+        crosslink = SIMPLE_LINK if simple else FULL_LINK
+
     return (PAGE.replace('__ROWS__', '\n'.join(rows))
                 .replace('__TOC__', toc)
                 .replace('__LEGEND__', legend)
                 .replace('__FILTERS__', filters)
+                .replace('__PAGETITLE__', esc(SIMPLE_TITLE if simple else FULL_TITLE))
+                .replace('__SUBTITLE__', esc(subtitle))
+                .replace('__CROSSLINK__', crosslink)
                 .replace('__TOTAL__', str(len(options)))
                 .replace('__NPROC__', count('processing'))
                 .replace('__NINT__', count('interface'))
@@ -922,6 +982,12 @@ def print_stats(options):
     nodesc = [o['key'] for o in options if not o['tip']]
     print('%4d  without a description%s' % (len(nodesc),
                                             ': ' + ', '.join(nodesc) if nodesc else ''))
+    if any(o['expert'] is not None for o in options):
+        print('%4d  shown in simple mode' % sum(1 for o in options if o['expert'] is False))
+        print('%4d  shown in expert mode only' % sum(1 for o in options if o['expert'] is True))
+        nogui = [o['key'] for o in options if o['in_gui'] is False]
+        print('%4d  with no GUI control%s' % (len(nogui),
+                                              ': ' + ', '.join(nogui) if nogui else ''))
 
 
 def main():
@@ -931,15 +997,36 @@ def main():
                     help='directory with the AutoIntegrate sources')
     ap.add_argument('--stats', action='store_true', help='print group and tag counts')
     ap.add_argument('--json', metavar='FILE', help='also write the option data as JSON')
+    ap.add_argument('--simple', action='store_true',
+                    help='generate the simple mode options page, needs ' + METADATA_FILE)
+    ap.add_argument('--no-metadata', action='store_true',
+                    help='ignore ' + METADATA_FILE + ' and read everything from the sources')
     args = ap.parse_args()
 
     for name in [GLOBAL_FILE] + GUI_FILES:
         if not os.path.isfile(os.path.join(args.srcdir, name)):
             sys.exit('Missing source file: ' + os.path.join(args.srcdir, name))
 
-    options = collect(args.srcdir)
+    meta = None if args.no_metadata else load_metadata(args.srcdir)
     version = parse_version(args.srcdir)
-    page = build_page(options, version)
+    if meta is None:
+        if args.simple:
+            sys.exit('The simple mode page needs %s. Write it from the AutoIntegrate GUI with the '
+                     'Write options metadata button in the Interface tab, Debug settings section.'
+                     % os.path.join(args.srcdir, METADATA_FILE))
+        print('Note: %s not found, generating from the sources only.' % METADATA_FILE)
+    else:
+        meta_version = metadata_version(args.srcdir)
+        if meta_version != version:
+            print('Warning: %s was written by %s but the sources are %s, it should be written again.'
+                  % (METADATA_FILE, meta_version, version))
+
+    options = collect(args.srcdir, meta)
+    if args.simple:
+        options = [o for o in options if o['in_gui'] and not o['expert']]
+        if args.output == DEFAULT_OUTPUT:
+            args.output = DEFAULT_SIMPLE_OUTPUT
+    page = build_page(options, version, simple=args.simple, have_metadata=meta is not None)
 
     with open(args.output, 'w', encoding='utf-8') as f:
         f.write(page)

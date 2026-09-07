@@ -3119,6 +3119,237 @@ switchToExpertMode(parent)
       parent.saveExpertMode();
 }
 
+/***************************************************************************
+ *
+ *    Option metadata file
+ *
+ * The option metadata file describes every option in global.par together with
+ * the GUI control that is used to change it. It is written into the script
+ * source directory as AutoIntegrateOptions.json and is used by the
+ * GenerateOptionsPage.py script to generate the options documentation.
+ *
+ * Everything is taken from the actual GUI, so tooltips, value lists, value
+ * ranges, the tab and section where an option is shown and simple/expert mode
+ * are always correct and do not need to be maintained separately.
+ *
+ ***************************************************************************/
+
+/* Return the given control and all controls above it, up to the top level dialog.
+ */
+optionControlAncestors(control)
+{
+      var ancestors = [];
+      var c = control;
+      for (var i = 0; i < 100 && c != null && c != undefined; i++) {
+            ancestors[ancestors.length] = c;
+            var p;
+            try {
+                  p = c.parent;
+            } catch (err) {
+                  break;
+            }
+            if (p == c) {
+                  break;
+            }
+            c = p;
+      }
+      return ancestors;
+}
+
+/* Find the tab, section and simple/expert mode for a GUI control.
+ *
+ * Location is found by walking up from the control to the tab page it is in.
+ * A control that is not in any tab, for example a control in a separate dialog,
+ * is marked as not found and is counted as an expert mode control.
+ */
+optionControlLocation(control)
+{
+      var location = { tab: "", section: "", expert: false, found: false };
+      var ancestors = this.optionControlAncestors(control);
+
+      for (var i = 0; i < ancestors.length; i++) {
+            var a = ancestors[i];
+            if (location.section == "" && a.aiTitle != undefined) {
+                  location.section = a.aiTitle;
+            }
+            for (var j = 0; j < this.global.expert_mode_controls.length; j++) {
+                  if (this.global.expert_mode_controls[j] == a) {
+                        location.expert = true;
+                        break;
+                  }
+            }
+            for (var j = 0; j < this.global.tabs.length; j++) {
+                  if (this.global.tabs[j].page == a) {
+                        location.tab = this.global.tabs[j].name;
+                        location.found = true;
+                        if (this.global.tabs[j].expert_mode) {
+                              location.expert = true;
+                        }
+                        break;
+                  }
+            }
+            if (location.found) {
+                  break;
+            }
+      }
+      if (!location.found) {
+            location.expert = true;
+      }
+      return location;
+}
+
+/* Collect option metadata from global.par and from the GUI controls that were
+ * recorded when they were created.
+ */
+getOptionsMetadata()
+{
+      var keys = Object.keys(this.par);
+      var options = {};
+
+      for (var i = 0; i < keys.length; i++) {
+            var param = this.par[keys[i]];
+            options[keys[i]] = {
+                  key: keys[i],
+                  name: param.name != undefined ? param.name : keys[i],
+                  type: param.type != undefined ? param.type : "",
+                  def: param.def,
+                  tip: param.tip != undefined ? param.tip : "",
+                  applies: param.applies != undefined ? param.applies : "",
+                  controls: []
+            };
+      }
+
+      var not_found = 0;
+      for (var i = 0; i < this.global.gui_controls.length; i++) {
+            var rec = this.global.gui_controls[i];
+            var key = null;
+            for (var j = 0; j < keys.length; j++) {
+                  if (this.par[keys[j]] == rec.param) {
+                        key = keys[j];
+                        break;
+                  }
+            }
+            if (key == null) {
+                  // Parameter is not in global.par, for example a persistent setting.
+                  not_found++;
+                  continue;
+            }
+            var location = this.optionControlLocation(rec.control);
+            options[key].controls[options[key].controls.length] = {
+                  kind: rec.kind,
+                  label: rec.label,
+                  tooltip: rec.tooltip,
+                  values: rec.values,
+                  min: rec.min,
+                  max: rec.max,
+                  tab: location.tab,
+                  section: location.section,
+                  expert: location.expert,
+                  located: location.found
+            };
+      }
+      if (not_found > 0) {
+            console.writeln("getOptionsMetadata: " + not_found + " controls were not for an option in par");
+      }
+
+      /* Merge the controls of an option into the option. An option is a simple mode
+       * option if it is shown in simple mode in at least one place. Description is
+       * taken from the control that has the longest tooltip.
+       */
+      var list = [];
+      var not_located = [];
+      for (var i = 0; i < keys.length; i++) {
+            var o = options[keys[i]];
+            var best = null;
+            o.expert = true;
+            o.tabs = [];
+            o.sections = [];
+            for (var j = 0; j < o.controls.length; j++) {
+                  var c = o.controls[j];
+                  if (!c.expert) {
+                        o.expert = false;
+                  }
+                  if (!c.located && not_located.indexOf(o.key) == -1) {
+                        not_located[not_located.length] = o.key;
+                  }
+                  if (c.tab != "" && o.tabs.indexOf(c.tab) == -1) {
+                        o.tabs[o.tabs.length] = c.tab;
+                  }
+                  if (c.section != "" && o.sections.indexOf(c.section) == -1) {
+                        o.sections[o.sections.length] = c.section;
+                  }
+                  if (best == null || c.tooltip.length > best.tooltip.length) {
+                        best = c;
+                  }
+            }
+            o.in_gui = o.controls.length > 0;
+            o.kind = best != null ? best.kind : "";
+            o.label = best != null ? best.label : "";
+            o.tooltip = best != null ? best.tooltip : "";
+            o.values = best != null ? best.values : null;
+            o.min = best != null ? best.min : null;
+            o.max = best != null ? best.max : null;
+            list[list.length] = o;
+      }
+      if (not_located.length > 0) {
+            console.writeln("getOptionsMetadata: options with a control that is not in any tab: " + not_located.join(", "));
+      }
+      return list;
+}
+
+/* Write the option metadata file into the script source directory.
+ */
+writeOptionsMetadata(parent)
+{
+      var srcdir = File.extractDrive(#__FILE__) + File.extractDirectory(#__FILE__);
+      var filename = "AutoIntegrateOptions.json";
+
+      /* In simple mode expert tabs are removed from the tab box and controls in them
+       * cannot be located, so we always collect the metadata in expert mode.
+       */
+      var restore_simple_mode = !this.global.expert_mode;
+      if (restore_simple_mode) {
+            this.switchToExpertMode(parent);
+      }
+
+      try {
+            var options = this.getOptionsMetadata();
+            var simple = 0;
+            var missing = 0;
+            for (var i = 0; i < options.length; i++) {
+                  if (!options[i].in_gui) {
+                        missing++;
+                  } else if (!options[i].expert) {
+                        simple++;
+                  }
+            }
+            var metadata = {
+                  version: this.global.autointegrate_version,
+                  generated: new Date().toString(),
+                  options: options
+            };
+            this.util.writeTextToFile(srcdir, filename, JSON.stringify(metadata, null, 1));
+            console.noteln("Wrote " + options.length + " options to " + srcdir + "/" + filename);
+            console.writeln("Simple mode options " + simple + ", expert mode options " +
+                            (options.length - simple - missing) + ", options with no GUI control " + missing);
+            if (missing > 0) {
+                  var names = [];
+                  for (var i = 0; i < options.length; i++) {
+                        if (!options[i].in_gui) {
+                              names[names.length] = options[i].key;
+                        }
+                  }
+                  console.writeln("Options with no GUI control: " + names.join(", "));
+            }
+      } catch (err) {
+            console.criticalln("writeOptionsMetadata: " + err);
+      }
+
+      if (restore_simple_mode) {
+            this.switchToSimpleMode(parent);
+      }
+}
+
 addExpertMode(parent)
 {
       var toolTip = "<p>Select interface mode.</p>" +
@@ -7705,10 +7936,19 @@ AutoIntegrateDialog()
       this.processDefaultsButton.onClick = () => {
             this.engine.getProcessDefaultValues();
       }
+      this.optionsMetadataButton = new PushButton( this );
+      this.optionsMetadataButton.text = "Write options metadata";
+      this.optionsMetadataButton.toolTip = "<p>Write file AutoIntegrateOptions.json into the script source directory.</p>" +
+                                           "<p>The file describes all options and the GUI controls that are used to change them. " +
+                                           "It is used to generate the options documentation. For documentation purposes.</p>";
+      this.optionsMetadataButton.onClick = () => {
+            this.writeOptionsMetadata(this);
+      }
       this.processDefaultsSizer = new HorizontalSizer;
       this.processDefaultsSizer.margin = 6;
       this.processDefaultsSizer.spacing = 4;
       this.processDefaultsSizer.add( this.processDefaultsButton );
+      this.processDefaultsSizer.add( this.optionsMetadataButton );
       this.processDefaultsSizer.addStretch();
 
       this.debugControl = new Control( this );
