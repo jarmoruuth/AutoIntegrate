@@ -28,18 +28,12 @@ super();
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-this.autointegrate_version = "AutoIntegrate v1.86.5";       // Version, also updated into updates.xri
+this.autointegrate_version = "AutoIntegrate v1.87 test1";   // Version, also updated into updates.xri
 this.autointegrate_info = "V8 JavaScript engine";           // For updates.xri
 
 this.autointegrate_version_info = [
       "Changes since the previous version:",
-      "- Runs on V8 JavaScript engine",
-      "- Updates to DBE",
-      "- New curves enhancement",
-      "- Enhance highlight color",
-      "- Fixes to AutoContinue with OSC image",
-      "- Fix to edt.text assignment",
-      "- Fixes to performance issues",
+      "- Small UI updates",
 ];
 
 /* Interface version changes:
