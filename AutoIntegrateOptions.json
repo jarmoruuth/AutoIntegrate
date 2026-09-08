@@ -1,6 +1,6 @@
 {
  "version": "AutoIntegrate v1.87 test1",
- "generated": "Tue Sep 08 2026 22:43:31 GMT+0300 (FLE Daylight Time)",
+ "generated": "Tue Sep 08 2026 23:14:04 GMT+0300 (FLE Daylight Time)",
  "options": [
   {
    "key": "local_normalization",
@@ -3599,7 +3599,7 @@
     {
      "kind": "number",
      "label": "Denoise",
-     "tooltip": "<p>Amount of noise reduction.</p><p>Depending on options: Denoise, Denoise intensity, Denoise HF or Denoise HF Intensity.</p>",
+     "tooltip": "<p>Amount of noise reduction.</p>",
      "values": null,
      "min": 0,
      "max": 1,
@@ -3619,7 +3619,7 @@
    "in_gui": true,
    "kind": "number",
    "label": "Denoise",
-   "tooltip": "<p>Amount of noise reduction.</p><p>Depending on options: Denoise, Denoise intensity, Denoise HF or Denoise HF Intensity.</p>",
+   "tooltip": "<p>Amount of noise reduction.</p>",
    "values": null,
    "min": 0,
    "max": 1
@@ -3779,7 +3779,7 @@
     {
      "kind": "checkbox",
      "label": "Frequency separation",
-     "tooltip": "Enable frequency separation.",
+     "tooltip": "Enable separate low and high frequency noise reduction.",
      "values": null,
      "min": null,
      "max": null,
@@ -3799,7 +3799,7 @@
    "in_gui": true,
    "kind": "checkbox",
    "label": "Frequency separation",
-   "tooltip": "Enable frequency separation.",
+   "tooltip": "Enable separate low and high frequency noise reduction.",
    "values": null,
    "min": null,
    "max": null
