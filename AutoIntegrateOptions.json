@@ -1,6 +1,6 @@
 {
  "version": "AutoIntegrate v1.87 test1",
- "generated": "Mon Sep 07 2026 23:23:51 GMT+0300 (FLE Daylight Time)",
+ "generated": "Tue Sep 08 2026 22:43:31 GMT+0300 (FLE Daylight Time)",
  "options": [
   {
    "key": "local_normalization",
@@ -3671,7 +3671,7 @@
     {
      "kind": "checkbox",
      "label": "Intensity/color separation",
-     "tooltip": "<p>Depending on options: Denoise Color or Denoise HF Color</p>",
+     "tooltip": "<p>Enable separate intensity and color noise reduction.</p>",
      "values": null,
      "min": null,
      "max": null,
@@ -3691,10 +3691,46 @@
    "in_gui": true,
    "kind": "checkbox",
    "label": "Intensity/color separation",
-   "tooltip": "<p>Depending on options: Denoise Color or Denoise HF Color</p>",
+   "tooltip": "<p>Enable separate intensity and color noise reduction.</p>",
    "values": null,
    "min": null,
    "max": null
+  },
+  {
+   "key": "nxt_denoise_intensity",
+   "name": "NoiseXTerminator denoise intensity",
+   "type": "R",
+   "def": 0.9,
+   "tip": "",
+   "applies": "",
+   "controls": [
+    {
+     "kind": "number",
+     "label": "Intensity",
+     "tooltip": "Amount of high frequency intensity noise to remove.",
+     "values": null,
+     "min": 0,
+     "max": 1,
+     "tab": "Postprocessing",
+     "section": "Noise reduction",
+     "expert": true,
+     "located": true
+    }
+   ],
+   "expert": true,
+   "tabs": [
+    "Postprocessing"
+   ],
+   "sections": [
+    "Noise reduction"
+   ],
+   "in_gui": true,
+   "kind": "number",
+   "label": "Intensity",
+   "tooltip": "Amount of high frequency intensity noise to remove.",
+   "values": null,
+   "min": 0,
+   "max": 1
   },
   {
    "key": "nxt_denoise_color",
@@ -3707,7 +3743,7 @@
     {
      "kind": "number",
      "label": "Color",
-     "tooltip": "Amount of high frequency color noise to remove.",
+     "tooltip": "Amount of color noise to remove.",
      "values": null,
      "min": 0,
      "max": 1,
@@ -3727,7 +3763,7 @@
    "in_gui": true,
    "kind": "number",
    "label": "Color",
-   "tooltip": "Amount of high frequency color noise to remove.",
+   "tooltip": "Amount of color noise to remove.",
    "values": null,
    "min": 0,
    "max": 1
@@ -3779,7 +3815,7 @@
     {
      "kind": "number",
      "label": "LF",
-     "tooltip": "<p>Depending on options: Denoise LF or Denoise LF Intensity.</p>",
+     "tooltip": "<p>Amount of low frequency noise to remove.</p>",
      "values": null,
      "min": 0,
      "max": 1,
@@ -3799,7 +3835,43 @@
    "in_gui": true,
    "kind": "number",
    "label": "LF",
-   "tooltip": "<p>Depending on options: Denoise LF or Denoise LF Intensity.</p>",
+   "tooltip": "<p>Amount of low frequency noise to remove.</p>",
+   "values": null,
+   "min": 0,
+   "max": 1
+  },
+  {
+   "key": "nxt_denoise_hf",
+   "name": "NoiseXTerminator denoise HF",
+   "type": "R",
+   "def": 0.9,
+   "tip": "",
+   "applies": "",
+   "controls": [
+    {
+     "kind": "number",
+     "label": "HF",
+     "tooltip": "<p>Amount of high frequency noise to remove.</p>",
+     "values": null,
+     "min": 0,
+     "max": 1,
+     "tab": "Postprocessing",
+     "section": "Noise reduction",
+     "expert": true,
+     "located": true
+    }
+   ],
+   "expert": true,
+   "tabs": [
+    "Postprocessing"
+   ],
+   "sections": [
+    "Noise reduction"
+   ],
+   "in_gui": true,
+   "kind": "number",
+   "label": "HF",
+   "tooltip": "<p>Amount of high frequency noise to remove.</p>",
    "values": null,
    "min": 0,
    "max": 1
@@ -3841,20 +3913,20 @@
    "max": 100
   },
   {
-   "key": "nxt_denoise_lf_color",
-   "name": "NoiseXTerminator denoise LF color",
+   "key": "nxt_tile_overlap",
+   "name": "NoiseXTerminator tile overlap",
    "type": "R",
-   "def": 0.9,
+   "def": 0.2,
    "tip": "",
    "applies": "",
    "controls": [
     {
      "kind": "number",
-     "label": "LF Color",
-     "tooltip": "<p>Used only if both Intensity/color separation and Frequency separation are selected.</p>",
+     "label": "Tile Overlap",
+     "tooltip": "<p>Amount of tile overlap for noise reduction.</p>",
      "values": null,
      "min": 0,
-     "max": 1,
+     "max": 0.5,
      "tab": "Postprocessing",
      "section": "Noise reduction",
      "expert": true,
@@ -3870,30 +3942,11 @@
    ],
    "in_gui": true,
    "kind": "number",
-   "label": "LF Color",
-   "tooltip": "<p>Used only if both Intensity/color separation and Frequency separation are selected.</p>",
+   "label": "Tile Overlap",
+   "tooltip": "<p>Amount of tile overlap for noise reduction.</p>",
    "values": null,
    "min": 0,
-   "max": 1
-  },
-  {
-   "key": "nxt_detail",
-   "name": "NoiseXTerminator detail",
-   "type": "R",
-   "def": 0.15,
-   "tip": "",
-   "applies": "",
-   "controls": [],
-   "expert": true,
-   "tabs": [],
-   "sections": [],
-   "in_gui": false,
-   "kind": "",
-   "label": "",
-   "tooltip": "",
-   "values": null,
-   "min": null,
-   "max": null
+   "max": 0.5
   },
   {
    "key": "deepsnr_amount",
@@ -8107,42 +8160,6 @@
     "6144",
     "8192"
    ],
-   "min": null,
-   "max": null
-  },
-  {
-   "key": "mgc_SpectrophotometricFluxCalibration",
-   "name": "MGC Spectrophotometric Flux Calibration",
-   "type": "B",
-   "def": true,
-   "tip": "",
-   "applies": "",
-   "controls": [
-    {
-     "kind": "checkbox",
-     "label": "SpectrophotometricFluxCalibration",
-     "tooltip": "<p>If checked run SpectrophotometricFluxCalibration before MultiscaleGradientCorrection.</p>",
-     "values": null,
-     "min": null,
-     "max": null,
-     "tab": "Postprocessing",
-     "section": "MultiscaleGradientCorrection settings",
-     "expert": true,
-     "located": true
-    }
-   ],
-   "expert": true,
-   "tabs": [
-    "Postprocessing"
-   ],
-   "sections": [
-    "MultiscaleGradientCorrection settings"
-   ],
-   "in_gui": true,
-   "kind": "checkbox",
-   "label": "SpectrophotometricFluxCalibration",
-   "tooltip": "<p>If checked run SpectrophotometricFluxCalibration before MultiscaleGradientCorrection.</p>",
-   "values": null,
    "min": null,
    "max": null
   },

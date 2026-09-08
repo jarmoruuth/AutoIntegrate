@@ -89,44 +89,6 @@ constructor(util) {
 
 } // AutoIntegrateSelectStarsImageDialog
 
-class AutoIntegrateHueColors extends Frame
-{
-
-constructor(par) {
-      super();
-
-      this.par = par;
-      this.hueColorsBitmap = new Bitmap( File.extractDrive( #__FILE__ ) + File.extractDirectory( #__FILE__ ) + "/hue.png" );
-
-      this.onPaint = (x0, y0, x1, y1) => {
-            // console.writeln("AutoIntegrateHueColors onPaint");
-            var width = this.width;
-            var height = this.height;
-            var pos = 23;
-            var bmp_width = (100 - pos) * width / 100;
-            var bmp_startpos = pos * width / 100;
-
-            var bmp = this.hueColorsBitmap.scaledTo(bmp_width, height);
-
-            var graphics = new Graphics(this);
-            graphics.drawBitmap(bmp_startpos, 0, bmp);
-            graphics.pen = new Pen(0xFFFFFFFF,0);      // white
-            this.drawHueLine(graphics, bmp_startpos, bmp_width, height, this.par.narrowband_colorized_R_hue.val);
-            this.drawHueLine(graphics, bmp_startpos, bmp_width, height, this.par.narrowband_colorized_G_hue.val);
-            this.drawHueLine(graphics, bmp_startpos, bmp_width, height, this.par.narrowband_colorized_B_hue.val);
-            graphics.end();
-      }
-} // constructor
-
-drawHueLine(g, bmp_startpos, bmp_width, bmp_height, hue)
-{
-      // console.writeln("drawHueLine " + hue + " " + bmp_startpos + " " + bmp_width + " " + bmp_height);
-      var line_x = bmp_startpos + hue * bmp_width;
-      g.drawLine(line_x, 0, line_x, bmp_height);
-}
-
-} // AutoIntegrateHueColors
-
 class AutoIntegrateEnhancementsGUI extends Object
 {
 

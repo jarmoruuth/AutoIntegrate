@@ -5875,48 +5875,33 @@ AutoIntegrateDialog()
       // NoiseXTerminator noise reduction settings
       //
 
-      this.noisexterminatorDenoiseEdit = this.guitools.newNumericEdit(this, "Denoise", this.par.nxt_denoise, 0, 1, "<p>Amount of noise reduction.</p><p>Depending on options: Denoise, Denoise intensity, Denoise HF or Denoise HF Intensity.</p>");
+      this.noisexterminatorDenoiseEdit = this.guitools.newNumericEdit(this, "Denoise", this.par.nxt_denoise, 0, 1, "<p>Amount of noise reduction.</p>");
       this.noisexterminatorIterationsEdit = this.guitools.newNumericEditPrecision(this, "Iterations", this.par.nxt_iterations, 1, 5, "Number of iterations for noise reduction.", 0);
 
-      this.noisexterminatorColorSeparationCheckBox = this.guitools.newCheckBox(this, "Intensity/color separation", this.par.nxt_enable_color_separation, "<p>Depending on options: Denoise Color or Denoise HF Color</p>");
-      this.noisexterminatorColorSeparationCheckBox.onClick = (checked) => {
-            if (checked && this.noisexterminatorFreqSeparationCheckBox.checked) {
-                  this.noisexterminatorDenoiseLFColorEdit.enabled = true;
-            } else {
-                  this.noisexterminatorDenoiseLFColorEdit.enabled = false;
-            }
-      }
-      this.noisexterminatorColorEdit = this.guitools.newNumericEdit(this, "Color", this.par.nxt_denoise_color, 0, 1, "Amount of high frequency color noise to remove.");
+      this.noisexterminatorColorSeparationCheckBox = this.guitools.newCheckBox(this, "Intensity/color separation", this.par.nxt_enable_color_separation, "<p>Enable separate intensity and color noise reduction.</p>");
+      this.noisexterminatorIntensityEdit = this.guitools.newNumericEdit(this, "Intensity", this.par.nxt_denoise_intensity, 0, 1, "Amount of high frequency intensity noise to remove.");
+      this.noisexterminatorColorEdit = this.guitools.newNumericEdit(this, "Color", this.par.nxt_denoise_color, 0, 1, "Amount of color noise to remove.");
 
-      this.noisexterminatorFreqSeparationCheckBox = this.guitools.newCheckBox(this, "Frequency separation", this.par.nxt_enable_frequency_separation, "Enable frequency separation.");
-      this.noisexterminatorFreqSeparationCheckBox.onClick = (checked) => {
-            if (checked && this.noisexterminatorColorSeparationCheckBox.checked) {
-                  this.noisexterminatorDenoiseLFColorEdit.enabled = true;
-            } else {
-                  this.noisexterminatorDenoiseLFColorEdit.enabled = false;
-            }
-      }
-      this.noisexterminatorDenoiseLFEdit = this.guitools.newNumericEdit(this, "LF", this.par.nxt_denoise_lf, 0, 1, "<p>Depending on options: Denoise LF or Denoise LF Intensity.</p>");
+      this.noisexterminatorFreqSeparationCheckBox = this.guitools.newCheckBox(this, "Frequency separation", this.par.nxt_enable_frequency_separation, "Enable separate low and high frequency noise reduction.");
+      this.noisexterminatorDenoiseLFEdit = this.guitools.newNumericEdit(this, "LF", this.par.nxt_denoise_lf, 0, 1, "<p>Amount of low frequency noise to remove.</p>");
+      this.noisexterminatorDenoiseHFEdit = this.guitools.newNumericEdit(this, "HF", this.par.nxt_denoise_hf, 0, 1, "<p>Amount of high frequency noise to remove.</p>");
       this.noisexterminatorScaleEdit = this.guitools.newNumericEdit(this, "HF/LF Scale (pixels)", this.par.nxt_frequency_scale, 0.5, 100, "Pixel scale for transition between HF and LF noise reduction.");
 
-      this.noisexterminatorDenoiseLFColorEdit = this.guitools.newNumericEdit(this, "LF Color", this.par.nxt_denoise_lf_color, 0, 1, "<p>Used only if both Intensity/color separation and Frequency separation are selected.</p>");
-      if (this.noisexterminatorColorSeparationCheckBox.checked && this.noisexterminatorFreqSeparationCheckBox.checked) {
-            this.noisexterminatorDenoiseLFColorEdit.enabled = true;
-      } else {
-            this.noisexterminatorDenoiseLFColorEdit.enabled = false;
-      }
+      this.noisexterminatorTileOverlapEdit = this.guitools.newNumericEdit(this, "Tile Overlap", this.par.nxt_tile_overlap, 0, 0.5, "<p>Amount of tile overlap for noise reduction.</p>");
 
       this.noiseReductionGroupBoxSizer31 = new HorizontalSizer;
       this.noiseReductionGroupBoxSizer31.margin = 2;
       this.noiseReductionGroupBoxSizer31.spacing = 4;
       this.noiseReductionGroupBoxSizer31.add( this.noisexterminatorDenoiseEdit );
       this.noiseReductionGroupBoxSizer31.add( this.noisexterminatorIterationsEdit );
+      this.noiseReductionGroupBoxSizer31.add( this.noisexterminatorTileOverlapEdit );
       this.noiseReductionGroupBoxSizer31.addStretch();
 
       this.noiseReductionGroupBoxSizer32 = new HorizontalSizer;
       this.noiseReductionGroupBoxSizer32.margin = 2;
       this.noiseReductionGroupBoxSizer32.spacing = 4;
       this.noiseReductionGroupBoxSizer32.add( this.noisexterminatorColorSeparationCheckBox );
+      this.noiseReductionGroupBoxSizer32.add( this.noisexterminatorIntensityEdit );
       this.noiseReductionGroupBoxSizer32.add( this.noisexterminatorColorEdit );
       this.noiseReductionGroupBoxSizer32.addStretch();
 
@@ -5925,8 +5910,8 @@ AutoIntegrateDialog()
       this.noiseReductionGroupBoxSizer33.spacing = 4;
       this.noiseReductionGroupBoxSizer33.add( this.noisexterminatorFreqSeparationCheckBox );
       this.noiseReductionGroupBoxSizer33.add( this.noisexterminatorDenoiseLFEdit );
+      this.noiseReductionGroupBoxSizer33.add( this.noisexterminatorDenoiseHFEdit );
       this.noiseReductionGroupBoxSizer33.add( this.noisexterminatorScaleEdit );
-      this.noiseReductionGroupBoxSizer33.add( this.noisexterminatorDenoiseLFColorEdit );
       this.noiseReductionGroupBoxSizer33.addStretch();
 
       this.noiseReductionGroupBoxLabel3 = this.guitools.newSectionLabel(this, "NoiseXTerminator settings");

@@ -5660,7 +5660,7 @@ mapSPCCAutoNarrowband(is_RGB)
 {
       if (!this.par.use_spcc.val || 
           this.par.skip_color_calibration.val ||
-          !this.par.spcc_auto_narrowband) 
+          !this.par.spcc_auto_narrowband.val) 
       {
             return;
       }
@@ -6921,6 +6921,24 @@ runBasicIntegration(images, name, local_normalization)
             P.weightMode = ImageIntegration.KeywordWeight;
             P.weightKeyword = "SSWEIGHT";
       }
+      switch (this.par.integration_combination.val) {
+            case 'Average':
+                  P.combination = ImageIntegration.Average;
+                  break;
+            case 'Median':
+                  P.combination = ImageIntegration.Median;
+                  break;
+            case 'Minimum':
+                  P.combination = ImageIntegration.Minimum;
+                  break;
+            case 'Maximum':
+                  P.combination = ImageIntegration.Maximum;
+                  break;
+            default:
+                  P.combination = ImageIntegration.Average;
+                  break;
+      }
+
       P.minWeight = this.par.ssweight_limit.val;     /* Default: 0.005, we use the value from the script parameter */
       if (local_normalization) {
             this.util.addProcessingStep("Using LocalNormalization for ImageIntegration normalization");
@@ -9656,7 +9674,7 @@ runBlurXTerminator(imgWin, correct_only, for_image_solver = false)
       this.engine_end_process(node, imgWin, "BlurXTerminator");
 }
 
-runNoiseXTerminator(imgWin, linear)
+runNoiseXTerminator(imgWin)
 {
       var node = this.flowchart.flowchartOperation("NoiseXTerminator");
       if (this.global.get_flowchart_data) {
@@ -9666,16 +9684,38 @@ runNoiseXTerminator(imgWin, linear)
 
       try {
             var P = new NoiseXTerminator;
-            P.denoise = this.par.nxt_denoise.val;                      // Both: Denoise HF Intensity, Freq: Denoise HF, Color: Denoise Intensity, Default: Denoise     this.par.nxt_denoise.val
-            P.denoise_color = this.par.nxt_denoise_color.val;          // Both: Denoise HF color                        Color: Denoise Color                           this.par.nxt_denoise_color.val
-            P.denoise_lf = this.par.nxt_denoise_lf.val;                // Both: Denoise LF Intensity  Freq: Denoise LF                                                 this.par.nxt_denoise_lf.val
-            P.denoise_lf_color = this.par.nxt_denoise_lf_color.val;    // Both: Denoise LF color                                                                       this.par.nxt_denoise_lf_color.val
-            P.frequency_scale = this.par.nxt_frequency_scale.val;      // Use only when both selected
-            P.iterations = this.par.nxt_iterations.val;
+            P.denoise = this.par.nxt_denoise.val;
 
-            P.detail = this.par.nxt_detail.val;            // Not needed, but keep for old versions
-            P.linear = linear;                        // Not needed, but keep for old versions
+            P.enable_color_separation = this.par.nxt_enable_color_separation.val;
+            P.enable_frequency_separation = this.par.nxt_enable_frequency_separation.val;
+            P.denoise_intensity = this.par.nxt_denoise_intensity.val;
+            P.denoise_color = this.par.nxt_denoise_color.val;
+            P.denoise_high_freq = this.par.nxt_denoise_hf.val;
+            P.denoise_low_freq = this.par.nxt_denoise_lf.val;
+            P.frequency_scale = 5 * this.par.nxt_frequency_scale.val;
+            P.iterations = this.par.nxt_iterations.val;
+            P.overlap = this.par.nxt_tile_overlap.val;
+
             /*
+            2026-09-08: Default settings for NoiseXTerminator
+            var P = new NoiseXTerminator;
+            P.ml_version = 0;
+            P.denoise = 0.90;
+            P.enable_color_separation = false;
+            P.enable_frequency_separation = false;
+            P.denoise_intensity = 0.90;
+            P.denoise_color = 0.90;
+            P.denoise_high_freq = 0.90;
+            P.denoise_low_freq = 0.90;
+            P.denoise_intensity_high_freq = 0.90;
+            P.denoise_intensity_low_freq = 0.90;
+            P.denoise_color_high_freq = 0.90;
+            P.denoise_color_low_freq = 0.90;
+            P.frequency_scale = 5.0;
+            P.iterations = 2;
+            P.detail = 0.15;
+            P.overlap = 0.20;
+
             All new settings:
             var P = new NoiseXTerminator;
             P.ai_file = "NoiseXTerminator.3.pb";
@@ -9769,7 +9809,7 @@ runNoiseReductionEx(imgWin, maskWin, strength, linear)
             return;
       }
       if (this.par.use_noisexterminator.val) {
-            this.runNoiseXTerminator(imgWin, linear);
+            this.runNoiseXTerminator(imgWin);
       } else if (this.par.use_graxpert_denoise.val) {
             this.runGraXpertExternal(imgWin, this.GraXpertCmd.denoise);
       } else if (this.par.use_deepsnr.val) {
@@ -12441,7 +12481,7 @@ createChannelImages(parent, auto_continue)
             if (!this.par.image_weight_testing.val && this.par.early_PSF_check.val) {
                   /* Remove bad files. */
                   this.lightFileNames = this.filterBadPSFImages(this.lightFileNames);
-                  if (!this.par.fast_mode && !this.global.get_flowchart_data) {
+                  if (!this.par.fast_mode.val && !this.global.get_flowchart_data) {
                         // We did filtering for real data set, save the list
                         this.global.lightFileNames = this.lightFileNames;
                   }

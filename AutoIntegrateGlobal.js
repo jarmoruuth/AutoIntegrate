@@ -320,15 +320,20 @@ this.par = {
       bxt_median_psf: { val: false, def: false, name : "BlurXTerminator median PSF", type : 'B' },
       bxt_correct_only_before_cc: { val: false, def: false, name : "BlurXTerminator correct only before CC", type : 'B' },
       bxt_correct_channels: { val: false, def: false, name : "BlurXTerminator correct only channels", type : 'B', applies : "mono" },
+
       nxt_denoise: { val: 0.9, def: 0.9, name : "NoiseXTerminator denoise", type : 'R' },
       nxt_iterations: { val: 2, def: 2, name : "NoiseXTerminator iterations", type : 'I' },
+
       nxt_enable_color_separation: { val: false, def: false, name : "NoiseXTerminator enable color separation", type : 'B' },
+      nxt_denoise_intensity: { val: 0.9, def: 0.9, name : "NoiseXTerminator denoise intensity", type : 'R' },
       nxt_denoise_color: { val: 0.9, def: 0.9, name : "NoiseXTerminator denoise color", type : 'R' },
+
       nxt_enable_frequency_separation: { val: false, def: false, name : "NoiseXTerminator enable frequency separation", type : 'B' },
       nxt_denoise_lf: { val: 0.9, def: 0.9, name : "NoiseXTerminator denoise LF", type : 'R' },
+      nxt_denoise_hf: { val: 0.9, def: 0.9, name : "NoiseXTerminator denoise HF", type : 'R' },
       nxt_frequency_scale: { val: 5, def: 5, name : "NoiseXTerminator frequency scale", type : 'R' },
-      nxt_denoise_lf_color: { val: 0.9, def: 0.9, name : "NoiseXTerminator denoise LF color", type : 'R' },
-      nxt_detail: { val: 0.15, def: 0.15, name : "NoiseXTerminator detail", type : 'R', ignore_used: true },   // Old
+
+      nxt_tile_overlap: { val: 0.20, def: 0.20, name : "NoiseXTerminator tile overlap", type : 'R' },
 
       deepsnr_amount: { val: 0.8, def: 0.8, name : "DeepSNR amount", type : 'R' },
       
@@ -453,7 +458,6 @@ this.par = {
       gc_simplified_model: { val: false, def: false, name : "GC simplified model", type : 'B' },
       gc_simplified_model_degree: { val: 1, def: 1, name : "GC simplified model degree", type : 'I' },
       mgc_scale: { val: '1024', def: '1024', name : "MGC scale", type : 'S' },
-      mgc_SpectrophotometricFluxCalibration: { val: true, def: true, name : "MGC Spectrophotometric Flux Calibration", type : 'B' },
       mgc_scale_factor: { val: 1.0, def: 1.0, name : "MGC scale factor", type : 'R' },
       mgc_structure_separation: { val: 3, def: 3, name : "MGC structure separation", type : 'I' },
       

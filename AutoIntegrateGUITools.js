@@ -1496,13 +1496,10 @@ createGradientCorrectionSizer(parent, level = 1)
             this.mgs_scale_factor_Edit = this.newNumericEditPrecision(parent, "Scale", this.par.mgc_scale_factor, 0.1, 10, "Scale factor for all channels.", 4);
             this.mgc_strucure_separation_Label = this.newLabel(parent, "Structure separation", "Structure separation for MultiscaleGradientCorrection.", true);
             this.mgc_strucure_separation_SpinBox = this.newSpinBox(parent, this.par.mgc_structure_separation, 1, 5, this.mgc_strucure_separation_Label.toolTip);
-            this.mgc_SpectrophotometricFluxCalibration_CheckBox = this.newCheckBox(parent, "SpectrophotometricFluxCalibration", this.par.mgc_SpectrophotometricFluxCalibration, "<p>If checked run SpectrophotometricFluxCalibration before MultiscaleGradientCorrection.</p>");
 
             this.MGCGroupBoxSizer0 = this.newHorizontalSizer(6, true, [this.mgc_scale_Label, this.mgc_scale_ComboBox, this.mgs_scale_factor_Edit,
                                                                   this.mgc_strucure_separation_Label, this.mgc_strucure_separation_SpinBox,], 12);
-            this.MGCGroupBoxSizer1 = this.newHorizontalSizer(6, true, [this.mgc_SpectrophotometricFluxCalibration_CheckBox ], 12);
-
-            this.MGCGroupBoxSizer = this.newVerticalSizer(6, true, [this.MGCGroupBoxSizer0, this.MGCGroupBoxSizer1]);
+            this.MGCGroupBoxSizer = this.newVerticalSizer(6, true, [this.MGCGroupBoxSizer0]);
 
             this.MGCSettingsSection = this.newSectionBarAddArray(parent, null, "MultiscaleGradientCorrection settings", "MGC_Settings_Section",
                                           [ this.MGCGroupBoxSizer ], level);
