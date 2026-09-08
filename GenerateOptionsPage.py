@@ -623,6 +623,8 @@ def apply_metadata(options, meta):
         if m.get('applies'):
             o['applies'] = m['applies']
             o['tags'] = tags_of(o['key'], o['applies'])
+        if m.get('label', '').strip():
+            o['gui_label'] = m['label'].strip()
         o['expert'] = m.get('expert', True)
         o['in_gui'] = m.get('in_gui', False)
         o['tabs'] = m.get('tabs', [])
@@ -645,6 +647,30 @@ def format_default(value):
     if isinstance(value, (dict, list)):
         return json.dumps(value)
     return str(value)
+
+
+# A dialog label that is used by several options in the same group, like High,
+# or a very short one, like L or %, does not tell which option it is when it is
+# read outside the dialog. The setting name is used for those.
+SHORTEST_LABEL = 3
+
+
+def set_shown_names(options):
+    """Choose the name that is shown for each option on the pages."""
+    used = {}
+    for o in options:
+        if o['gui_label']:
+            # Options are shown in groups, the same label in another group is fine.
+            name = (o['group'], o['gui_label'].lower())
+            used[name] = used.get(name, 0) + 1
+    for o in options:
+        label = o['gui_label']
+        if label and len(label) >= SHORTEST_LABEL and used[(o['group'], label.lower())] == 1:
+            o['shown_name'] = label
+            o['other_name'] = 'Setting name: ' + o['label'] if o['label'] != label else ''
+        else:
+            o['shown_name'] = o['label']
+            o['other_name'] = 'Shown in the dialog as: ' + label if label else ''
 
 
 def collect(srcdir, meta=None):
@@ -673,9 +699,13 @@ def collect(srcdir, meta=None):
         o['in_gui'] = None
         o['tabs'] = []
         o['sections'] = []
+        o['gui_label'] = ''
+        o['shown_name'] = o['label']
+        o['other_name'] = ''
 
     if meta:
         stale = apply_metadata(options, meta)
+        set_shown_names(options)
         if stale:
             print('Warning: %d options are not in %s, it may be out of date: %s'
                   % (len(stale), METADATA_FILE, name_list(stale)))
@@ -978,6 +1008,7 @@ tr:hover td { background: #fafcfc; }
 .oname { display: block; font-weight: bold; }
 .key { display: inline-block; margin-top: 4px; font-size: 12px; color: #666; background: whitesmoke;
        padding: 1px 5px; border: 1px solid #eee; word-break: break-all; }
+.setting { display: block; margin-top: 3px; font-size: 12px; color: #777; }
 .ty { display: block; font-size: 13px; color: #444; }
 .df { display: block; font-size: 13px; color: #777; margin-top: 3px; }
 .c-desc p { margin: 0 0 7px; }
@@ -1020,10 +1051,13 @@ tr:hover td { background: #fafcfc; }
 
 <div class="intro">
   <h2>How to read this page</h2>
-  <p>Every option is listed with the setting name that is used in saved setups and process icons, the
-  internal parameter name used in JSON setup files, the value type and the default value. Descriptions
-  are the tooltip texts from the script itself. Each option is tagged so you can tell at a glance whether
-  it changes the processed image or only the way the script works.</p>
+  <p>Every option is listed with the name that is shown in the dialog, the internal parameter name
+  used in JSON setup files, the value type and the default value. The name that is used in saved setups
+  and process icons is shown as the setting name when it is different. For options whose dialog label is
+  short or is used by several options in the same group, like High, the setting name is shown instead
+  because it tells better which option it is. Descriptions are the tooltip texts from the script itself. Each option
+  is tagged so you can tell at a glance whether it changes the processed image or only the way the script
+  works.</p>
   <p>Use the search box to find an option by name or by words in its description, and the buttons to
   show only the options of a certain kind. Selecting several buttons shows the options that have all
   of the selected tags.</p>
@@ -1192,12 +1226,16 @@ def build_page(options, version, page='full', have_metadata=True):
         rows.append('<h2>%s <span class="count">%d</span></h2>'
                     % (esc(group_title(title, page)), len(lst)))
         rows.append('<p class="blurb">%s</p>' % esc(blurb))
-        rows.append('<table><thead><tr><th class="c-opt">Option / setting name</th>'
+        rows.append('<table><thead><tr><th class="c-opt">Option</th>'
                     '<th class="c-meta">Type / default</th>'
                     '<th class="c-desc">Description</th></tr></thead><tbody>')
         for o in lst:
             badges = ''.join('<span class="tag t-%s">%s</span>' % (t, esc(TAGINFO[t][0]))
                              for t in TAG_ORDER if t in o['tags'])
+            shown_name = o['shown_name']
+            setting = ''
+            if o['other_name']:
+                setting = '<span class="setting">%s</span>' % esc(o['other_name'])
             default = o['default']
             if default == '':
                 default = '&mdash;'
@@ -1210,14 +1248,15 @@ def build_page(options, version, page='full', have_metadata=True):
                 vals = '<p class="vals"><span>Values:</span> %s</p>' % ', '.join(
                     '<code>%s</code>' % esc(v if v != '' else '(empty)') for v in o['values'])
             search = re.sub(r'\s+', ' ',
-                            ' '.join([o['label'], o['key'], o['tip'][:400]])).lower()
+                            ' '.join([shown_name, o['label'], o['gui_label'], o['key'],
+                                      o['tip'][:400]])).lower()
             rows.append(
                 '<tr data-tags="%s" data-search="%s">'
-                '<td class="c-opt"><span class="oname">%s</span>%s<code class="key">%s</code></td>'
+                '<td class="c-opt"><span class="oname">%s</span>%s<code class="key">%s</code>%s</td>'
                 '<td class="c-meta"><span class="ty">%s</span><span class="df">%s</span></td>'
                 '<td class="c-desc">%s%s</td></tr>'
-                % (' '.join(o['tags']), esc(search), esc(o['label']), badges, esc(o['key']),
-                   esc(o['typename']), default, description_html(o['tip']), vals))
+                % (' '.join(o['tags']), esc(search), esc(shown_name), badges, esc(o['key']),
+                   setting, esc(o['typename']), default, description_html(o['tip']), vals))
         rows.append('</tbody></table></section>')
 
     toc = '\n'.join(
