@@ -1,7 +1,18 @@
 #!/usr/bin/env python3
-"""Generate AutoIntegrateOptions.html, a reference page of all AutoIntegrate options.
+"""Generate the AutoIntegrate options reference pages.
 
-The page is generated from the AutoIntegrate sources, there is no separate list of
+Three pages are generated:
+
+    AutoIntegrateOptions.html              all processing options
+    AutoIntegrateOptionsSimple.html        processing options shown in simple mode
+    AutoIntegrateOptionsEnhancements.html  enhancement options
+
+The simple mode page is a shorter version of the processing options page and
+lists a part of the same options. Enhancement options are not on the processing
+pages, they are on their own page because enhancements are normally done after
+the image has been processed. Each page links to the other two.
+
+The pages are generated from the AutoIntegrate sources, there is no separate list of
 options that would need to be kept up to date:
 
   - options, setting names, types and default values come from this.par in
@@ -14,7 +25,8 @@ possible values, default values and simple/expert mode are taken from it. The fi
 is written by AutoIntegrate itself from the running GUI, so everything in it comes
 from the real GUI controls and no tooltip texts need to be searched from the
 sources. The file is written with the Write options metadata button in the
-Interface tab, Debug settings section. It is also needed for the simple mode page.
+Interface tab, Debug settings section. It is also needed for the simple mode
+page, the other two pages can be generated without it.
 
 Options are put into groups and tagged so that it is possible to see if an option
 changes the processed image or only the user interface, and if an option applies
@@ -28,6 +40,7 @@ Usage:
 
     python GenerateOptionsPage.py [-o OUTPUT.html] [--stats]
     python GenerateOptionsPage.py --simple
+    python GenerateOptionsPage.py --enhancements
 
 The script only reads files, it does not need PixInsight.
 """
@@ -55,6 +68,7 @@ GUI_FILES = [
 
 DEFAULT_OUTPUT = 'AutoIntegrateOptions.html'
 DEFAULT_SIMPLE_OUTPUT = 'AutoIntegrateOptionsSimple.html'
+DEFAULT_ENHANCEMENTS_OUTPUT = 'AutoIntegrateOptionsEnhancements.html'
 
 # Option metadata written by AutoIntegrate, see writeOptionsMetadata in
 # AutoIntegrateGUI.js. The file is written from the running GUI, so it has the
@@ -722,6 +736,7 @@ a { color: #0b7285; }
 .header .crosslink { margin: 12px 0 0; }
 .header .crosslink a { display: inline-block; color: #fff; text-decoration: none; font-size: 14px;
                        font-weight: bold; padding: 7px 13px; border: 1px solid rgba(255,255,255,.75); }
+.header .crosslink a { margin: 0 6px 6px 0; }
 .header .crosslink a:hover { background: #fff; color: #16a085; border-color: #fff; }
 .wrap { max-width: 1400px; margin: 0 auto; padding: 0 20px 60px; }
 .intro { background: whitesmoke; border: 1px solid #e2e2e2; padding: 14px 18px; margin: 20px 0; }
@@ -881,16 +896,82 @@ __ROWS__
 '''
 
 
-SIMPLE_TITLE = 'AutoIntegrate Simple Mode Options'
-FULL_TITLE = 'AutoIntegrate Options Reference'
+# The three pages. Enhancement options are only on the enhancements page, the
+# other two pages have the processing options and the simple mode page is a
+# shorter version of the full processing page.
+#
+#    file      output file name
+#    title     page title
+#    link      text of the link to this page from the other pages
+#    subtitle  page subtitle, gets the option count and the version
+#    metadata  page needs the option metadata file
+PAGES = {
+    'full': {
+        'file': DEFAULT_OUTPUT,
+        'title': 'AutoIntegrate Options Reference',
+        'link': 'All processing options',
+        'subtitle': 'The %d processing options of %s, grouped by processing step.',
+        'metadata': False,
+    },
+    'simple': {
+        'file': DEFAULT_SIMPLE_OUTPUT,
+        'title': 'AutoIntegrate Simple Mode Options',
+        'link': 'Simple mode options',
+        'subtitle': 'The %d processing options of %s that are shown in simple mode.',
+        'metadata': True,
+    },
+    'enhancements': {
+        'file': DEFAULT_ENHANCEMENTS_OUTPUT,
+        'title': 'AutoIntegrate Enhancement Options',
+        'link': 'Enhancement options',
+        'subtitle': 'The %d enhancement options of %s, used after the image has been processed.',
+        'metadata': False,
+    },
+}
+PAGE_ORDER = ['full', 'simple', 'enhancements']
 
-SIMPLE_LINK = ('<p class="crosslink"><a href="%s">Show all options &rarr;</a></p>'
-               % DEFAULT_OUTPUT)
-FULL_LINK = ('<p class="crosslink"><a href="%s">New to the script? Simple mode options only '
-             '&rarr;</a></p>' % DEFAULT_SIMPLE_OUTPUT)
+
+def is_enhancement(option):
+    """Enhancements are post-processing, they are shown on their own page."""
+    return option['group'].startswith('enh_')
 
 
-def build_page(options, version, simple=False, have_metadata=True):
+def select_options(options, page):
+    if page == 'enhancements':
+        return [o for o in options if is_enhancement(o)]
+    options = [o for o in options if not is_enhancement(o)]
+    if page == 'simple':
+        options = [o for o in options if o['in_gui'] and not o['expert']]
+    return options
+
+
+def group_title(title, page):
+    """Group title as it is shown on a page.
+
+    On the enhancements page every group title starts with Enhancements. The
+    word is already in the page title so it is dropped from the group titles.
+    """
+    prefix = 'Enhancements: '
+    if page == 'enhancements' and title.startswith(prefix):
+        title = title[len(prefix):]
+        return title[0].upper() + title[1:]
+    return title
+
+
+def crosslinks_html(page, have_metadata):
+    """Links to the other pages, shown as buttons in the page header."""
+    links = []
+    for other in PAGE_ORDER:
+        if other == page or (PAGES[other]['metadata'] and not have_metadata):
+            continue
+        links.append('<a href="%s">%s &rarr;</a>'
+                     % (PAGES[other]['file'], esc(PAGES[other]['link'])))
+    if not links:
+        return ''
+    return '<p class="crosslink">%s</p>' % ' '.join(links)
+
+
+def build_page(options, version, page='full', have_metadata=True):
     bygroup = {}
     for o in options:
         bygroup.setdefault(o['group'], []).append(o)
@@ -901,7 +982,8 @@ def build_page(options, version, simple=False, have_metadata=True):
         if not lst:
             continue
         rows.append('<section class="group" id="%s" data-count="%d">' % (gid, len(lst)))
-        rows.append('<h2>%s <span class="count">%d</span></h2>' % (esc(title), len(lst)))
+        rows.append('<h2>%s <span class="count">%d</span></h2>'
+                    % (esc(group_title(title, page)), len(lst)))
         rows.append('<p class="blurb">%s</p>' % esc(blurb))
         rows.append('<table><thead><tr><th class="c-opt">Option / setting name</th>'
                     '<th class="c-meta">Type / default</th>'
@@ -932,7 +1014,8 @@ def build_page(options, version, simple=False, have_metadata=True):
         rows.append('</tbody></table></section>')
 
     toc = '\n'.join(
-        '<a href="#%s">%s<span>%d</span></a>' % (gid, esc(title), len(bygroup.get(gid, [])))
+        '<a href="#%s">%s<span>%d</span></a>'
+        % (gid, esc(group_title(title, page)), len(bygroup.get(gid, [])))
         for gid, title, _ in GROUPS if bygroup.get(gid))
     legend = ''.join(
         '<li><span class="tag t-%s">%s</span> %s</li>' % (t, esc(TAGINFO[t][0]), esc(TAGINFO[t][1]))
@@ -944,21 +1027,14 @@ def build_page(options, version, simple=False, have_metadata=True):
     def count(tag):
         return str(sum(1 for o in options if tag in o['tags']))
 
-    if simple:
-        subtitle = ('The %d options of %s that are shown in simple mode.'
-                    % (len(options), version))
-    else:
-        subtitle = 'All %d options of %s, grouped by what they do.' % (len(options), version)
-
-    crosslink = ''
-    if have_metadata:
-        crosslink = SIMPLE_LINK if simple else FULL_LINK
+    subtitle = PAGES[page]['subtitle'] % (len(options), version)
+    crosslink = crosslinks_html(page, have_metadata)
 
     return (PAGE.replace('__ROWS__', '\n'.join(rows))
                 .replace('__TOC__', toc)
                 .replace('__LEGEND__', legend)
                 .replace('__FILTERS__', filters)
-                .replace('__PAGETITLE__', esc(SIMPLE_TITLE if simple else FULL_TITLE))
+                .replace('__PAGETITLE__', esc(PAGES[page]['title']))
                 .replace('__SUBTITLE__', esc(subtitle))
                 .replace('__CROSSLINK__', crosslink)
                 .replace('__TOTAL__', str(len(options)))
@@ -999,7 +1075,7 @@ def print_stats(options):
 
 
 def main():
-    ap = argparse.ArgumentParser(description='Generate the AutoIntegrate options reference page.')
+    ap = argparse.ArgumentParser(description='Generate an AutoIntegrate options reference page.')
     ap.add_argument('-o', '--output', default=DEFAULT_OUTPUT, help='output HTML file')
     ap.add_argument('-s', '--srcdir', default=os.path.dirname(os.path.abspath(__file__)),
                     help='directory with the AutoIntegrate sources')
@@ -1007,6 +1083,8 @@ def main():
     ap.add_argument('--json', metavar='FILE', help='also write the option data as JSON')
     ap.add_argument('--simple', action='store_true',
                     help='generate the simple mode options page, needs ' + METADATA_FILE)
+    ap.add_argument('--enhancements', action='store_true',
+                    help='generate the enhancement options page')
     ap.add_argument('--no-metadata', action='store_true',
                     help='ignore ' + METADATA_FILE + ' and read everything from the sources')
     args = ap.parse_args()
@@ -1015,10 +1093,14 @@ def main():
         if not os.path.isfile(os.path.join(args.srcdir, name)):
             sys.exit('Missing source file: ' + os.path.join(args.srcdir, name))
 
+    if args.simple and args.enhancements:
+        sys.exit('Give only one of --simple and --enhancements.')
+    page = 'simple' if args.simple else 'enhancements' if args.enhancements else 'full'
+
     meta = None if args.no_metadata else load_metadata(args.srcdir)
     version = parse_version(args.srcdir)
     if meta is None:
-        if args.simple:
+        if PAGES[page]['metadata']:
             sys.exit('The simple mode page needs %s. Write it from the AutoIntegrate GUI with the '
                      'Write options metadata button in the Interface tab, Debug settings section.'
                      % os.path.join(args.srcdir, METADATA_FILE))
@@ -1029,15 +1111,13 @@ def main():
             print('Warning: %s was written by %s but the sources are %s, it should be written again.'
                   % (METADATA_FILE, meta_version, version))
 
-    options = collect(args.srcdir, meta)
-    if args.simple:
-        options = [o for o in options if o['in_gui'] and not o['expert']]
-        if args.output == DEFAULT_OUTPUT:
-            args.output = DEFAULT_SIMPLE_OUTPUT
-    page = build_page(options, version, simple=args.simple, have_metadata=meta is not None)
+    options = select_options(collect(args.srcdir, meta), page)
+    if args.output == DEFAULT_OUTPUT:
+        args.output = PAGES[page]['file']
+    html_page = build_page(options, version, page=page, have_metadata=meta is not None)
 
     with open(args.output, 'w', encoding='utf-8') as f:
-        f.write(page)
+        f.write(html_page)
     print('Wrote %s, %d options from %s' % (args.output, len(options), version))
 
     if args.json:
