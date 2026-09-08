@@ -41,6 +41,13 @@ Usage:
     python GenerateOptionsPage.py [-o OUTPUT.html] [--stats]
     python GenerateOptionsPage.py --simple
     python GenerateOptionsPage.py --enhancements
+    python GenerateOptionsPage.py --check
+
+Option --check does not generate a page. It checks the options and the sources
+and prints what it finds, for example code that uses an option that does not
+exist, an option object used where the value was meant, and options that have a
+thin or a shared description. It exits with an error when there are findings
+that are always wrong.
 
 The script only reads files, it does not need PixInsight.
 """
@@ -687,6 +694,206 @@ def name_list(names, limit=12):
     return '%s and %d more' % (', '.join(names[:limit]), len(names) - limit)
 
 
+
+# ---------------------------------------------------------------------------
+# Checks. Run with --check, used to find options that are not in a good shape
+# and code that does not match the options.
+# ---------------------------------------------------------------------------
+
+# Description shorter than this is reported, they are usually just the option
+# name written again with different words.
+SHORT_DESCRIPTION = 60
+
+# Members that every JavaScript object has, par.<name> is not an option here.
+JS_MEMBERS = {'hasOwnProperty', 'toString', 'valueOf', 'constructor', 'length'}
+
+# par.<option>, with or without this. or global. in front of it
+PAR_PATTERN = r'(?:this\.|global\.)?\bpar\.([A-Za-z_][A-Za-z0-9_]*)'
+PAR_ANY = re.compile(PAR_PATTERN)
+PAR_VAL = re.compile(PAR_PATTERN + r'\s*\.\s*val\b')
+# The value of an option is used without .val, so an object is used instead of
+# the value. An object is always true, so these are always errors.
+PAR_NOVAL = re.compile(r'(!\s*)?' + PAR_PATTERN + r'\s*(&&|\|\||===|!==|==|!=|\?)')
+PAR_NOVAL_IF = re.compile(r'\b(?:if|while)\s*\(\s*(?:!\s*)?' + PAR_PATTERN + r'\s*\)')
+# Negating an option object is always wrong, the object is always true.
+PAR_NOT = re.compile(r'!\s*' + PAR_PATTERN + r'(?!\s*\.\s*val)')
+
+CHECK_INFO = [
+    ('unknown_option',  'error',  'Code uses an option that is not in this.par'),
+    ('missing_val',     'error',  'Option object is used where the value was meant, add .val'),
+    ('no_description',  'error',  'Option has no description'),
+    ('no_group',        'error',  'Option matches no grouping rule, it goes to the default group'),
+    ('unknown_applies', 'error',  'Option has an applies value that is not a known tag'),
+    ('never_read',      'review', 'Option value is never read with .val. It can still be handled '
+                                  'in the control callback, or the option can be unused'),
+    ('no_control',      'review', 'Option has no control in the GUI'),
+    ('same_description', 'review', 'Several options share the same description'),
+    ('short_description', 'review', 'Description is shorter than %d characters' % SHORT_DESCRIPTION),
+]
+
+
+def strip_js_comments(text):
+    """Replace comments with spaces, keeping the length and the line numbers."""
+    out = []
+    i, n = 0, len(text)
+    while i < n:
+        c = text[i]
+        if c == '/' and i + 1 < n and text[i+1] == '/':
+            j = text.find(chr(10), i)
+            j = n if j < 0 else j
+            out.append(' ' * (j - i))
+            i = j
+            continue
+        if c == '/' and i + 1 < n and text[i+1] == '*':
+            j = text.find('*/', i + 2)
+            j = n if j < 0 else j + 2
+            out.append(''.join(ch if ch == chr(10) else ' ' for ch in text[i:j]))
+            i = j
+            continue
+        if c in '"\'':
+            quote = c
+            out.append(c)
+            i += 1
+            while i < n and text[i] != quote:
+                if text[i] == chr(92):
+                    out.append(text[i])
+                    i += 1
+                if i < n:
+                    out.append(text[i])
+                    i += 1
+            if i < n:
+                out.append(text[i])
+                i += 1
+            continue
+        out.append(c)
+        i += 1
+    return ''.join(out)
+
+
+def read_js_sources(srcdir):
+    """Return file name -> source with comments removed."""
+    sources = {}
+    for name in sorted(os.listdir(srcdir)):
+        if name.endswith('.js'):
+            with open(os.path.join(srcdir, name), encoding='utf-8', errors='replace') as f:
+                sources[name] = strip_js_comments(f.read())
+    return sources
+
+
+def where(name, text, pos):
+    return '%s:%d' % (name, text.count(chr(10), 0, pos) + 1)
+
+
+def check_options(srcdir, options, all_keys):
+    """Return the findings as a list of (check, location, message)."""
+    sources = read_js_sources(srcdir)
+    findings = []
+
+    def add(check, location, message):
+        findings.append((check, location, message))
+
+    # Code that uses an option that does not exist, and options used without .val.
+    value_read = set()
+    for name, text in sources.items():
+        for m in PAR_ANY.finditer(text):
+            key = m.group(1)
+            if key not in all_keys and key not in JS_MEMBERS:
+                add('unknown_option', where(name, text, m.start()), 'par.' + key)
+        for m in PAR_VAL.finditer(text):
+            value_read.add(m.group(1))
+        for m in PAR_NOVAL.finditer(text):
+            if m.group(2) in all_keys:
+                add('missing_val', where(name, text, m.start()),
+                    ' '.join(m.group(0).split()))
+        for m in PAR_NOVAL_IF.finditer(text):
+            if m.group(1) in all_keys:
+                add('missing_val', where(name, text, m.start()),
+                    ' '.join(m.group(0).split()))
+        for m in PAR_NOT.finditer(text):
+            if m.group(1) in all_keys:
+                add('missing_val', where(name, text, m.start()),
+                    ' '.join(m.group(0).split()))
+
+    for o in options:
+        key = o['key']
+        if not o['tip']:
+            add('no_description', key, o['label'])
+        elif len(o['tip']) < SHORT_DESCRIPTION:
+            add('short_description', key, o['tip'])
+        if not any(re.search(pattern, key) for pattern, _ in RULES):
+            add('no_group', key, 'goes to group ' + DEFAULT_GROUP)
+        for word in o['applies'].split():
+            if word not in TAGINFO or word == 'processing':
+                add('unknown_applies', key, word)
+        if key not in value_read:
+            add('never_read', key, o['label'])
+        if o['in_gui'] is False:
+            add('no_control', key, o['label'])
+
+    bytip = {}
+    for o in options:
+        if o['tip']:
+            bytip.setdefault(o['tip'], []).append(o['key'])
+    for tip, shared in sorted(bytip.items(), key=lambda x: -len(x[1])):
+        if len(shared) > 1:
+            add('same_description', ', '.join(shared),
+                tip.split(chr(10))[0][:70] + ('...' if len(tip) > 70 else ''))
+
+    # The same place can match several patterns, report it once with the
+    # longest message, and show the findings of a check in source order.
+    best = {}
+    for check, location, message in findings:
+        key = (check, location)
+        if key not in best or len(message) > len(best[key]):
+            best[key] = message
+    return [(check, location, best[(check, location)])
+            for check, location in sorted(best, key=lambda x: (x[0], sort_key(x[1])))]
+
+
+def sort_key(location):
+    """Sort file:line locations by file and by line number, others by name."""
+    name, _, line = location.rpartition(':')
+    if name and line.isdigit():
+        return (name, int(line))
+    return (location, 0)
+
+
+def printable(text):
+    """Console encoding is not always UTF-8, do not fail on a special character."""
+    encoding = sys.stdout.encoding or 'utf-8'
+    return text.encode(encoding, 'replace').decode(encoding)
+
+
+def print_checks(findings):
+    """Print the findings and return the number of errors."""
+    bycheck = {}
+    for check, location, message in findings:
+        bycheck.setdefault(check, []).append((location, message))
+
+    errors = 0
+    for check, severity, title in CHECK_INFO:
+        found = bycheck.get(check, [])
+        if severity == 'error':
+            errors += len(found)
+        print()
+        print('%s: %s [%s]' % (check, title, severity))
+        if not found:
+            print('    none')
+            continue
+        for location, message in found:
+            location, message = printable(location), printable(message)
+            if len(location) > 44:
+                # A long list of option names, put the description on its own line.
+                print('    ' + location)
+                print('        ' + message)
+            else:
+                print('    %-46s %s' % (location, message))
+
+    print()
+    print('%d findings, %d of them errors' % (len(findings), errors))
+    return errors
+
+
 # ---------------------------------------------------------------------------
 # HTML output
 # ---------------------------------------------------------------------------
@@ -1085,6 +1292,8 @@ def main():
                     help='generate the simple mode options page, needs ' + METADATA_FILE)
     ap.add_argument('--enhancements', action='store_true',
                     help='generate the enhancement options page')
+    ap.add_argument('--check', action='store_true',
+                    help='check the options and the sources instead of generating a page')
     ap.add_argument('--no-metadata', action='store_true',
                     help='ignore ' + METADATA_FILE + ' and read everything from the sources')
     args = ap.parse_args()
@@ -1110,6 +1319,11 @@ def main():
         if meta_version != version:
             print('Warning: %s was written by %s but the sources are %s, it should be written again.'
                   % (METADATA_FILE, meta_version, version))
+
+    if args.check:
+        all_keys = {o['key'] for o in parse_options(args.srcdir)}
+        findings = check_options(args.srcdir, collect(args.srcdir, meta), all_keys)
+        sys.exit(1 if print_checks(findings) else 0)
 
     options = select_options(collect(args.srcdir, meta), page)
     if args.output == DEFAULT_OUTPUT:
