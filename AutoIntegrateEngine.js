@@ -5329,7 +5329,7 @@ luminanceNoiseReduction(imgWin, maskWin)
 
       this.util.addProcessingStepAndStatusInfo("Reduce noise on luminance image " + imgWin.mainView.id);
 
-      if (maskWin == null && !(this.par.use_noisexterminator.val || this.par.use_graxpert_denoise.val || this.par.use_deepsnr.val)) {
+      if (maskWin == null && !(this.par.use_noisexterminator.val || this.par.use_graxpert_denoise.val || this.par.use_deepsnr.val || this.par.use_mldenoise.val)) {
             /* Create a temporary mask. */
             var temp_mask_win = this.createNewTempMaskFromLinearWin(imgWin, false);
             maskWin = temp_mask_win;
@@ -5351,7 +5351,7 @@ channelNoiseReduction(image_id)
 
       var image_win = this.util.findWindow(image_id);
 
-      if (!(this.par.use_noisexterminator.val || this.par.use_graxpert_denoise.val || this.par.use_deepsnr.val)) {
+      if (!(this.par.use_noisexterminator.val || this.par.use_graxpert_denoise.val || this.par.use_deepsnr.val || this.par.use_mldenoise.val)) {
             /* Create a temporary mask. */
             var temp_mask_win = this.createNewTempMaskFromLinearWin(image_win, false);
       } else {
@@ -9405,7 +9405,8 @@ runACDNRReduceNoise(imgWin, maskWin)
       if (!this.par.use_ACDNR_noise_reduction.val 
           || this.par.ACDNR_noise_reduction.val == 0.0 
           || this.par.use_noisexterminator.val
-          || this.par.use_graxpert_denoise.val) 
+          || this.par.use_graxpert_denoise.val
+          || this.par.use_mldenoise.val) 
       {
             // Skip if not configured or using AI based noise reduction
             return;
@@ -9749,6 +9750,48 @@ runNoiseXTerminator(imgWin)
       this.engine_end_process(node, imgWin, "NoiseXTerminator");
 }
 
+runMLDenoise(imgWin)
+{
+      var node = this.flowchart.flowchartOperation("MLDenoise");
+      if (this.global.get_flowchart_data) {
+            return;
+      }
+
+      console.writeln("Run MLDenoise using amount " + this.par.mldenoise_amount.val + " and model " + 
+                      (this.par.mldenoise_model_path.val == "" ? "default" : this.par.mldenoise_model_path.val));
+
+      if (this.par.mldenoise_model_path.val != "" && !File.exists(this.par.mldenoise_model_path.val)) {
+            this.save_images_in_save_id_list(); // Save images so we can return with AutoContinue
+            this.util.throwFatalError("MLDenoise model file does not exist: " + this.par.mldenoise_model_path.val);
+      }
+
+      try {
+            var P = new MLDenoise;
+            if (this.par.mldenoise_model_path.val != "") {
+                  P.modelPath = this.par.mldenoise_model_path.val;
+            }
+            P.amount = this.par.mldenoise_amount.val;
+            // Other settings use the MLDenoise default values.
+      } catch(err) {
+            this.save_images_in_save_id_list(); // Save images so we can return with AutoContinue
+            console.criticalln("MLDenoise failed");
+            console.criticalln(err);
+            console.criticalln("Maybe MLDenoise is not available in this PixInsight version, AI is missing or platform is not supported");
+            this.util.throwFatalError("MLDenoise failed");
+      }
+
+      /* Execute on image.
+       */
+      imgWin.mainView.beginProcess(UndoFlag.NoSwapFile);
+
+      P.executeOn(imgWin.mainView, false);
+
+      imgWin.mainView.endProcess();
+
+      this.printAndSaveProcessValues(P, this.findChannelFromNameIf(imgWin.mainView.id), imgWin.mainView.id);
+      this.engine_end_process(node, imgWin, "MLDenoise");
+}
+
 runDeepSNR(imgWin, linear)
 {
       var node = this.flowchart.flowchartOperation("DeepSNR");
@@ -9795,6 +9838,8 @@ getNoiseReductionName()
             return "GraXpert denoise";
       } else if (this.par.use_deepsnr.val) {
             return "DeepSNR";
+      } else if (this.par.use_mldenoise.val) {
+            return "MLDenoise";
       } else {
             return "MultiscaleLinearTransform:noise";
       }
@@ -9814,6 +9859,8 @@ runNoiseReductionEx(imgWin, maskWin, strength, linear)
             this.runGraXpertExternal(imgWin, this.GraXpertCmd.denoise);
       } else if (this.par.use_deepsnr.val) {
             this.runDeepSNR(imgWin, true);
+      } else if (this.par.use_mldenoise.val) {
+            this.runMLDenoise(imgWin);
       } else {
             this.runMultiscaleLinearTransformReduceNoise(imgWin, maskWin, strength);
       }
@@ -9827,6 +9874,8 @@ runNoiseReduction(imgWin, maskWin, linear)
             this.util.addProcessingStepAndStatusInfo("Noise reduction using GraXpert on " + imgWin.mainView.id);
       } else if (this.par.use_deepsnr.val) {
             this.util.addProcessingStepAndStatusInfo("Noise reduction using DeepSNR on " + imgWin.mainView.id);
+      } else if (this.par.use_mldenoise.val) {
+            this.util.addProcessingStepAndStatusInfo("Noise reduction using MLDenoise on " + imgWin.mainView.id);
       } else {
             if (maskWin == null) {
                   this.util.addProcessingStepAndStatusInfo("Noise reduction using MultiscaleLinearTransform on " + imgWin.mainView.id + " without mask");
@@ -16674,7 +16723,7 @@ enhancementsProcessing(parent, id, apply_directly)
                         this.par.enhancements_ET.val || 
                         this.par.enhancements_HDRMLT.val || 
                         this.par.enhancements_LHE.val ||
-                        (this.par.enhancements_noise_reduction.val && !(this.par.use_noisexterminator.val || this.par.use_graxpert_denoise.val || this.par.use_deepsnr.val)) ||
+                        (this.par.enhancements_noise_reduction.val && !(this.par.use_noisexterminator.val || this.par.use_graxpert_denoise.val || this.par.use_deepsnr.val || this.par.use_mldenoise.val)) ||
                         this.par.enhancements_ACDNR.val ||
                         (this.par.enhancements_sharpen.val && !this.par.use_blurxterminator.val && !this.par.use_graxpert_deconvolution.val) ||
                         this.par.enhancements_unsharpmask.val ||
@@ -17983,6 +18032,14 @@ check_available_processes()
                   this.par.use_deepsnr.val = false;
             }
       }
+      if (this.par.use_mldenoise.val) {
+            try {
+                  P = new MLDenoise;
+            } catch (e) {
+                  this.util.addWarningStatus("MLDenoise not available");
+                  this.par.use_mldenoise.val = false;
+            }
+      }
 }
 
 /***************************************************************************
@@ -18947,6 +19004,11 @@ getProcessDefaultValues()
             this.printProcessDefaultValues("new NoiseXTerminator", new NoiseXTerminator);
       } catch (e) {
             console.criticalln("NoiseXTerminator not available");
+      }
+      try {
+            this.printProcessDefaultValues("new MLDenoise", new MLDenoise);
+      } catch (e) {
+            console.criticalln("MLDenoise not available");
       }
       try {
             this.printProcessDefaultValues("new BlurXTerminator", new BlurXTerminator);

@@ -718,6 +718,10 @@ createImageToolsControl(parent)
       var use_noisexterminator_CheckBox = this.newCheckBox(parent, "NoiseXTerminator", this.par.use_noisexterminator,
             "<p>Use NoiseXTerminator for noise reduction.</p>" +
             "<p>You can change noise reduction settings in the <i>Postprocessing / Noise reduction</i> section.</p>" );
+      var use_mldenoise_CheckBox = this.newCheckBox(parent, "MLDenoise", this.par.use_mldenoise,
+            "<p>Use MLDenoise for noise reduction.</p>" +
+            "<p>MLDenoise is a noise reduction process included in PixInsight. It is available in newer PixInsight versions.</p>" +
+            "<p>You can change noise reduction settings in the <i>Postprocessing / Noise reduction</i> section.</p>" );
       var use_starnet2_CheckBox = this.newCheckBox(parent, "StarNet2", this.par.use_starnet2,
             "<p>Use StarNet2 to remove stars from an image.</p>" );
       var use_deepsnr_CheckBox = this.newCheckBox(parent, "DeepSNR", this.par.use_deepsnr,
@@ -787,7 +791,7 @@ var GraXpert_note = "<p><b>NOTE!</b> A path to GraXpert file must be set in the 
       // Tools set 2, noise removal
       var imageToolsSet2SectionLabel = this.newSectionLabel(parent, "Noise removal");
       imageToolsSet2SectionLabel.toolTip = "<p>Select tools for noise removal if you do not want to use the default noise removal.</p>" + 
-                                                "<p>Note that these are external tools and you need to have them installed and set up correctly.</p>";
+                                                "<p>Note that except for MLDenoise these are external tools and you need to have them installed and set up correctly.</p>";
       var imageToolsSet2 = new VerticalSizer;
       imageToolsSet2.margin = 6;
       imageToolsSet2.spacing = 4;
@@ -795,6 +799,7 @@ var GraXpert_note = "<p><b>NOTE!</b> A path to GraXpert file must be set in the 
       imageToolsSet2.add( use_noisexterminator_CheckBox );
       imageToolsSet2.add( use_graxpert_denoise_CheckBox );
       imageToolsSet2.add( use_deepsnr_CheckBox );
+      imageToolsSet2.add( use_mldenoise_CheckBox );
       imageToolsSet2.addStretch();
 
       // Tools set 3, star removal

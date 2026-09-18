@@ -5947,6 +5947,53 @@ AutoIntegrateDialog()
       this.noiseReductionGroupBoxSizer5.add( this.deepSNRAmountEdit );
       this.noiseReductionGroupBoxSizer5.addStretch();
 
+      // MLDenoise noise reduction settings
+      //
+      this.noiseReductionGroupBoxLabel6 = this.guitools.newSectionLabel(this, "MLDenoise settings");
+
+      this.mldenoiseModelPathLabel = this.guitools.newLabel(this, "Model",
+            "<p>Path to the MLDenoise model file. Model files have a .xmlm extension.</p>" +
+            "<p>If no model file is given then the MLDenoise default model is used.</p>" +
+            "<p><b>NOTE!</b> Parameter is automatically saved the persistent module settings. " +
+            "The value is automatically restored when the script starts.</p>" +
+            this.guitools.skip_reset_tooltip);
+      this.mldenoiseModelPathEdit = this.guitools.newTextEdit(this, this.par.mldenoise_model_path, this.mldenoiseModelPathLabel.toolTip);
+      this.mldenoiseModelPathButton = new ToolButton( this );
+      this.mldenoiseModelPathButton.icon = this.scaledResource(":/icons/select-file.png");
+      this.mldenoiseModelPathButton.toolTip = this.mldenoiseModelPathLabel.toolTip;
+      this.mldenoiseModelPathButton.setScaledFixedSize( 20, 20 );
+      this.mldenoiseModelPathButton.onClick = () =>
+      {
+            var ofd = new OpenFileDialog;
+            ofd.multipleSelections = false;
+            ofd.caption = "Select MLDenoise model file";
+            ofd.filters = [
+                  ["MLDenoise model files", "*.xmlm"],
+                  ["All files", "*.*"]
+            ];
+            if (!ofd.execute()) {
+                  return;
+            }
+            this.mldenoiseModelPathEdit.text = ofd.fileName;
+            this.par.mldenoise_model_path.val = ofd.fileName;
+            // Save model path immediately
+            this.util.writeParameterToSettings(this.par.mldenoise_model_path);
+            console.writeln("MLDenoise model path set to: " + ofd.fileName);
+      };
+      this.mldenoiseModelPathSizer = this.guitools.newHorizontalSizer(2, true, 
+            [ this.mldenoiseModelPathLabel, this.mldenoiseModelPathEdit, this.mldenoiseModelPathButton ]);
+
+      this.mldenoiseAmountEdit = this.guitools.newNumericEdit(this, "Amount", this.par.mldenoise_amount, 0, 1, 
+            "Amount of noise reduction. Use a value between 0.00 and 1.00.");
+      this.mldenoiseAmountSizer = this.guitools.newHorizontalSizer(2, true, [ this.mldenoiseAmountEdit ]);
+
+      this.noiseReductionGroupBoxSizer6 = new VerticalSizer;
+      this.noiseReductionGroupBoxSizer6.margin = 6;
+      this.noiseReductionGroupBoxSizer6.spacing = 4;
+      this.noiseReductionGroupBoxSizer6.add( this.mldenoiseModelPathSizer );
+      this.noiseReductionGroupBoxSizer6.add( this.mldenoiseAmountSizer );
+      this.noiseReductionGroupBoxSizer6.addStretch();
+
       // BlurXTerminator settings
       //
       this.blurxterminatorGroupBoxLabel = this.guitools.newSectionLabel(this, "BlurXTerminator settings");
@@ -8190,7 +8237,9 @@ AutoIntegrateDialog()
             this.noiseReductionGroupBoxLabel4,
             this.noiseReductionGroupBoxSizer4,
             this.noiseReductionGroupBoxLabel5,
-            this.noiseReductionGroupBoxSizer5 ]);
+            this.noiseReductionGroupBoxSizer5,
+            this.noiseReductionGroupBoxLabel6,
+            this.noiseReductionGroupBoxSizer6 ]);
       this.guitools.newSectionBarAddArray(this, this.postProcessingGroupBox, "Image solving", "ps_imagesolving",
             [ this.imageSolvingGroupBoxLabel,
             this.imageSolvingGroupBoxSizer ]);

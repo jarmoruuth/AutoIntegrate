@@ -336,8 +336,12 @@ this.par = {
       nxt_tile_overlap: { val: 0.20, def: 0.20, name : "NoiseXTerminator tile overlap", type : 'R' },
 
       deepsnr_amount: { val: 0.8, def: 0.8, name : "DeepSNR amount", type : 'R' },
+
+      mldenoise_model_path: { val: "", def: "", name : "MLDenoise model path", type : 'S', skip_reset: true },
+      mldenoise_amount: { val: 0.90, def: 0.90, name : "MLDenoise amount", type : 'R' },
       
       use_noisexterminator: { val: false, def: false, name : "Use NoiseXTerminator", type : 'B' },
+      use_mldenoise: { val: false, def: false, name : "Use MLDenoise", type : 'B' },
       use_starnet2: { val: false, def: false, name : "Use StarNet2", type : 'B' },
       use_deepsnr: { val: false, def: false, name : "Use DeepSNR", type : 'B' },
       win_prefix_to_log_files: { val: false, def: false, name : "Add window prefix to log files", type : 'B', applies : "interface" },
