@@ -5953,7 +5953,7 @@ AutoIntegrateDialog()
 
       this.mldenoiseModelPathLabel = this.guitools.newLabel(this, "Model",
             "<p>Path to the MLDenoise model file. Model files have a .xmlm extension.</p>" +
-            "<p>If no model file is given then the MLDenoise default model is used.</p>" +
+            "<p>Model file must be specified here, setting it in the PixInsight process does not suffice.</p>" +
             "<p><b>NOTE!</b> Parameter is automatically saved the persistent module settings. " +
             "The value is automatically restored when the script starts.</p>" +
             this.guitools.skip_reset_tooltip);
@@ -6047,15 +6047,17 @@ AutoIntegrateDialog()
       this.blurxterminatorGroupBoxSizer.add( this.blurxterminatorGroupBoxSizer3 );
       this.blurxterminatorGroupBoxSizer.addStretch();
 
-      var starxterminator_default_ai_model = "unknown";
+      var starxterminator_default_ai_model = "default";
 
       try {
             var P = new StarXTerminator;
-            starxterminator_default_ai_model = P.ai_file
+            if (P.ai_file != undefined && P.ai_file != null) {
+                  starxterminator_default_ai_model = P.ai_file;
+            }
       } catch (e) {
       }
 
-      if (starxterminator_default_ai_model != "unknown" && this.par.starxterminator_ai_model.val == "") {
+      if (starxterminator_default_ai_model != "default" && this.par.starxterminator_ai_model.val == "") {
             this.par.starxterminator_ai_model.val = starxterminator_default_ai_model;
       }
       this.StarXTerminatorAImodeSizer = this.AImodelSizer(this, "AI model", this.par.starxterminator_ai_model, 

@@ -5382,7 +5382,7 @@ createNewStarXTerminator(star_mask, linear_data, from_lights, use_unscreen)
                   console.writeln("createNewStarXTerminator, AI model " + this.par.starxterminator_ai_model.val);
                   P.ai_file = this.par.starxterminator_ai_model.val;
             } else {
-                  console.writeln("createNewStarXTerminator, default AI model " + P.ai_file);
+                  console.writeln("createNewStarXTerminator, using default AI model");
             }
             if (this.par.starxterminator_large_overlap.val) {
                   console.writeln("createNewStarXTerminator, large overlap");
@@ -18038,6 +18038,11 @@ check_available_processes()
             } catch (e) {
                   this.util.addWarningStatus("MLDenoise not available");
                   this.par.use_mldenoise.val = false;
+            }
+            if (this.par.use_mldenoise.val) {
+                  if (this.par.mldenoise_model_path.val == "") {
+                        this.util.throwFatalError("MLDenoise model path is not specified");
+                  }
             }
       }
 }

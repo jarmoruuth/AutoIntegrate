@@ -720,8 +720,9 @@ createImageToolsControl(parent)
             "<p>You can change noise reduction settings in the <i>Postprocessing / Noise reduction</i> section.</p>" );
       var use_mldenoise_CheckBox = this.newCheckBox(parent, "MLDenoise", this.par.use_mldenoise,
             "<p>Use MLDenoise for noise reduction.</p>" +
-            "<p>MLDenoise is a noise reduction process included in PixInsight. It is available in newer PixInsight versions.</p>" +
-            "<p>You can change noise reduction settings in the <i>Postprocessing / Noise reduction</i> section.</p>" );
+            "<p>MLDenoise is a noise reduction process included in PixInsight. It is available in starting PixInsight versions 1.9.5.</p>" +
+            "<p>You can change noise reduction settings in the <i>Postprocessing / Noise reduction</i> section.</p>" +
+            "<p>Note that before using MLDenoise you need to specify the model file.</p>" );
       var use_starnet2_CheckBox = this.newCheckBox(parent, "StarNet2", this.par.use_starnet2,
             "<p>Use StarNet2 to remove stars from an image.</p>" );
       var use_deepsnr_CheckBox = this.newCheckBox(parent, "DeepSNR", this.par.use_deepsnr,
