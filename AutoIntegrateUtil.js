@@ -1594,17 +1594,32 @@ readParameterFromSettings(param)
 // Read default parameters from persistent module settings
 readParametersFromPersistentModuleSettings()
 {
-      if (this.global.do_not_read_settings) {
-            console.writeln("Use default settings, do not read parameter values from persistent module settings");
+      if (this.global.use_default_settings) {
+            console.writeln("Use default settings, use_default_settings is true");
+      } else if (this.global.do_not_read_settings) {
+            console.writeln("Do not read parameter values from persistent module settings, do_not_read_settings is true");
             return;
-      }
-      if (!this.global.ai_use_persistent_module_settings) {
-            console.writeln("skip readParametersFromPersistentModuleSettings");
+      } else if (!this.global.ai_use_persistent_module_settings) {
+            console.writeln("skip readParametersFromPersistentModuleSettings, ai_use_persistent_module_settings is false");
             return;
       }
       console.writeln("readParametersFromPersistentModuleSettings");
       for (let x in this.par) {
-            this.readParameterFromSettings(this.par[x]);
+            if (!this.global.use_default_settings) {
+                  // Default settings, read the parameter from persistent module settings
+                  var read_param = true;
+            } else if (this.par[x].skip_reset) {
+                  // We have use_default_settings and parameter is a special parameter
+                  // that should be skipped at reset, like a file path. Read
+                  // this parameter from persistent module settings.
+                  var read_param = true;
+            } else {
+                  // We have use_default_settings and a normal parameter, skip reading it from persistent module settings.
+                  var read_param = false;
+            }
+            if (read_param) {
+                  this.readParameterFromSettings(this.par[x]);
+            }
       }
 }
 

@@ -103,6 +103,7 @@ this.veraluxAutoCalcDLabel = null;
 
 this.do_not_read_settings = false;      // do not read Settings from persistent module settings
 this.do_not_write_settings = false;     // do not write Settings to persistent module settings
+this.use_default_settings = false;      // true if default settings should be used, read only non-resetable parameters
 this.use_preview = true;
 this.is_processing = this.processing_state.none;
 this.creating_mask = false;          // flag for creating mask

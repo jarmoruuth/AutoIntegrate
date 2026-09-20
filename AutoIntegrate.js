@@ -497,6 +497,7 @@ test_initialize_new()
       this.global.ai_use_persistent_module_settings = false; 
       this.global.do_not_read_settings = true;
       this.global.do_not_write_settings = true;
+      this.global.use_default_settings = true;
 
       // All logging is done by the calling test program
       this.util.loggingEnabled = false;
@@ -558,6 +559,7 @@ autointegrate_main(runsetuppath = null)
              * - runsetup=<path-to-json-setup-file>
              * - do_not_read_settings
              * - do_not_write_settings
+             * - use_default_settings
              * 
              * In the operating system command prompt the arguments can be given when the
              * script is started with a run option.
@@ -591,6 +593,9 @@ autointegrate_main(runsetuppath = null)
                   } else if (Runtime.jsArguments[i] == "do_not_write_settings") {
                         console.writeln("Found do_not_write_settings argument, no parameters are written to persistent module settings.");
                         this.global.do_not_write_settings = true;
+                  } else if (Runtime.jsArguments[i] == "use_default_settings") {
+                        console.writeln("Found use_default_settings argument, default settings will be used.");
+                        this.global.use_default_settings = true;
                   } else {
                         console.criticalln("Unknown argument " + Runtime.jsArguments[i]);
                         errors = true;

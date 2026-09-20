@@ -541,6 +541,13 @@ flowchartMaskBegin(txt)
             if (this.par.flowchart_debug.val) console.writeln("flowchartMaskBegin " + txt);
       }
       var node = this.flowchartCheckOperationList("mask", txt);
+      if (node.list.length > 0) {
+            /* Node is reused from the previous flowchart run and it already has
+             * the suboperations from that run. Clear them so that suboperations
+             * from this run are not added to the old ones.
+             */
+            node.list = [];
+      }
       this.flowchartStack.push(this.flowchartCurrent);
       var newFlowchartCurrent = node;
       this.flowchartCurrent.list.push(newFlowchartCurrent);
