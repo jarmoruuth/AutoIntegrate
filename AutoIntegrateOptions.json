@@ -1,6 +1,6 @@
 {
- "version": "AutoIntegrate v1.87 test1",
- "generated": "Tue Sep 08 2026 23:14:04 GMT+0300 (FLE Daylight Time)",
+ "version": "AutoIntegrate v1.87.2 test3",
+ "generated": "Mon Sep 21 2026 18:34:52 GMT+0300 (FLE Daylight Time)",
  "options": [
   {
    "key": "local_normalization",
@@ -3275,7 +3275,7 @@
     {
      "kind": "checkbox",
      "label": "BlurXTerminator",
-     "tooltip": "<p>Use BlurXTerminator for sharpening and deconvolution.</p><p>BlurXTerminator is applied on the linear image just before it is stretched to non-linear. Enhancements option for sharpening can be used to apply BlurXTerminator on non-linear image.</p><p>Some options for BlurXTerminator can be adjusted in the <i>Tools / BlurXTerminator</i> section.</p><p>When using BlurXTerminator it is recommended to do noise reduction after BluxXTerminator by checking option <i>Combined image noise reduction</i> or <i>Non-linear noise reduction</i>. But it is always good to experiment what is best for your own data.</p><p>Sometimes on starless images PSF value can not be calculated. Then a manual value should be given or BlurXTerminator should not be used.</p>",
+     "tooltip": "<p>Use BlurXTerminator for sharpening and deconvolution.</p><p>BlurXTerminator is applied on the linear image just before it is stretched to non-linear. Enhancements option for sharpening can be used to apply BlurXTerminator on non-linear image.</p><p>Some options for BlurXTerminator can be adjusted in the <i>Tools / BlurXTerminator</i> section.</p><p>Noise reduction should be done after BlurXTerminator. Option <i>Auto</i> in the noise reduction options does that, other possible options are <i>Processed linear image</i> and <i>Non-linear image</i>. But it is always good to experiment what is best for your own data.</p><p>Sometimes on starless images PSF value can not be calculated. Then a manual value should be given or BlurXTerminator should not be used.</p>",
      "values": null,
      "min": null,
      "max": null,
@@ -3295,7 +3295,7 @@
    "in_gui": true,
    "kind": "checkbox",
    "label": "BlurXTerminator",
-   "tooltip": "<p>Use BlurXTerminator for sharpening and deconvolution.</p><p>BlurXTerminator is applied on the linear image just before it is stretched to non-linear. Enhancements option for sharpening can be used to apply BlurXTerminator on non-linear image.</p><p>Some options for BlurXTerminator can be adjusted in the <i>Tools / BlurXTerminator</i> section.</p><p>When using BlurXTerminator it is recommended to do noise reduction after BluxXTerminator by checking option <i>Combined image noise reduction</i> or <i>Non-linear noise reduction</i>. But it is always good to experiment what is best for your own data.</p><p>Sometimes on starless images PSF value can not be calculated. Then a manual value should be given or BlurXTerminator should not be used.</p>",
+   "tooltip": "<p>Use BlurXTerminator for sharpening and deconvolution.</p><p>BlurXTerminator is applied on the linear image just before it is stretched to non-linear. Enhancements option for sharpening can be used to apply BlurXTerminator on non-linear image.</p><p>Some options for BlurXTerminator can be adjusted in the <i>Tools / BlurXTerminator</i> section.</p><p>Noise reduction should be done after BlurXTerminator. Option <i>Auto</i> in the noise reduction options does that, other possible options are <i>Processed linear image</i> and <i>Non-linear image</i>. But it is always good to experiment what is best for your own data.</p><p>Sometimes on starless images PSF value can not be calculated. Then a manual value should be given or BlurXTerminator should not be used.</p>",
    "values": null,
    "min": null,
    "max": null
@@ -3985,6 +3985,78 @@
    "max": 1
   },
   {
+   "key": "mldenoise_model_path",
+   "name": "MLDenoise model path",
+   "type": "S",
+   "def": "",
+   "tip": "",
+   "applies": "",
+   "controls": [
+    {
+     "kind": "text",
+     "label": "",
+     "tooltip": "<p>Path to the MLDenoise model file. Model files have a .xmlm extension.</p><p>Model file must be specified here, setting it in the PixInsight process does not suffice.</p><p><b>NOTE!</b> Parameter is automatically saved the persistent module settings. The value is automatically restored when the script starts.</p><p>Note that this parameter is not reset or saved to Json file.</p>",
+     "values": null,
+     "min": null,
+     "max": null,
+     "tab": "Postprocessing",
+     "section": "Noise reduction",
+     "expert": true,
+     "located": true
+    }
+   ],
+   "expert": true,
+   "tabs": [
+    "Postprocessing"
+   ],
+   "sections": [
+    "Noise reduction"
+   ],
+   "in_gui": true,
+   "kind": "text",
+   "label": "",
+   "tooltip": "<p>Path to the MLDenoise model file. Model files have a .xmlm extension.</p><p>Model file must be specified here, setting it in the PixInsight process does not suffice.</p><p><b>NOTE!</b> Parameter is automatically saved the persistent module settings. The value is automatically restored when the script starts.</p><p>Note that this parameter is not reset or saved to Json file.</p>",
+   "values": null,
+   "min": null,
+   "max": null
+  },
+  {
+   "key": "mldenoise_amount",
+   "name": "MLDenoise amount",
+   "type": "R",
+   "def": 0.9,
+   "tip": "",
+   "applies": "",
+   "controls": [
+    {
+     "kind": "number",
+     "label": "Amount",
+     "tooltip": "Amount of noise reduction. Use a value between 0.00 and 1.00.",
+     "values": null,
+     "min": 0,
+     "max": 1,
+     "tab": "Postprocessing",
+     "section": "Noise reduction",
+     "expert": true,
+     "located": true
+    }
+   ],
+   "expert": true,
+   "tabs": [
+    "Postprocessing"
+   ],
+   "sections": [
+    "Noise reduction"
+   ],
+   "in_gui": true,
+   "kind": "number",
+   "label": "Amount",
+   "tooltip": "Amount of noise reduction. Use a value between 0.00 and 1.00.",
+   "values": null,
+   "min": 0,
+   "max": 1
+  },
+  {
    "key": "use_noisexterminator",
    "name": "Use NoiseXTerminator",
    "type": "B",
@@ -4016,6 +4088,42 @@
    "kind": "checkbox",
    "label": "NoiseXTerminator",
    "tooltip": "<p>Use NoiseXTerminator for noise reduction.</p><p>You can change noise reduction settings in the <i>Postprocessing / Noise reduction</i> section.</p>",
+   "values": null,
+   "min": null,
+   "max": null
+  },
+  {
+   "key": "use_mldenoise",
+   "name": "Use MLDenoise",
+   "type": "B",
+   "def": false,
+   "tip": "",
+   "applies": "",
+   "controls": [
+    {
+     "kind": "checkbox",
+     "label": "MLDenoise",
+     "tooltip": "<p>Use MLDenoise for noise reduction.</p><p>MLDenoise is a noise reduction process included in PixInsight. It is available starting from PixInsight version 1.9.5.</p><p>You can change noise reduction settings in the <i>Postprocessing / Noise reduction</i> section.</p><p>Note that before using MLDenoise you need to specify the model file.</p>",
+     "values": null,
+     "min": null,
+     "max": null,
+     "tab": "Settings",
+     "section": "Tools",
+     "expert": false,
+     "located": true
+    }
+   ],
+   "expert": false,
+   "tabs": [
+    "Settings"
+   ],
+   "sections": [
+    "Tools"
+   ],
+   "in_gui": true,
+   "kind": "checkbox",
+   "label": "MLDenoise",
+   "tooltip": "<p>Use MLDenoise for noise reduction.</p><p>MLDenoise is a noise reduction process included in PixInsight. It is available starting from PixInsight version 1.9.5.</p><p>You can change noise reduction settings in the <i>Postprocessing / Noise reduction</i> section.</p><p>Note that before using MLDenoise you need to specify the model file.</p>",
    "values": null,
    "min": null,
    "max": null
@@ -6506,7 +6614,7 @@
     {
      "kind": "checkbox",
      "label": "Auto",
-     "tooltip": "<p>Select automatically correct time for noise reduction.</p><p>If BlurXTerminator is used, then processed linear image noise reduction is used. Otherwise channel noise reduction is used except for OSC/color images where processed linear image is used.</p>",
+     "tooltip": "<p>Select automatically correct time for noise reduction.</p><p>Noise reduction is done on the processed linear image, that is, on the combined RGB or color/OSC image and on the luminance image. It is done after possible deconvolution with BlurXTerminator or GraXpert and before the image is stretched to non-linear.</p><p>Noise reduction is done on the combined image and not on the individual channel images.</p>",
      "values": null,
      "min": null,
      "max": null,
@@ -6526,7 +6634,7 @@
    "in_gui": true,
    "kind": "checkbox",
    "label": "Auto",
-   "tooltip": "<p>Select automatically correct time for noise reduction.</p><p>If BlurXTerminator is used, then processed linear image noise reduction is used. Otherwise channel noise reduction is used except for OSC/color images where processed linear image is used.</p>",
+   "tooltip": "<p>Select automatically correct time for noise reduction.</p><p>Noise reduction is done on the processed linear image, that is, on the combined RGB or color/OSC image and on the luminance image. It is done after possible deconvolution with BlurXTerminator or GraXpert and before the image is stretched to non-linear.</p><p>Noise reduction is done on the combined image and not on the individual channel images.</p>",
    "values": null,
    "min": null,
    "max": null
@@ -9008,7 +9116,7 @@
     {
      "kind": "text",
      "label": "",
-     "tooltip": "<p>Select AI model for AI model</p><p>Use the selected AI model. Default AI model is undefined</p><p>AI models are stored in the PixInsight installation directory and have a .pb extension. At least in Windows they are in PixInsight/library directory.</p>",
+     "tooltip": "<p>Select AI model for AI model</p><p>Use the selected AI model. Default AI model is default</p><p>AI models are stored in the PixInsight installation directory and have a .pb extension. At least in Windows they are in PixInsight/library directory.</p>",
      "values": null,
      "min": null,
      "max": null,
@@ -9028,7 +9136,7 @@
    "in_gui": true,
    "kind": "text",
    "label": "",
-   "tooltip": "<p>Select AI model for AI model</p><p>Use the selected AI model. Default AI model is undefined</p><p>AI models are stored in the PixInsight installation directory and have a .pb extension. At least in Windows they are in PixInsight/library directory.</p>",
+   "tooltip": "<p>Select AI model for AI model</p><p>Use the selected AI model. Default AI model is default</p><p>AI models are stored in the PixInsight installation directory and have a .pb extension. At least in Windows they are in PixInsight/library directory.</p>",
    "values": null,
    "min": null,
    "max": null
@@ -16036,7 +16144,7 @@
     {
      "kind": "checkbox",
      "label": "Noise reduction",
-     "tooltip": "<p>Noise reduction on image.</p><p>AI based noise reduction using NoiseXTerminator, GraXpert denoise or DeepSNR do not use a mask.</p> <p>Default noise reduction using MultiscaleLinerTransform is done using a luminance mask to target noise reduction on darker areas of the image.</p>",
+     "tooltip": "<p>Noise reduction on image.</p><p>AI based noise reduction using NoiseXTerminator, GraXpert denoise, DeepSNR or MLDenoise do not use a mask.</p> <p>Default noise reduction using MultiscaleLinerTransform is done using a luminance mask to target noise reduction on darker areas of the image.</p>",
      "values": null,
      "min": null,
      "max": null,
@@ -16056,7 +16164,7 @@
    "in_gui": true,
    "kind": "checkbox",
    "label": "Noise reduction",
-   "tooltip": "<p>Noise reduction on image.</p><p>AI based noise reduction using NoiseXTerminator, GraXpert denoise or DeepSNR do not use a mask.</p> <p>Default noise reduction using MultiscaleLinerTransform is done using a luminance mask to target noise reduction on darker areas of the image.</p>",
+   "tooltip": "<p>Noise reduction on image.</p><p>AI based noise reduction using NoiseXTerminator, GraXpert denoise, DeepSNR or MLDenoise do not use a mask.</p> <p>Default noise reduction using MultiscaleLinerTransform is done using a luminance mask to target noise reduction on darker areas of the image.</p>",
    "values": null,
    "min": null,
    "max": null

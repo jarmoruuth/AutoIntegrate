@@ -5215,6 +5215,17 @@ mapRGBchannel(images, refimage, mapping, is_luminance, name)
       return target_image;
 }
 
+/* Check if noise reduction should be done.
+
+ Parameter phase defines at which point this function is called:
+ Possible values are:
+ - 'channel':     noise reduction for individual RGB channels when using mono cameras
+ - 'combined':    noise reduction for combined RGB image
+ - 'processed':   noise reduction for processed RGB image, some processing is done 
+                  for the image, like BlurXTerminator or GraXpert deconvolution
+ - 'nonlinear':   noise reduction for nonlinear, or stretched, image
+
+*/
 checkNoiseReduction(image, phase)
 {
       let noise_reduction = false;
@@ -5238,38 +5249,28 @@ checkNoiseReduction(image, phase)
                               if (this.par.channel_noise_reduction.val) {
                                     noise_reduction = true;
                               } else if (this.par.auto_noise_reduction.val) {
-                                    if (this.par.use_blurxterminator.val || this.par.use_graxpert_deconvolution.val || this.par.use_mldenoise.val) {
-                                          noise_reduction = false;
-                                    } else {
-                                          noise_reduction = true;
-                                    }
+                                    noise_reduction = false;
                               }
                               break;
                         case 'combined':
-                              noise_reduction = this.par.combined_image_noise_reduction.val;
+                              if (this.par.combined_image_noise_reduction.val) {
+                                    noise_reduction = true;
+                              } else if (this.par.auto_noise_reduction.val) {
+                                    noise_reduction = false;
+                              }
                               break;
                         case 'processed':
                               if (this.par.processed_image_noise_reduction.val) {
                                     noise_reduction = true;
-                              } else if (this.par.auto_noise_reduction.val) {
-                                    if (this.par.use_mldenoise.val) {
-                                          noise_reduction = false;
-                                    } else if (this.par.use_blurxterminator.val || this.par.use_graxpert_deconvolution.val) {
-                                          noise_reduction = true;
-                                    } else {
-                                          noise_reduction = false;
-                                    }
+                              } else if (this.par.auto_noise_reduction.val) {       // Default for L
+                                    noise_reduction = true;
                               }
                               break;
                         case 'nonlinear':
                               if (this.par.non_linear_noise_reduction.val) {
                                     noise_reduction = true;
                               } else if (this.par.auto_noise_reduction.val) {
-                                    if (this.par.use_mldenoise.val) {
-                                          noise_reduction = true;
-                                    } else {
-                                          noise_reduction = false;
-                                    }
+                                    noise_reduction = false;
                               }
                               break;
                         default:
@@ -5290,34 +5291,21 @@ checkNoiseReduction(image, phase)
                               if (this.par.channel_noise_reduction.val) {
                                     noise_reduction = true;
                               } else if (this.par.auto_noise_reduction.val) {
-                                    // Auto select noise reduction
-                                    if (this.par.use_blurxterminator.val || this.par.use_graxpert_deconvolution.val || this.par.use_mldenoise.val) {
-                                          // Skip noise reduction on linear channel images if BlurXterminator, GraXpert Deconvolution, or MLDenoise is used
-                                          noise_reduction = false;
-                                    } else {
-                                          // Do noise reduction on linear channel images
-                                          noise_reduction = true;
-                                    }
+                                    noise_reduction = false;
                               }
                               break;
                         case 'combined':
-                              noise_reduction = this.par.combined_image_noise_reduction.val;
+                              if (this.par.combined_image_noise_reduction.val) {
+                                    noise_reduction = true;
+                              } else if (this.par.auto_noise_reduction.val) {
+                                    noise_reduction = false;
+                              }
                               break;
                         case 'processed':
                               if (this.par.processed_image_noise_reduction.val) {
                                     noise_reduction = true;
-                              } else if (this.par.auto_noise_reduction.val) {
-                                    // Auto select noise reduction
-                                    if (this.par.use_mldenoise.val) {
-                                          // Skip noise reduction on linear combined images with MLDenoise
-                                          noise_reduction = false;
-                                    } else if (this.par.use_blurxterminator.val || this.par.use_graxpert_deconvolution.val) {
-                                          // Do noise reduction on linear combined images if BlurXterminator or GraXpert Deconvolution is used
-                                          noise_reduction = true;
-                                    } else {
-                                          // Skip noise reduction on combined images
-                                          noise_reduction = false;
-                                    }
+                              } else if (this.par.auto_noise_reduction.val) {       // Default for combined RGB
+                                    noise_reduction = true;
                               }
                               break;
                         case 'nonlinear':
@@ -5325,12 +5313,7 @@ checkNoiseReduction(image, phase)
                                     noise_reduction = true;
                               } else if (this.par.auto_noise_reduction.val) {
                                     // Auto select noise reduction for nonlinear images
-                                    if (this.par.use_mldenoise.val) {
-                                          // Use noise reduction on nonlinear combined images with MLDenoise
-                                          noise_reduction = true;
-                                    } else {
-                                          noise_reduction = false;
-                                    }
+                                    noise_reduction = false;
                               }
                               break;
                         default:
@@ -5349,28 +5332,24 @@ checkNoiseReduction(image, phase)
                   }
                   switch (phase) {
                         case 'combined':
-                              noise_reduction = this.par.combined_image_noise_reduction.val;
-                              break;
-                        case 'processed':
-                              if (this.par.processed_image_noise_reduction.val) {
+                              if (this.par.combined_image_noise_reduction.val) {
                                     noise_reduction = true;
                               } else if (this.par.auto_noise_reduction.val) {
-                                    if (this.par.use_mldenoise.val) {
-                                          noise_reduction = false;
-                                    } else {
-                                          noise_reduction = true;
-                                    }
+                                    noise_reduction = false;
+                              }
+                              break;
+                        case 'processed':
+                              if (this.par.processed_image_noise_reduction.val) {       // Default for color/OSC image
+                                    noise_reduction = true;
+                              } else if (this.par.auto_noise_reduction.val) {
+                                    noise_reduction = true;
                               }     
                               break;
                         case 'nonlinear':
                               if (this.par.non_linear_noise_reduction.val) {
                                     noise_reduction = true;
                               } else if (this.par.auto_noise_reduction.val) {
-                                    if (this.par.use_mldenoise.val) {
-                                          noise_reduction = true;
-                                    } else {
-                                          noise_reduction = false;
-                                    }
+                                    noise_reduction = false;
                               }     
                               break;
                         default:
@@ -14831,21 +14810,6 @@ processRGBimage(RGBmapping)
                   /* Color or narrowband or RGB. */
                   this.colorEnsureMask(this.RGB_processed_id, RGBmapping.stretched, false);
             }
-            if (this.process_narrowband && this.par.linear_increase_saturation.val > 0) {
-                  /* Default 1 means no increase with narrowband. */
-                  var linear_increase_saturation = this.par.linear_increase_saturation.val - 1;
-            } else {
-                  var linear_increase_saturation = this.par.linear_increase_saturation.val;
-            }
-            if (linear_increase_saturation > 0 && !RGBmapping.stretched) {
-                  /* Add saturation linear RGB
-                  */
-                  console.writeln("Add saturation to linear RGB, " + linear_increase_saturation + " steps");
-                  for (var i = 0; i < linear_increase_saturation; i++) {
-                        this.increaseSaturation(ImageWindow.windowById(this.RGB_processed_id), this.mask_win);
-                  }
-            }
-
             if (!RGBmapping.stretched) {
                   if (!this.par.skip_sharpening.val) {
                         if (this.par.use_blurxterminator.val) {
@@ -14857,6 +14821,23 @@ processRGBimage(RGBmapping)
                   /* Check noise reduction only after BlurXTerminator. */
                   if (this.checkNoiseReduction(this.is_color_files ? 'color' : 'RGB', 'processed')) {
                         this.runNoiseReduction(ImageWindow.windowById(this.RGB_processed_id), this.mask_win, !RGBmapping.stretched);
+                  }
+                  /* Add saturation after noise reduction so we do not increase
+                   * the color noise before it is removed.
+                   */
+                  if (this.process_narrowband && this.par.linear_increase_saturation.val > 0) {
+                        /* Default 1 means no increase with narrowband. */
+                        var linear_increase_saturation = this.par.linear_increase_saturation.val - 1;
+                  } else {
+                        var linear_increase_saturation = this.par.linear_increase_saturation.val;
+                  }
+                  if (linear_increase_saturation > 0) {
+                        /* Add saturation linear RGB
+                        */
+                        console.writeln("Add saturation to linear RGB, " + linear_increase_saturation + " steps");
+                        for (var i = 0; i < linear_increase_saturation; i++) {
+                              this.increaseSaturation(ImageWindow.windowById(this.RGB_processed_id), this.mask_win);
+                        }
                   }
                   if (this.par.use_RGBHa_Mapping.val) {
                         /* Initialize RGBHa mapping using combined and color calibrated linear RGB image. */

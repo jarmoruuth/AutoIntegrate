@@ -68,7 +68,7 @@ constructor(parent, global, util, engine) {
                                                 "<li>Screen - Similar to screen in Photoshop</li>" +
                                                 "<li>Lighten - Similar to lighten in Photoshop</li>" +
                                                 "</ul>";
-      this. noiseReductionToolTipCommon = "<p>AI based noise reduction using NoiseXTerminator, GraXpert denoise or DeepSNR do not use a mask.</p> " +
+      this. noiseReductionToolTipCommon = "<p>AI based noise reduction using NoiseXTerminator, GraXpert denoise, DeepSNR or MLDenoise do not use a mask.</p> " +
                                           "<p>Default noise reduction using MultiscaleLinerTransform is done using a luminance mask to target noise " + 
                                           "reduction on darker areas of the image.</p>";
       this. ACDNR_StdDev_tooltip =  "<p>A mild ACDNR noise reduction with StdDev value between 1.0 and 2.0 can be useful to smooth image and reduce black spots " + 
@@ -720,7 +720,7 @@ createImageToolsControl(parent)
             "<p>You can change noise reduction settings in the <i>Postprocessing / Noise reduction</i> section.</p>" );
       var use_mldenoise_CheckBox = this.newCheckBox(parent, "MLDenoise", this.par.use_mldenoise,
             "<p>Use MLDenoise for noise reduction.</p>" +
-            "<p>MLDenoise is a noise reduction process included in PixInsight. It is available in starting PixInsight versions 1.9.5.</p>" +
+            "<p>MLDenoise is a noise reduction process included in PixInsight. It is available starting from PixInsight version 1.9.5.</p>" +
             "<p>You can change noise reduction settings in the <i>Postprocessing / Noise reduction</i> section.</p>" +
             "<p>Note that before using MLDenoise you need to specify the model file.</p>" );
       var use_starnet2_CheckBox = this.newCheckBox(parent, "StarNet2", this.par.use_starnet2,
@@ -733,8 +733,8 @@ createImageToolsControl(parent)
             "<p>BlurXTerminator is applied on the linear image just before it is stretched to non-linear. Enhancements " +
             "option for sharpening can be used to apply BlurXTerminator on non-linear image.</p>" +
             "<p>Some options for BlurXTerminator can be adjusted in the <i>Tools / BlurXTerminator</i> section.</p>" +
-            "<p>When using BlurXTerminator it is recommended to do noise reduction after BluxXTerminator " + 
-            "by checking option <i>Combined image noise reduction</i> or <i>Non-linear noise reduction</i>. " + 
+            "<p>Noise reduction should be done after BlurXTerminator. Option <i>Auto</i> in the noise reduction " + 
+            "options does that, other possible options are <i>Processed linear image</i> and <i>Non-linear image</i>. " + 
             "But it is always good to experiment what " +
             "is best for your own data.</p>" + 
             "<p>" + this.BXT_no_PSF_tip + "</p>");

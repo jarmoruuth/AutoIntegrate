@@ -28,13 +28,14 @@ super();
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-this.autointegrate_version = "AutoIntegrate v1.87.2 test2"; // Version, also updated into updates.xri
+this.autointegrate_version = "AutoIntegrate v1.87.2 test3"; // Version, also updated into updates.xri
 this.autointegrate_info = "MLDenoise";               // For updates.xri
 
 this.autointegrate_version_info = [
       "Changes since the previous version:",
       "- Support for MLDenoise",
       "- Small UI updates",
+      "- Bug fixes",
 ];
 
 /* Interface version changes:

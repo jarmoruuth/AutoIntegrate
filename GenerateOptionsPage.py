@@ -38,6 +38,16 @@ option may need a new grouping rule.
 
 Usage:
 
+    Before running this: 
+    1. Start AutoIntegrate 
+    2. Run Interface / Write options metadata
+
+    Run all options updates with the batch file:
+
+    updateoptions.bat
+
+    or run the script directly with Python:
+
     python GenerateOptionsPage.py [-o OUTPUT.html] [--stats]
     python GenerateOptionsPage.py --simple
     python GenerateOptionsPage.py --enhancements

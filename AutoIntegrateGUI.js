@@ -5807,11 +5807,13 @@ AutoIntegrateDialog()
 
       this.noise_reduction_checkbox_label = this.guitools.newLabel(this, "Noise reduction on", 
                                                 "Select when noise reduction is done. Multiple options can be selected. " +
-                                                "When using BlurXTerminator it is recommended to use Combined image noise reduction.");
+                                                "With option Auto noise reduction is done on the processed linear image.");
       this.auto_noise_reduction_CheckBox = this.guitools.newCheckBox(this, "Auto", this.par.auto_noise_reduction,
             "<p>Select automatically correct time for noise reduction.</p>" + 
-            "<p>If BlurXTerminator is used, then processed linear image noise reduction is used. Otherwise " + 
-            "channel noise reduction is used except for OSC/color images where processed linear image is used.</p>");
+            "<p>Noise reduction is done on the processed linear image, that is, on the combined RGB or color/OSC image " + 
+            "and on the luminance image. It is done after possible deconvolution with BlurXTerminator or GraXpert " + 
+            "and before the image is stretched to non-linear.</p>" +
+            "<p>Noise reduction is done on the combined image and not on the individual channel images.</p>");
       this.channel_noise_reduction_CheckBox = this.guitools.newCheckBox(this, "Channel image", this.par.channel_noise_reduction,
             "<p>Do noise reduction on each color channels and luminance image separately.</p>" + 
             "<p>This option does nothing with color/OSC images.</p>");

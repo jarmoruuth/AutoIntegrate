@@ -94,26 +94,36 @@ Steps with LRGB files
    or with narrowband Integration_H, Integration_S and Integration_O.
 2. Optionally the Integration images and corresponding support images are cropped to the area
    contributed to by all images.
-3. Optionally gradient correction in run on L image. <lGC>
-4. HistogramTransform is run on L image. <lHT>
-5. Stretched L image is stored as a mask unless user has a predefined mask named AutoMask.
-6. Noise reduction is run on L image using a mask.
-7. If GC_before_channel_combination is selected then gradient correction is run on each color channel (R,G,B). 
+3. A mask is created from a stretched copy of the L image unless user has a predefined 
+   mask named AutoMask. The L image itself stays linear.
+4. Optionally gradient correction in run on L image. <lGC>
+5. With option Channel image or Combined image noise reduction is run on L image.
+6. Optionally BlurXTerminator or GraXpert deconvolution is run on L image.
+7. Noise reduction is run on L image using a mask. With the default option Auto this is
+   done here, after deconvolution and while the image is still linear.
+8. HistogramTransform is run on L image. <lHT> With option Non-linear image noise reduction
+   is run after the stretch.
+9. If GC_before_channel_combination is selected then gradient correction is run on each color channel (R,G,B). 
    <rgbGC>
-8. By default LinearFit is run on RGB channels using L, R, G or B as a reference
-9. If Channel noise reduction is non-zero then noise reduction is done separately 
-   for each R,G and B images using a mask.
-10. ChannelCombination is run on Red, Green and Blue integrated images to
-   create an RGB image. After that there is one L and one RGB image.
-12. Optionally gradient correction is run on RGB image. <rgbGC>
-13. Color calibration is run on RGB image. Optionally
+10. By default LinearFit is run on RGB channels using L, R, G or B as a reference
+11. With option Channel image noise reduction is done separately 
+    for each R,G and B images using a mask.
+12. ChannelCombination is run on Red, Green and Blue integrated images to
+    create an RGB image. After that there is one L and one RGB image.
+13. Optionally gradient correction is run on RGB image. <rgbGC>
+14. Color calibration is run on RGB image. Optionally
     BackgroundNeutralization is run before color calibration
-14. HistogramTransform is run on RGB image. <rgbHT>
-15. Optionally TGVDenoise is run to reduce color noise.
-16. Optionally a slight CurvesTransformation is run on RGB image to increase saturation.
+15. Optionally BlurXTerminator or GraXpert deconvolution is run on RGB image.
+16. Noise reduction is run on RGB image. With the default option Auto this is done here, 
+    after deconvolution and while the image is still linear.
+17. Optionally a slight CurvesTransformation is run on RGB image to increase saturation.
     By default saturation is increased also when the image is still in a linear
-    format.
-17. LRGBCombination is run to generate final LRGB image.
+    format. It is done after noise reduction so that color noise is not increased
+    before it is removed.
+18. HistogramTransform is run on RGB image. <rgbHT> With option Non-linear image noise
+    reduction is run after the stretch.
+19. LRGBCombination is run to generate final LRGB image.
+20. Optionally TGVDenoise is run to reduce color noise.
 
 Steps with color files
 ----------------------
@@ -121,14 +131,19 @@ Steps with color files
 1. ImageIntegration is run on color *_a_r.xisf files.
    Rejection method is chosen dynamically based on the number of image files.
    After this step there is Integration_RGB_color image.
+2. With option Combined image noise reduction is run on the integrated image.
 3. Optionally gradient correction in run on RGB image. <colorGC>
 4. Color calibration is run on RGB image. Optionally
    BackgroundNeutralization is run before color calibration
-5. HistogramTransform is run on RGB image. <colorHT>
-6. A mask is created from an extracted and stretched luminance channel.
-7. MultiscaleLinearTransform is run on color RGB image to reduce noise.
+5. A mask is created from an extracted and stretched luminance channel.
+6. Optionally BlurXTerminator or GraXpert deconvolution is run on RGB image.
+7. MultiscaleLinearTransform is run on color RGB image to reduce noise. With the default
+   option Auto this is done here, after deconvolution and while the image is still linear.
    Mask is used to target noise reduction more on the background.
 8. Optionally a slight CurvesTransformation is run on RGB image to increase saturation.
+   It is done after noise reduction so that color noise is not increased before it is removed.
+9. HistogramTransform is run on RGB image. <colorHT> With option Non-linear image noise
+   reduction is run after the stretch.
 
 Steps with narrowband files
 ---------------------------
