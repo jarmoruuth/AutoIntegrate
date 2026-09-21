@@ -13974,8 +13974,21 @@ create_HRR(nb_channel_id, rgb_channel_id)
 
 create_continuum_subtracted_image(hrr_win)
 {
+      /* Median of the continuum channel is calculated here and used as a value in the
+       * expression. Using med($T[1]) in the expression does not always give the median
+       * of the current image data. Median is calculated from the image data and not
+       * from the view properties which may have a cached value from an earlier state
+       * of the image.
+       */
+      var image = hrr_win.mainView.image;
+      image.resetSelections();
+      image.selectedChannel = 1;
+      var median = image.median();
+      image.resetSelections();
+      console.writeln("create_continuum_subtracted_image, continuum channel median " + median);
+
       var P = new PixelMath;
-      P.expression = "$T[0] - ($T[1] - med($T[1]))";
+      P.expression = "$T[0] - ($T[1] - " + median.toFixed(10) + ")";
       P.expression1 = "";
       P.expression2 = "";
       P.expression3 = "";
@@ -14008,8 +14021,18 @@ create_continuum_subtracted_image(hrr_win)
 
 normalize_image(imgWin)
 {
+      /* Median is calculated here and used as a value in the expression. Using med($T)
+       * in the expression does not always give the median of the current image data.
+       * Median is calculated from the image data and not from the view properties
+       * which may have a cached value from an earlier state of the image.
+       */
+      var image = imgWin.mainView.image;
+      image.resetSelections();
+      var median = image.median();
+      console.writeln("normalize_image, median " + median);
+
       var P = new PixelMath;
-      P.expression = "($T - med($T)) / ~med($T)";
+      P.expression = "($T - " + median.toFixed(10) + ") / " + (1 - median).toFixed(10);
       P.expression1 = "";
       P.expression2 = "";
       P.expression3 = "";
@@ -14052,7 +14075,7 @@ boost_Ha(imgWin, boost_factor)
 {
       var P = new ExponentialTransformation;
       P.functionType = ExponentialTransformation.PIP;
-      P.order = this.par.RGBHa_boost.val;
+      P.order = boost_factor;
       P.sigma = 0.00;
       P.useLightnessMask = true;
 
@@ -14086,12 +14109,12 @@ RGBHa_ContinuumSubtract(nb_channel_id, rgb_channel_id, rgb_is_linear, testmode)
       if (rgb_is_linear && nb_channel_nonlinear != null) {
             console.writeln("RGBHa_ContinuumSubtract, rgb_channel_nonlinear is " + rgb_channel_nonlinear + ", nb_channel_nonlinear is " + nb_channel_nonlinear);
             this.save_images_in_save_id_list(); // Save images so we can retur with AutoContinue
-            this.util.throwFatalError("RGBHa_ContinuumSubtract, no AutoIntegrateNonLinear keyword found for Ha channel");
+            this.util.throwFatalError("RGBHa_ContinuumSubtract, Ha channel image is not linear but RGB image is linear");
       }
       if (rgb_is_linear && rgb_channel_nonlinear != null) {
             console.writeln("RGBHa_ContinuumSubtract, rgb_channel_nonlinear is " + rgb_channel_nonlinear + ", nb_channel_nonlinear is " + nb_channel_nonlinear);
             this.save_images_in_save_id_list(); // Save images so we can retur with AutoContinue
-            this.util.throwFatalError("RGBHa_ContinuumSubtract, RGB channel is linear but no AutoIntegrateNonLinear keyword found");
+            this.util.throwFatalError("RGBHa_ContinuumSubtract, RGB channel image is not linear but RGB image is linear");
       }
       if ((nb_channel_nonlinear == null) != (rgb_channel_nonlinear == null)) {
             console.writeln("RGBHa_ContinuumSubtract, rgb_channel_nonlinear is " + rgb_channel_nonlinear + ", nb_channel_nonlinear is " + nb_channel_nonlinear);
@@ -14105,7 +14128,7 @@ RGBHa_ContinuumSubtract(nb_channel_id, rgb_channel_id, rgb_is_linear, testmode)
       if (this.par.RGBHa_smoothen_background.val) {
             if (this.par.smoothbackground.val == 0) {
                   console.writeln("RGBHa_ContinuumSubtract, smoothen background on " + rgb_channel_id);
-                  this.smoothBackgroundBeforeGC(this.util.findWindow(rgb_channel_id), this.par.RGBHa_smoothen_background_value.val), rgb_is_linear;
+                  this.smoothBackgroundBeforeGC(this.util.findWindow(rgb_channel_id), this.par.RGBHa_smoothen_background_value.val, rgb_is_linear);
             } else {
                   console.writeln("RGBHa_ContinuumSubtract, smoothen background on " + rgb_channel_id + " skipped because smoothbackground is " + this.par.smoothbackground.val);
             }
@@ -14200,11 +14223,6 @@ RGBHa_ContinuumSubtract(nb_channel_id, rgb_channel_id, rgb_is_linear, testmode)
             /* Normalize image.
              */
             console.writeln("RGBHa_ContinuumSubtract, normalize image using PixelMath");
-            this.normalize_image(enhanced_channel_win);
-
-            // It is totally unclear to me why this needs to be done twice to get proper results???
-            // When running on desktop it works with only one run.
-            this.util.add_test_image(enhanced_channel_id, "Integration_H_NB_enhanced_normalized_1st", testmode);
             this.normalize_image(enhanced_channel_win);
 
             this.util.add_test_image(enhanced_channel_id, "Integration_H_NB_enhanced_normalized", testmode);
