@@ -475,6 +475,15 @@ flowchartNewIntegrationImage(fileName, targetImageName)
       // rename image
       console.writeln("flowchartNewIntegrationImage, rename " + imgWin.mainView.id + " to " + targetImageName);
       imgWin.mainView.id = targetImageName;
+      if (imgWin.mainView.id != targetImageName) {
+            /* Name was already in use, for example when windows are left from a failed
+             * run. Use the name we actually got so that the image can be found later.
+             */
+            console.writeln("flowchartNewIntegrationImage, name " + targetImageName + " was in use, using " + imgWin.mainView.id);
+            targetImageName = imgWin.mainView.id;
+      }
+      /* Keep track of the window so that it is closed after the flowchart run. */
+      this.global.flowchartWindows[this.global.flowchartWindows.length] = targetImageName;
 
       // Do binning to ensure we work on small images
       console.writeln("flowchartNewIntegrationImage, binning " + targetImageName);
@@ -3967,10 +3976,14 @@ getFilterFiles(files, pageIndex, filename_postfix, flochart_files = false, gener
             
             if (this.global.debug) console.writeln("getFilterFiles file " +  filePath);
 
-            if (!File.exists(filePath)) {
+            if (!File.exists(filePath) && !this.global.get_flowchart_data) {
                   console.criticalln("File " + filePath + " does not exist\n");
                   continue;
             }
+            /* In flowchart mode some files are not written, for example the files that
+             * extractChannels would write. Keywords are not read for those files and the
+             * filter is resolved from the file name.
+             */
             filecount++;
             if (filterSet != null) {
                   filter = this.util.findFilterForFile(filterSet, filePath, filename_postfix);
