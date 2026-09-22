@@ -177,6 +177,15 @@ this.preview_keep_zoom = false;
 this.current_selected_file_name = null;
 this.current_selected_file_filter = null;
 
+// Cache of stretched preview images when browsing files, most recently used last
+this.preview_cache = [];
+this.preview_cache_max_bytes = 512 * 1024 * 1024;
+this.preview_cache_max_entries = 10;
+this.preview_prefetch_count = 2;          // Number of files prefetched in browsing direction
+this.preview_prefetch_timer = null;
+this.preview_prefetch_files = [];
+this.preview_prefetch_last_file = null;
+
 this.monochrome_text = "Monochrome: ";
 
 this.blink_window = null;
@@ -441,6 +450,8 @@ exitCleanup(dialog)
             this.guitools.current_preview.imgWin.forceClose();
             this.guitools.current_preview.imgWin = null;
       }
+      this.stopPreviewPrefetch();
+      this.previewCacheClear();
       this.variableCleanup();
       this.util.checkEvents();
 }
@@ -1392,6 +1403,277 @@ updatePreviewWin(imgWin)
       this.updatePreviewWinTxt(imgWin, imgWin.mainView.id);
 }
 
+// Key for a cached browse preview. Includes everything that changes
+// the resulting preview image or histogram.
+previewCacheKey(filename)
+{
+      var modified = "";
+      try {
+            modified = new FileInfo(filename).lastModified.getTime();
+      } catch (err) {
+            modified = "";
+      }
+      var size = this.getHistogramSize();
+      return filename + "|" + modified +
+             "|" + this.par.preview_resample.val + "|" + this.par.preview_resample_target.val +
+             "|" + (this.histogramControl != null) + "|" + size.width + "x" + size.height;
+}
+
+// Find a cached preview and move it to the most recently used position
+previewCacheGet(key)
+{
+      for (var i = 0; i < this.preview_cache.length; i++) {
+            if (this.preview_cache[i].key == key) {
+                  var entry = this.preview_cache[i];
+                  this.preview_cache.splice(i, 1);
+                  this.preview_cache.push(entry);
+                  return entry;
+            }
+      }
+      return null;
+}
+
+// Add a copy of the preview image to the cache, evict least recently used entries
+previewCacheAdd(key, loaded)
+{
+      var image = loaded.imgWin.mainView.image;
+      var bytes = image.width * image.height * image.numberOfChannels * image.bitsPerSample / 8;
+      if (bytes > this.preview_cache_max_bytes) {
+            if (this.par.debug.val) console.writeln("previewCacheAdd: image too big to cache, " + bytes + " bytes");
+            return;
+      }
+      var old = this.previewCacheGet(key);
+      if (old != null) {
+            this.preview_cache.pop();
+            old.image.free();
+      }
+      this.preview_cache.push({
+            key: key,
+            image: new Image(image),
+            keywords: loaded.imgWin.keywords,
+            bytes: bytes,
+            width: loaded.width,
+            height: loaded.height,
+            resampled: loaded.resampled,
+            histogramInfo: loaded.histogramInfo
+      });
+      var total_bytes = 0;
+      for (var i = 0; i < this.preview_cache.length; i++) {
+            total_bytes += this.preview_cache[i].bytes;
+      }
+      while (this.preview_cache.length > 1
+             && (total_bytes > this.preview_cache_max_bytes || this.preview_cache.length > this.preview_cache_max_entries))
+      {
+            var evicted = this.preview_cache.shift();
+            total_bytes -= evicted.bytes;
+            evicted.image.free();
+      }
+      if (this.par.debug.val) console.writeln("previewCacheAdd: " + this.preview_cache.length + " entries, " + Math.round(total_bytes / (1024 * 1024)) + " MB");
+}
+
+previewCacheClear()
+{
+      for (var i = 0; i < this.preview_cache.length; i++) {
+            this.preview_cache[i].image.free();
+      }
+      this.preview_cache = [];
+}
+
+// Load a file for browse preview: open, optionally resample, get histogram and stretch.
+// Returns null if the file could not be opened.
+loadBrowsePreview(filename)
+{
+      if (this.par.debug.val) var start_time = Date.now();
+      var imageWindows = ImageWindow.open(filename);
+      if (imageWindows == null || imageWindows.length == 0) {
+            return null;
+      }
+      var imageWindow = imageWindows[0];
+      for (var i = 1; i < imageWindows.length; i++) {
+            imageWindows[i].forceClose();
+      }
+      if (this.par.debug.val) console.writeln("--- loadBrowsePreview:read " + (Date.now()-start_time)/1000 + " sec");
+      if (this.par.debug.val) start_time = Date.now();
+      var width = imageWindow.mainView.image.width;
+      var height = imageWindow.mainView.image.height;
+      var resampled = false;
+      if (this.par.preview_resample.val) {
+            var maxlen = Math.max(width, height);
+            var resample_factor = this.par.preview_resample_target.val / maxlen;
+            if (resample_factor < 1) {
+                  this.engine.runResample(imageWindow, resample_factor);
+                  if (this.par.debug.val) console.writeln("--- loadBrowsePreview:runResample " + (Date.now()-start_time)/1000 + " sec, resample_factor " + resample_factor);
+                  if (this.par.debug.val) start_time = Date.now();
+                  console.writeln("Resampled image size: " + imageWindow.mainView.image.width + "x" + imageWindow.mainView.image.height);
+                  resampled = true;
+            }
+      }
+      var histogramInfo = null;
+      if (this.histogramControl != null) {
+            this.forceNewHistogram(imageWindow);
+            histogramInfo = this.getHistogramInfo(imageWindow, true);
+      }
+      this.engine.autoStretch(imageWindow);
+      if (this.par.debug.val) console.writeln("--- loadBrowsePreview:histogram and autostretch " + (Date.now()-start_time)/1000 + " sec");
+      return { imgWin: imageWindow, width: width, height: height, resampled: resampled, histogramInfo: histogramInfo };
+}
+
+// Create a hidden window from a cached preview entry
+createBrowsePreviewWindow(entry)
+{
+      var image = entry.image;
+      var imgWin = new ImageWindow(image.width, image.height, image.numberOfChannels,
+                                   image.bitsPerSample, image.isReal, image.isColor, "AutoIntegrate_preview_cached");
+      imgWin.mainView.beginProcess(UndoFlag.NoSwapFile);
+      imgWin.mainView.image.assign(image);
+      imgWin.mainView.endProcess();
+      imgWin.keywords = entry.keywords;
+      return { imgWin: imgWin, width: entry.width, height: entry.height, resampled: entry.resampled, histogramInfo: entry.histogramInfo };
+}
+
+getTreeBoxNodeInfoTxt(node, width, height)
+{
+      var ssweighttxt = "";
+      if (node.hasOwnProperty("ssweight") && node.ssweight != 0) {
+            ssweighttxt = ", ssweight: " + node.ssweight.toFixed(10);
+      }
+      var exptimetxt = "";
+      if (node.hasOwnProperty("exptime")) {
+            exptimetxt = ", exptime: " + node.exptime;
+      }
+      return "Size: " + width + "x" + height + ssweighttxt + exptimetxt;
+}
+
+// Show the current file node of a file TreeBox in the preview, using the
+// preview cache when possible. Starts prefetching next files.
+// Returns false if the file could not be opened.
+browsePreviewFile(files_TreeBox)
+{
+      var node = files_TreeBox.currentNode;
+      var filename = node.filename;
+      this.stopPreviewPrefetch();
+      if (this.par.debug.val) var start_time = Date.now();
+      var key = this.previewCacheKey(filename);
+      var entry = this.previewCacheGet(key);
+      if (entry != null) {
+            console.writeln("Preview from cache");
+            var loaded = this.createBrowsePreviewWindow(entry);
+      } else {
+            var loaded = this.loadBrowsePreview(filename);
+            if (loaded == null) {
+                  return false;
+            }
+            this.previewCacheAdd(key, loaded);
+      }
+      if (this.par.debug.val) console.writeln("--- browsePreviewFile:load " + (Date.now()-start_time)/1000 + " sec");
+      if (this.par.debug.val) start_time = Date.now();
+      // Image is already stretched so we do not run AutoSTF
+      this.updatePreviewWinTxt(
+            loaded.imgWin,
+            File.extractName(filename) + File.extractExtension(filename),
+            loaded.histogramInfo,
+            false,
+            loaded.imgWin,
+            loaded.resampled
+      );
+      if (this.par.debug.val) console.writeln("--- browsePreviewFile:updatePreviewWinTxt " + (Date.now()-start_time)/1000 + " sec");
+      this.util.updateStatusInfoLabel(this.getTreeBoxNodeInfoTxt(node, loaded.width, loaded.height));
+      this.startPreviewPrefetch(files_TreeBox, filename);
+      return true;
+}
+
+getTreeBoxPreviewFiles(node, filenames)
+{
+      for (var i = 0; i < node.numberOfChildren; i++) {
+            var child = node.child(i);
+            if (child.numberOfChildren > 0) {
+                  this.getTreeBoxPreviewFiles(child, filenames);
+            } else if (child.nodeData_type == "" && child.filename) {
+                  filenames.push(child.filename);
+            }
+      }
+}
+
+// Start prefetching files next to the current file in the browsing direction.
+// Prefetch runs from a timer after a short delay so it does not slow down
+// quick browsing.
+startPreviewPrefetch(files_TreeBox, filename)
+{
+      var files = [];
+      this.getTreeBoxPreviewFiles(files_TreeBox, files);
+      var index = files.indexOf(filename);
+      var last_index = files.indexOf(this.preview_prefetch_last_file);
+      this.preview_prefetch_last_file = filename;
+      if (index < 0) {
+            return;
+      }
+      var direction = (last_index > index) ? -1 : 1;
+      this.preview_prefetch_files = [];
+      for (var i = 1; i <= this.preview_prefetch_count; i++) {
+            var j = index + i * direction;
+            if (j < 0 || j >= files.length) {
+                  break;
+            }
+            this.preview_prefetch_files.push(files[j]);
+      }
+      if (this.preview_prefetch_files.length == 0) {
+            return;
+      }
+      if (this.preview_prefetch_timer == null) {
+            this.preview_prefetch_timer = new Timer();
+            this.preview_prefetch_timer.singleShot = true;
+            this.preview_prefetch_timer.onTimeout = () => {
+                  this.previewPrefetchNext();
+            };
+      }
+      this.preview_prefetch_timer.interval = 0.5;
+      this.preview_prefetch_timer.start();
+}
+
+stopPreviewPrefetch()
+{
+      if (this.preview_prefetch_timer != null) {
+            this.preview_prefetch_timer.stop();
+      }
+      this.preview_prefetch_files = [];
+}
+
+// Prefetch one file into the preview cache and schedule the next one
+previewPrefetchNext()
+{
+      if (this.preview_prefetch_files.length == 0
+          || !this.global.use_preview
+          || this.par.skip_blink.val
+          || this.global.get_flowchart_data
+          || this.global.is_processing != this.global.processing_state.none)
+      {
+            this.preview_prefetch_files = [];
+            return;
+      }
+      var filename = this.preview_prefetch_files.shift();
+      var key = this.previewCacheKey(filename);
+      if (this.previewCacheGet(key) == null) {
+            var loaded = null;
+            try {
+                  console.writeln("Prefetch preview " + filename);
+                  loaded = this.loadBrowsePreview(filename);
+                  if (loaded != null) {
+                        this.previewCacheAdd(key, loaded);
+                  }
+            } catch (err) {
+                  console.writeln("Prefetch preview failed: " + err);
+                  this.preview_prefetch_files = [];
+            }
+            if (loaded != null) {
+                  loaded.imgWin.forceClose();
+            }
+      }
+      if (this.preview_prefetch_files.length > 0) {
+            this.preview_prefetch_timer.interval = 0.1;
+            this.preview_prefetch_timer.start();
+      }
+}
+
 updatePreviewFilenameAndInfo(filename, run_autostf, update_info)
 {
       console.writeln("Update preview:", filename);
@@ -1704,7 +1986,7 @@ addOutputDir(parent)
             }
             gdd.caption = "Select Output Directory";
             if (gdd.execute()) {
-                  this.updateOutputDirEdit(gdd.directory);
+                  this.updateOutputDirEdit(gdd.directoryPath);
             }
       };
       
@@ -3691,48 +3973,29 @@ filesTreeBox(parent, optionsSizer, pageIndex)
                   if (files_TreeBox.currentNode != null && files_TreeBox.currentNode.nodeData_type == "") {
                         // Show preview or "blink" window. 
                         // Note: Files are added by routine addFilteredFilesToTreeBox
-                        if (!this.global.use_preview) {
-                              console.hide();
-                        } else {
-                              this.updatePreviewTxt("Processing...");
-                        }
                         if (this.par.debug.val) var start_time = Date.now();
                         console.writeln("files_TreeBox.onCurrentNodeUpdated " + files_TreeBox.currentNode.filename);
-                        var imageWindows = ImageWindow.open(files_TreeBox.currentNode.filename);
-                        if (imageWindows == null || imageWindows.length == 0) {
-                              return;
-                        }
-                        var imageWindow = imageWindows[0];
-                        if (!this.global.use_preview) {
+                        if (this.global.use_preview) {
+                              this.updatePreviewTxt("Processing...");
+                              if (!this.browsePreviewFile(files_TreeBox)) {
+                                    return;
+                              }
+                        } else {
+                              console.hide();
+                              var imageWindows = ImageWindow.open(files_TreeBox.currentNode.filename);
+                              if (imageWindows == null || imageWindows.length == 0) {
+                                    return;
+                              }
+                              var imageWindow = imageWindows[0];
                               if (this.blink_window != null) {
                                     imageWindow.position = this.blink_window.position;
                               } else {
                                     imageWindow.position = new Point(0, 0);
                               }
-                        }
-                        if (this.par.debug.val || this.global.debug) console.writeln("onCurrentNodeUpdated:read image name " + imageWindow.mainView.id);
-                        if (this.par.debug.val) console.writeln("--- onCurrentNodeUpdated:read " + (Date.now()-start_time)/1000 + " sec");
-                        if (this.par.debug.val) start_time = Date.now();
-                        if (files_TreeBox.currentNode.hasOwnProperty("ssweight")) {
-                              if (files_TreeBox.currentNode.ssweight == 0) {
-                                    var ssweighttxt = "";
-                              } else {
-                                    var ssweighttxt = ", ssweight: " + files_TreeBox.currentNode.ssweight.toFixed(10);
-                              }
-                        } else {
-                              var ssweighttxt = "";
-                        }
-                        if (files_TreeBox.currentNode.hasOwnProperty("exptime")) {
-                              var exptimetxt = ", exptime: " + files_TreeBox.currentNode.exptime;
-                        } else {
-                              var exptimetxt = "";
-                        }
-                        var imageInfoTxt = "Size: " + imageWindow.mainView.image.width + "x" + imageWindow.mainView.image.height +
-                                             ssweighttxt + exptimetxt;
-                        if (this.par.debug.val || this.global.debug) console.writeln("onCurrentNodeUpdated:imageInfoTxt " + imageInfoTxt);
-                        if (this.par.debug.val) console.writeln("--- onCurrentNodeUpdated:properties " + (Date.now()-start_time)/1000 + " sec");
-                        if (this.par.debug.val) start_time = Date.now();
-                        if (!this.global.use_preview) {
+                              if (this.par.debug.val || this.global.debug) console.writeln("onCurrentNodeUpdated:read image name " + imageWindow.mainView.id);
+                              if (this.par.debug.val) console.writeln("--- onCurrentNodeUpdated:read " + (Date.now()-start_time)/1000 + " sec");
+                              var imageInfoTxt = this.getTreeBoxNodeInfoTxt(files_TreeBox.currentNode, imageWindow.mainView.image.width, imageWindow.mainView.image.height);
+                              if (this.par.debug.val || this.global.debug) console.writeln("onCurrentNodeUpdated:imageInfoTxt " + imageInfoTxt);
                               this.engine.autoStretch(imageWindow);
                               this.updateImageInfoLabel(imageInfoTxt);
                               if (this.blink_zoom) {
@@ -3743,29 +4006,6 @@ filesTreeBox(parent, optionsSizer, pageIndex)
                                     this.blink_window.forceClose();
                               }
                               this.blink_window = imageWindow;
-                        } else {
-                              let resampled = false;
-                              if (this.par.preview_resample.val) {
-                                    var maxlen = Math.max(imageWindow.mainView.image.width, imageWindow.mainView.image.height);
-                                    var resample_factor = this.par.preview_resample_target.val / maxlen;
-                                    if (resample_factor < 1) {
-                                          this.engine.runResample(imageWindow, resample_factor);
-                                          if (this.par.debug.val) console.writeln("--- onCurrentNodeUpdated:runResample " + (Date.now()-start_time)/1000 + " sec, resample_factor " + resample_factor);
-                                          console.writeln("Resampled image size: " + imageWindow.mainView.image.width + "x" + imageWindow.mainView.image.height);
-                                          resampled = true;
-                                    }
-                              }
-                              this.updatePreviewWinTxt(
-                                    imageWindow, 
-                                    File.extractName(files_TreeBox.currentNode.filename) + File.extractExtension(files_TreeBox.currentNode.filename),
-                                    null,
-                                    true,
-                                    imageWindow,
-                                    resampled
-                              );
-                              if (this.par.debug.val) console.writeln("--- onCurrentNodeUpdated:updatePreviewWinTxt " + (Date.now()-start_time)/1000 + " sec");
-                              if (this.par.debug.val) start_time = Date.now();
-                              this.util.updateStatusInfoLabel(imageInfoTxt);
                         }
                         this.current_selected_file_name = files_TreeBox.currentNode.filename;
                         this.current_selected_file_filter = files_TreeBox.currentNode.filter;

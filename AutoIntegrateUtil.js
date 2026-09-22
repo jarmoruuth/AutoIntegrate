@@ -1839,10 +1839,10 @@ saveAllFinalImageWindows(bits)
       }
 
       if (gdd.execute()) {
-            console.writeln("saveAllFinalImageWindows:dir " + gdd.directory);
-            this.saveLastDir(gdd.directory);
+            console.writeln("saveAllFinalImageWindows:dir " + gdd.directoryPath);
+            this.saveLastDir(gdd.directoryPath);
             for (var i = 0; i < finalimages.length; i++) {
-                  this.saveFinalImageWindow(finalimages[i], gdd.directory, finalimages[i].mainView.id, bits);
+                  this.saveFinalImageWindow(finalimages[i], gdd.directoryPath, finalimages[i].mainView.id, bits);
             }
       }
       console.writeln("All final image windows are saved!");
@@ -2419,8 +2419,8 @@ ensureDialogFilePath(names)
                   console.writeln("No path for " + names + ', nothing written');
                   return 0;
             }
-            this.saveLastDir(gdd.directory);
-            this.setOutputRootDir(gdd.directory);
+            this.saveLastDir(gdd.directoryPath);
+            this.setOutputRootDir(gdd.directoryPath);
             if (this.global.outputRootDir != "") {
                   this.setOutputRootDir(this.ensurePathEndSlash(this.global.outputRootDir));
             }

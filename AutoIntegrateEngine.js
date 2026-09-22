@@ -1435,7 +1435,7 @@ openDirectoryFiles(filetype, file_filter, lights_only, filetype_is_full_caption,
             console.writeln("No directory selected");
             return null;
       }
-      console.writeln("openDirectoryFiles: directory=" + gdd.directory);
+      console.writeln("openDirectoryFiles: directory=" + gdd.directoryPath);
 
       if (file_filter.trim() < 1 ) {
             console.writeln("Empty filter");
@@ -1450,22 +1450,22 @@ openDirectoryFiles(filetype, file_filter, lights_only, filetype_is_full_caption,
       var fileNames = [];
       for (var i = 0; i < file_filter_array.length; i++) {
             console.writeln("openDirectoryFiles: file_filter_array[" + i + "]=" + file_filter_array[i]);
-            var filelist = this.searchDirectory(gdd.directory + "/" + file_filter_array[i], true /*recursive*/ );
+            var filelist = searchDirectory(gdd.directoryPath + "/" + file_filter_array[i], true /*recursive*/ );
             fileNames = fileNames.concat(filelist);
       }
       if (fileNames.length < 1) {
-            console.writeln("No '" + file_filter + "' files found in directory " + gdd.directory);
+            console.writeln("No '" + file_filter + "' files found in directory " + gdd.directoryPath);
             return null;
       }
       console.writeln("openDirectoryFiles: fileNames[0]=" + fileNames[0]);
 
-      this.util.saveLastDir(gdd.directory);
+      this.util.saveLastDir(gdd.directoryPath);
 
       if (pageIndex == this.global.pages.LIGHTS) {
             // If we opened lights files we save the directory
             // We may want to use it as outputRootDir
-            console.writeln("openDirectoryFiles: save to openedLightsDirectories, directory=" + gdd.directory);
-            this.global.openedLightsDirectories.push(gdd.directory);
+            console.writeln("openDirectoryFiles: save to openedLightsDirectories, directory=" + gdd.directoryPath);
+            this.global.openedLightsDirectories.push(gdd.directoryPath);
       }
 
       if (lights_only) {
