@@ -4172,7 +4172,7 @@ newRunButton(parent, toolbutton)
       {
             if (!this.global.get_flowchart_data) {
                   this.runAction(parent);
-                  console.writeln("Run button finished");
+                  if (this.par.debug.val) console.writeln("Run button finished");
                   console.flush();
             }
       };
