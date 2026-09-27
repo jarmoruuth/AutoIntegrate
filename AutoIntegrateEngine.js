@@ -9864,13 +9864,32 @@ runMLDenoise(imgWin)
                   P.modelPath = this.par.mldenoise_model_path.val;
             }
             P.amount = this.par.mldenoise_amount.val;
+            if (this.par.mldenoise_high_precision.val) {
+                  if (MLDenoise.Precision_High === undefined) {
+                        this.util.addWarningStatus("MLDenoise high precision inference is not available in this PixInsight version");
+                  } else {
+                        console.writeln("MLDenoise using high precision inference");
+                        P.precision = MLDenoise.Precision_High;
+                  }
+            }
+            if (this.par.mldenoise_local_support.val) {
+                  if (P.mask === undefined) {
+                        this.util.addWarningStatus("MLDenoise local support is not available in this PixInsight version");
+                  } else {
+                        console.writeln("MLDenoise using local support");
+                        P.mask = true;
+                  }
+            }
             // Other settings use the MLDenoise default values.
       } catch(err) {
             this.save_images_in_save_id_list(); // Save images so we can return with AutoContinue
             console.criticalln("MLDenoise failed");
             console.criticalln(err);
-            console.criticalln("Maybe MLDenoise is not available in this PixInsight version, AI is missing or platform is not supported");
-            this.util.throwFatalError("MLDenoise failed");
+            console.criticalln("Maybe MLDenoise is not available in this PixInsight version, MLDenoise model path is incorrect, AI is missing or platform is not supported");
+            if (this.par.mldenoise_model_path.val == "") {
+                  console.criticalln("MLDenoise model path is empty");
+            }
+            this.util.throwFatalError("MLDenoise failed. ");
       }
 
       /* Execute on image.

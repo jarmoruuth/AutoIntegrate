@@ -342,6 +342,8 @@ this.par = {
 
       mldenoise_model_path: { val: "", def: "", name : "MLDenoise model path", type : 'S', skip_reset: true },
       mldenoise_amount: { val: 0.90, def: 0.90, name : "MLDenoise amount", type : 'R' },
+      mldenoise_high_precision: { val: false, def: false, name : "MLDenoise high precision", type : 'B' },
+      mldenoise_local_support: { val: false, def: false, name : "MLDenoise local support", type : 'B' },
       
       use_noisexterminator: { val: false, def: false, name : "Use NoiseXTerminator", type : 'B' },
       use_mldenoise: { val: false, def: false, name : "Use MLDenoise", type : 'B' },

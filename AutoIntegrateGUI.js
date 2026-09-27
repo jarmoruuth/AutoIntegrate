@@ -6229,11 +6229,21 @@ AutoIntegrateDialog()
             "Amount of noise reduction. Use a value between 0.00 and 1.00.");
       this.mldenoiseAmountSizer = this.guitools.newHorizontalSizer(2, true, [ this.mldenoiseAmountEdit ]);
 
+      this.mldenoiseHighPrecisionCheckBox = this.guitools.newCheckBox(this, "High-precision inference", this.par.mldenoise_high_precision,
+            "<p>Run GPU inference in full float32 precision. Results match CPU inference more closely but processing is somewhat slower.</p>" +
+            "<p>Has no effect on CPU inference.</p>");
+      this.mldenoiseLocalSupportCheckBox = this.guitools.newCheckBox(this, "Local support", this.par.mldenoise_local_support,
+            "<p>Use MLDenoise built-in local support, an inverted mask generated from the image that adjusts noise reduction " +
+            "as a function of brightness.</p>" +
+            "<p>Default MLDenoise mask settings are used.</p>");
+      this.mldenoiseOptionsSizer = this.guitools.newHorizontalSizer(2, true, [ this.mldenoiseHighPrecisionCheckBox, this.mldenoiseLocalSupportCheckBox ]);
+
       this.noiseReductionGroupBoxSizer6 = new VerticalSizer;
       this.noiseReductionGroupBoxSizer6.margin = 6;
       this.noiseReductionGroupBoxSizer6.spacing = 4;
       this.noiseReductionGroupBoxSizer6.add( this.mldenoiseModelPathSizer );
       this.noiseReductionGroupBoxSizer6.add( this.mldenoiseAmountSizer );
+      this.noiseReductionGroupBoxSizer6.add( this.mldenoiseOptionsSizer );
       this.noiseReductionGroupBoxSizer6.addStretch();
 
       // BlurXTerminator settings
