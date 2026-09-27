@@ -1,6 +1,6 @@
 {
- "version": "AutoIntegrate v1.87.2 test3",
- "generated": "Mon Sep 21 2026 18:34:52 GMT+0300 (FLE Daylight Time)",
+ "version": "AutoIntegrate v1.87.3",
+ "generated": "Sun Sep 27 2026 23:38:10 GMT+0300 (FLE Daylight Time)",
  "options": [
   {
    "key": "local_normalization",
@@ -4055,6 +4055,78 @@
    "values": null,
    "min": 0,
    "max": 1
+  },
+  {
+   "key": "mldenoise_high_precision",
+   "name": "MLDenoise high precision",
+   "type": "B",
+   "def": false,
+   "tip": "",
+   "applies": "",
+   "controls": [
+    {
+     "kind": "checkbox",
+     "label": "High-precision inference",
+     "tooltip": "<p>Run GPU inference in full float32 precision. Results match CPU inference more closely but processing is somewhat slower.</p><p>Has no effect on CPU inference.</p>",
+     "values": null,
+     "min": null,
+     "max": null,
+     "tab": "Postprocessing",
+     "section": "Noise reduction",
+     "expert": true,
+     "located": true
+    }
+   ],
+   "expert": true,
+   "tabs": [
+    "Postprocessing"
+   ],
+   "sections": [
+    "Noise reduction"
+   ],
+   "in_gui": true,
+   "kind": "checkbox",
+   "label": "High-precision inference",
+   "tooltip": "<p>Run GPU inference in full float32 precision. Results match CPU inference more closely but processing is somewhat slower.</p><p>Has no effect on CPU inference.</p>",
+   "values": null,
+   "min": null,
+   "max": null
+  },
+  {
+   "key": "mldenoise_local_support",
+   "name": "MLDenoise local support",
+   "type": "B",
+   "def": false,
+   "tip": "",
+   "applies": "",
+   "controls": [
+    {
+     "kind": "checkbox",
+     "label": "Local support",
+     "tooltip": "<p>Use MLDenoise built-in local support, an inverted mask generated from the image that adjusts noise reduction as a function of brightness.</p><p>Default MLDenoise mask settings are used.</p>",
+     "values": null,
+     "min": null,
+     "max": null,
+     "tab": "Postprocessing",
+     "section": "Noise reduction",
+     "expert": true,
+     "located": true
+    }
+   ],
+   "expert": true,
+   "tabs": [
+    "Postprocessing"
+   ],
+   "sections": [
+    "Noise reduction"
+   ],
+   "in_gui": true,
+   "kind": "checkbox",
+   "label": "Local support",
+   "tooltip": "<p>Use MLDenoise built-in local support, an inverted mask generated from the image that adjusts noise reduction as a function of brightness.</p><p>Default MLDenoise mask settings are used.</p>",
+   "values": null,
+   "min": null,
+   "max": null
   },
   {
    "key": "use_noisexterminator",
