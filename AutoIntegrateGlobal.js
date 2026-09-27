@@ -111,6 +111,8 @@ this.creating_mask = false;          // flag for creating mask
 this.skip_process_value_save = false;   // flag for iterative stretching
 
 this.cancel_processing = false;
+this.processing_canceled = false;        // set when processing was canceled, reset at Autorun start
+this.unavailable_processes = [];         // enabled processes that are not installed, reset at Autorun start
 
 this.LDDDefectInfo = [];                // { groupname: name,  defects: defects }
 
@@ -1026,6 +1028,7 @@ this.test_image_ids = [];      // Test images
 this.ai_use_persistent_module_settings = true;  // read some defaults from persistent module settings
 this.testmode = false;                          // true if we are running in test mode
 this.testmode_log = "";                         // output for test mode, if any, to testmode.log file
+this.test_progress_callback = null;             // test program callback for processing progress
 
 if (this.autointegrate_version.indexOf("test") > 0) {
       this.autointegrateinfo_link = "https://ruuth.xyz/test/AutoIntegrateInfo.html";

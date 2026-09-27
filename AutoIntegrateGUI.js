@@ -625,6 +625,9 @@ AImodelSizer(parent, name, param, toolTip) {
 Autorun(parent)
 {
       console.writeln("AutoRun");
+      this.global.cancel_processing = false;
+      this.global.processing_canceled = false;
+      this.global.unavailable_processes = [];
       var stopped = true;
       var success = true;
       var first_step = true;
@@ -747,6 +750,12 @@ Autorun(parent)
                   } else {
                         console.writeln("Do not get flowchart data");
                   }
+                  if (this.global.cancel_processing || this.global.processing_canceled) {
+                        // Canceled while generating flowchart data, do not start processing
+                        console.writeln("Processing cancelled!");
+                        success = false;
+                        break;
+                  }
                   try {
                         if (batch_narrowband_palette_mode) {
                             this.engine.autointegrateNarrowbandPaletteBatch(parent, false);
@@ -777,7 +786,7 @@ Autorun(parent)
             } else {
                   stopped = true;
             }
-            if (this.global.cancel_processing) {
+            if (this.global.cancel_processing || this.global.processing_canceled) {
                   stopped = true;
                   console.writeln("Processing cancelled!");
                   success = false;

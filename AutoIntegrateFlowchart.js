@@ -510,6 +510,7 @@ flowchartCheckOperationList(type, txt)
 
 flowchartOperation(txt)
 {
+      this.util.testProgress("Process begin " + txt);
       if (!this.flowchart_active) {
             return null;
       }

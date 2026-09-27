@@ -780,6 +780,8 @@ checkCancel()
 {
       if (this.global.cancel_processing) {
             this.global.cancel_processing = false;
+            // Remember cancel so Autorun does not continue after a canceled flowchart run
+            this.global.processing_canceled = true;
             this.util.addProcessingStep("Processing canceled");
             this.util.throwFatalError("Processing canceled");
       }
@@ -14250,7 +14252,7 @@ RGBHa_ContinuumSubtract(nb_channel_id, rgb_channel_id, rgb_is_linear, testmode)
       if (this.par.RGBHa_remove_stars.val && !this.RGBHa_H_enhanced_info.starless) {
             if (!this.par.use_starxterminator.val && !this.par.use_starnet2.val) {
                   this.save_images_in_save_id_list(); // Save images so we can retur with AutoContinue
-                  this.util.throwFatalError("RGBHa_remove_stars is set but neither StarNet nor StarXterminator is enabled");
+                  this.util.throwFatalError(this.RGBHaNoStarRemovalError());
             }
             console.writeln("RGBHa_ContinuumSubtract, remove stars on " + hrr_id);
             this.removeStars(hrr_win, true, false, null, null, false);
@@ -14386,7 +14388,7 @@ RGBHa_init(RGB_id, rgb_is_linear, testmode)
                   if (this.par.RGBHa_remove_stars.val && !this.RGBHa_H_enhanced_info.starless) {
                         if (!this.par.use_starxterminator.val && !this.par.use_starnet2.val) {
                               this.save_images_in_save_id_list(); // Save images so we can retur with AutoContinue
-                              this.util.throwFatalError("RGBHa_remove_stars is set but neither StarNet nor StarXterminator is enabled");
+                              this.util.throwFatalError(this.RGBHaNoStarRemovalError());
                         }
                         console.writeln("RGBHa_init, remove stars on " + nb_channel_id);
                         this.removeStars(this.util.findWindow(nb_channel_id), true, false, null, null, false);
@@ -18120,6 +18122,24 @@ get_local_copies_of_parameters()
       this.local_RGBHa_combine_method = this.par.RGBHa_combine_method.val;
 }
 
+// Error text when RGBHa star removal is requested but no star removal tool can be used.
+// Tells if a tool was enabled but is not installed, check_available_processes() disables those.
+RGBHaNoStarRemovalError()
+{
+      var missing = [];
+      if (this.global.unavailable_processes.indexOf("StarXTerminator") != -1) {
+            missing.push("StarXTerminator");
+      }
+      if (this.global.unavailable_processes.indexOf("StarNet2") != -1) {
+            missing.push("StarNet2");
+      }
+      if (missing.length > 0) {
+            return "RGBHa_remove_stars is set but " + missing.join(" and ") + (missing.length > 1 ? " are" : " is") + " not available";
+      } else {
+            return "RGBHa_remove_stars is set but neither StarNet nor StarXterminator is enabled";
+      }
+}
+
 // V8 limitations for now
 check_available_processes()
 {
@@ -18130,6 +18150,7 @@ check_available_processes()
                   P = new StarXTerminator;
             } catch (e) {
                   this.util.addWarningStatus("StarXTerminator not available");
+                  this.global.unavailable_processes.push("StarXTerminator");
                   this.par.use_starxterminator.val = false;
             }
       }
@@ -18138,6 +18159,7 @@ check_available_processes()
                   P = new NoiseXTerminator;
             } catch (e) {
                   this.util.addWarningStatus("NoiseXTerminator not available");
+                  this.global.unavailable_processes.push("NoiseXTerminator");
                   this.par.use_noisexterminator.val = false;
             }
       }
@@ -18146,6 +18168,7 @@ check_available_processes()
                   P = new BlurXTerminator;
             } catch (e) {
                   this.util.addWarningStatus("BlurXTerminator not available");
+                  this.global.unavailable_processes.push("BlurXTerminator");
                   this.par.use_blurxterminator.val = false;
             }
       }
@@ -18154,6 +18177,7 @@ check_available_processes()
                   P = new StarNet2;
             } catch (e) {
                   this.util.addWarningStatus("StarNet2 not available");
+                  this.global.unavailable_processes.push("StarNet2");
                   this.par.use_starnet2.val = false;
             }
       }
@@ -18162,6 +18186,7 @@ check_available_processes()
                   P = new DeepSNR;
             } catch (e) {
                   this.util.addWarningStatus("DeepSNR not available");
+                  this.global.unavailable_processes.push("DeepSNR");
                   this.par.use_deepsnr.val = false;
             }
       }
@@ -18170,6 +18195,7 @@ check_available_processes()
                   P = new MLDenoise;
             } catch (e) {
                   this.util.addWarningStatus("MLDenoise not available");
+                  this.global.unavailable_processes.push("MLDenoise");
                   this.par.use_mldenoise.val = false;
             }
             if (this.par.use_mldenoise.val) {

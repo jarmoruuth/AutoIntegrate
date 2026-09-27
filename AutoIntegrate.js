@@ -550,6 +550,12 @@ test_get_run_results()
       return this.global.run_results;
 }
 
+// Set a callback function that gets processing progress text, or null to remove it
+test_set_progress_callback(callback)
+{
+      this.global.test_progress_callback = callback;
+}
+
 test_cancel()
 {
       console.noteln("Cancel requested...");

@@ -2193,16 +2193,36 @@ createWindowFromImage(image, name, allow_duplicate_name)
       return targetWindow;
 }
 
-printMemoryStatus(txt = "")
+getMemoryUsedMB()
 {
       let memoryStatus = System.physicalMemoryStatus();
-      console.writeln("Memory status: " + parseInt((memoryStatus.totalBytes - memoryStatus.availableBytes) / (1024 * 1024)) + " MB used" + (txt ? " - " + txt : ""));
+      return parseInt((memoryStatus.totalBytes - memoryStatus.availableBytes) / (1024 * 1024));
+}
+
+printMemoryStatus(txt = "")
+{
+      console.writeln("Memory status: " + this.getMemoryUsedMB() + " MB used" + (txt ? " - " + txt : ""));
+}
+
+// Report processing progress to the test program. Test program writes it
+// immediately to a file so we can see where processing was if PixInsight crashes.
+testProgress(txt)
+{
+      if (this.global.test_progress_callback == null) {
+            return;
+      }
+      try {
+            this.global.test_progress_callback(txt + " (" + this.getMemoryUsedMB() + " MB used)");
+      } catch (e) {
+            console.criticalln("testProgress failed: " + e);
+      }
 }
 
 addProcessingStep(txt)
 {
       console.noteln("AutoIntegrate: " + txt);
       this.printMemoryStatus(txt);
+      this.testProgress(txt);
       this.global.processing_steps = this.global.processing_steps + "\n" + txt;
 }
 
