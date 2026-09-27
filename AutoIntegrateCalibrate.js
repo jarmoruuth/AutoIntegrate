@@ -38,7 +38,15 @@ runImageIntegrationBiasDarks(images, name, type, exptime)
             return this.engine.flowchartNewIntegrationImage(images[0][1], name);
       }
 
-      this.engine.ensureThreeImages(images);
+      if (this.engine.checkIntegrationImageCount(images, type)) {
+            // Only one file, use it as is
+            var imgWin = this.util.openImageWindowFromFile(images[0][1]);
+            imgWin.show();
+            var new_name = this.util.windowRename(imgWin.mainView.id, name);
+            this.engine.setAutoIntegrateVersionIfNeeded(this.util.findWindow(new_name));
+            console.writeln("runImageIntegrationBiasDarks, single image " + new_name);
+            return new_name;
+      }
 
       var P = new ImageIntegration;
       P.images = images; // [ enabled, path, drizzlePath, localNormalizationDataPath ];

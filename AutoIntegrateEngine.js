@@ -6601,16 +6601,16 @@ runLocalNormalization(imagetable, refImage, filter)
 {
       if (imagetable.length == 0) {
             // No new files are needed
-            this.util.addProcessingStep("No files for local normalization for filter " + filter);
-            return;
+            this.util.addWarningStatus("No files for local normalization for filter " + filter);
+            return false;
       }
 
       this.util.addProcessingStepAndStatusInfo("Local normalization, filter " + filter + ", reference image " + refImage);
       var node = this.flowchart.flowchartOperation("LocalNormalization");
 
-      if (imagetable.length == 1 || this.global.get_flowchart_data) {
-            console.writeln("runLocalNormalization, only one file or flowchart, no need for local normalization");
-            return;
+      if (this.global.get_flowchart_data) {
+            console.writeln("runLocalNormalization, flowchart run");
+            return true;
       }
 
       if (this.par.use_processed_files.val) {
@@ -6621,50 +6621,41 @@ runLocalNormalization(imagetable, refImage, filter)
             var fileProcessedStatus = this.getFileProcessedStatusEx(fileNames, "", this.global.outputRootDir + this.global.AutoOutputDir, ".xnml");
             if (fileProcessedStatus.processed.length == fileNames.length) {
                   this.util.addProcessingStep("Using existing local normalization files");
-                  return;
+                  return true;
             }
       }
 
       var targets = [];
+      var unique_files = [];
 
       for (var i = 0; i < imagetable.length; i++) {
             console.writeln("runLocalNormalization, check for duplicates imagetable["+i+"][1]=" + imagetable[i][1]);
-            var add_file = true;
-            if (imagetable.length <= 4) {
-                  // we may have duplicates, filter them out
-                  for (var j = 0; j < targets.length; j++) {
-                        if (targets[j][1] == imagetable[i][1]) {
-                              console.writeln("runLocalNormalization, remove duplicate " +imagetable[i][1]);
-                              add_file = false;
-                              break;
-                        }
-                  }
-            }
             // we may have duplicates, filter them out
-            for (var j = 0; j < targets.length; j++) {
-                  if (targets[j][1] == imagetable[i][1]) {
-                        console.writeln("runLocalNormalization, remove duplicate " + imagetable[i][1]);
-                        add_file = false;
-                        break;
-                  }
+            if (unique_files.indexOf(imagetable[i][1]) != -1) {
+                  console.writeln("runLocalNormalization, remove duplicate " + imagetable[i][1]);
+                  continue;
             }
-            if (add_file && this.par.start_from_imageintegration.val) {
+            unique_files[unique_files.length] = imagetable[i][1];
+            if (this.par.start_from_imageintegration.val) {
                   // If we are starting from image integration then we
                   // use existing .xnml files.
                   var xnml_file = imagetable[i][1].replace(".xisf", ".xnml");
                   if (File.exists(xnml_file)) {
-                        add_file = false;
+                        console.writeln("runLocalNormalization, use existing " + xnml_file);
+                        continue;
                   }
             }
-            if (add_file) {
-                  targets[targets.length] = [ true, imagetable[i][1] ];
-                  console.writeln("runLocalNormalization, add targets["+targets.length+"][1]=" + targets[targets.length-1][1]);
-            }
+            targets[targets.length] = [ true, imagetable[i][1] ];
+            console.writeln("runLocalNormalization, add targets["+targets.length+"][1]=" + targets[targets.length-1][1]);
+      }
+      if (unique_files.length == 1) {
+            this.util.addWarningStatus("Local normalization skipped, only one file for filter " + filter);
+            return false;
       }
       if (targets.length == 0) {
-            // No new files are needed
+            // All files have existing .xnml files
             this.util.addProcessingStep("Using existing local normalization files");
-            return;
+            return true;
       }
 
       var P = new LocalNormalization;
@@ -6690,6 +6681,7 @@ runLocalNormalization(imagetable, refImage, filter)
 
       this.printAndSaveProcessValues(P);
       this.engine_end_process(node);
+      return true;
 }
 
 linearFitImage(refViewId, targetId, add_to_flowchart = false)
@@ -6851,16 +6843,52 @@ getRejectionAlgorithm(numimages)
       }
 }
 
-ensureThreeImages(images)
+// ImageIntegration needs at least three different files. PixInsight detects
+// duplicate file names so we can no longer just duplicate image names.
+// Returns true if there is only one file and integration should be skipped.
+// With two files throws an error and the user must duplicate one file manually.
+checkIntegrationImageCount(images, name)
 {
-      if (images.length == 1) {
-            // Add existing image twice so we have three images
-            this.append_image_for_integrate(images, images[0][1]);
-            this.append_image_for_integrate(images, images[0][1]);
-      } else if (images.length == 2) {
-            // Duplicate first images which should be a better one
-            this.append_image_for_integrate(images, images[0][1]);
+      var unique_files = [];
+      for (var i = 0; i < images.length; i++) {
+            if (unique_files.indexOf(images[i][1]) == -1) {
+                  unique_files[unique_files.length] = images[i][1];
+            }
       }
+      if (unique_files.length == 1) {
+            this.util.addWarningStatus("Only one file for " + name + ", skipping ImageIntegration and using the image as is");
+            return true;
+      }
+      if (unique_files.length == 2) {
+            this.util.throwFatalError("Only two files for " + name + ", ImageIntegration needs at least three files. " +
+                                      "Make a copy of one of the files with a different file name and add it to the file list: " +
+                                      unique_files[0] + ", " + unique_files[1]);
+      }
+      return false;
+}
+
+// Use a single image as an integrated image when there is nothing to integrate.
+useSingleImageAsIntegration(fileName, name)
+{
+      if (this.par.use_drizzle.val && name != 'LDD') {
+            this.util.addWarningStatus("Only one file for " + name + ", skipping DrizzleIntegration");
+      }
+      var imgWin = this.util.openImageWindowFromFile(fileName);
+      imgWin.show();
+
+      var new_name = this.util.windowRename(imgWin.mainView.id, this.ppar.win_prefix + "Integration_" + name);
+      var new_win = ImageWindow.windowById(new_name);
+
+      this.setAutoIntegrateFilters(new_name, [ new_name ]);
+      if (this.medianFWHM) {
+            this.setMEDFWHMKeyword(new_win, this.medianFWHM);
+      }
+      this.setAutoIntegrateVersionIfNeeded(new_win);
+      this.setImagetypKeyword(new_win, "Master light");
+
+      this.guiUpdatePreviewId(new_name);
+      console.writeln("useSingleImageAsIntegration, " + fileName + ", new name " + new_name);
+      return new_name;
 }
 
 runFastIntegration(integration_images, name, refImage)
@@ -7240,14 +7268,14 @@ runImageIntegrationNormalized(images, best_image, name)
       } else {
             var localnorm_ref = best_image;
       }
-      this.runLocalNormalization(images, localnorm_ref, name);
+      var localnorm_result = this.runLocalNormalization(images, localnorm_ref, name);
 
       console.writeln("Using local normalized data in image integration, " + images.length + " files");
       
       var norm_images = [];
       for (var i = 0; i < images.length; i++) {
             var oneimage = [];
-            var imagearray = [];
+            var imagearray = [];    // For checking file existence
             oneimage[0] = true;                                   // enabled
             oneimage[1] = images[i][1];                           // path
             imagearray[imagearray.length] = oneimage[1];
@@ -7257,8 +7285,12 @@ runImageIntegrationNormalized(images, best_image, name)
             } else {
                   oneimage[2] = "";                                     // drizzlePath
             }
-            oneimage[3] = images[i][1].replace(".xisf", ".xnml");    // localNormalizationDataPath
-            imagearray[imagearray.length] = oneimage[3];
+            if (localnorm_result) {
+                  oneimage[3] = images[i][1].replace(".xisf", ".xnml");    // localNormalizationDataPath
+                  imagearray[imagearray.length] = oneimage[3];
+            } else {
+                  oneimage[3] = null;
+            }
             if (this.global.get_flowchart_data || this.checkFilesExist(imagearray)) {
                   norm_images[norm_images.length] = oneimage;
             } else {
@@ -7267,7 +7299,7 @@ runImageIntegrationNormalized(images, best_image, name)
       }
       console.writeln("runImageIntegrationNormalized, " + norm_images[0][1] + ", " + norm_images[0][3]);
 
-      return this.runImageIntegrationEx(norm_images, name, true);
+      return this.runImageIntegrationEx(norm_images, name, localnorm_result);
 }
 
 runImageIntegration(channel_images, name, save_to_file, flowchartname)
@@ -7279,10 +7311,15 @@ runImageIntegration(channel_images, name, save_to_file, flowchartname)
       this.util.addProcessingStepAndStatusInfo("Image " + name + " integration on " + images.length + " files");
       this.flowchart.flowchartChildBegin(flowchartname ? flowchartname : name);
       if (!this.global.get_flowchart_data) {
-            this.ensureThreeImages(images);
+            var single_image = this.checkIntegrationImageCount(images, name);
+      } else {
+            var single_image = false;
       }
 
-      if (!this.par.local_normalization.val || name == 'LDD') {
+      if (single_image) {
+            var image_id = this.useSingleImageAsIntegration(images[0][1], name);
+
+      } else if (!this.par.local_normalization.val || name == 'LDD') {
             if (this.par.use_drizzle.val) {
                   var drizzleImages = [];
                   for (var i = 0; i < images.length; i++) {
