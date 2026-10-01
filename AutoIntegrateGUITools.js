@@ -681,6 +681,57 @@ createGraXpertPathSizer(parent)
       return graxpertPathSizer;
 }
 
+// Ask user to select MLDenoise model file. Returns true if a file was selected.
+selectMLDenoiseModelFile()
+{
+      var ofd = new OpenFileDialog;
+      ofd.multipleSelections = false;
+      ofd.caption = "Select MLDenoise model file";
+      ofd.filters = [
+            ["MLDenoise model files", "*.xmlm"],
+            ["All files", "*.*"]
+      ];
+      if (!ofd.execute()) {
+            return false;
+      }
+      this.par.mldenoise_model_path.val = ofd.fileName;
+      if (this.par.mldenoise_model_path.reset != undefined) {
+            // Update the model path edit field if there is one
+            this.par.mldenoise_model_path.reset();
+      }
+      // Save model path immediately
+      this.util.writeParameterToSettings(this.par.mldenoise_model_path);
+      console.writeln("MLDenoise model path set to: " + ofd.fileName);
+      return true;
+}
+
+createMLDenoisePathSizer(parent)
+{
+      var mldenoiseModelPathLabel = this.newLabel(parent, "Model",
+            "<p>Path to the MLDenoise model file. Model files have a .xmlm extension.</p>" +
+            "<p>MLDenoise model files must be downloaded separately and they can be saved to any directory.</p>" +
+            "<p>Model file must be specified here, setting it in the PixInsight process does not suffice.</p>" +
+            "<p><b>NOTE!</b> Parameter is automatically saved the persistent module settings. " +
+            "The value is automatically restored when the script starts.</p>"
+#ifndef AUTOINTEGRATE_STANDALONE
+            + this.skip_reset_tooltip
+#endif
+            );
+      var mldenoiseModelPathEdit = this.newTextEdit(parent, this.par.mldenoise_model_path, mldenoiseModelPathLabel.toolTip);
+      var mldenoiseModelPathButton = new ToolButton( parent );
+      mldenoiseModelPathButton.icon = parent.scaledResource(":/icons/select-file.png");
+      mldenoiseModelPathButton.toolTip = mldenoiseModelPathLabel.toolTip;
+      mldenoiseModelPathButton.setScaledFixedSize( 20, 20 );
+      mldenoiseModelPathButton.onClick = () =>
+      {
+            this.selectMLDenoiseModelFile();
+      };
+
+      var mldenoiseModelPathSizer = this.newHorizontalSizer(6, true, [ mldenoiseModelPathLabel, mldenoiseModelPathEdit, mldenoiseModelPathButton ]);
+
+      return mldenoiseModelPathSizer;
+}
+
 
 createImageToolsControl(parent)
 {
@@ -722,7 +773,18 @@ createImageToolsControl(parent)
             "<p>Use MLDenoise for noise reduction.</p>" +
             "<p>MLDenoise is a noise reduction process included in PixInsight. It is available starting from PixInsight version 1.9.5.</p>" +
             "<p>You can change noise reduction settings in the <i>Postprocessing / Noise reduction</i> section.</p>" +
-            "<p>Note that before using MLDenoise you need to specify the model file.</p>" );
+            "<p>Note that before using MLDenoise you need to download a model file and specify it in the <i>Tools / MLDenoise</i> section. " +
+            "If the model file is not specified, it is asked when this option is checked.</p>",
+            () => {
+                  // Model file is required, ask for it if it is not set
+                  if (this.par.use_mldenoise.val && this.par.mldenoise_model_path.val == "") {
+                        if (!this.selectMLDenoiseModelFile()) {
+                              console.warningln("MLDenoise model file is not specified, MLDenoise is not used.");
+                              this.par.use_mldenoise.val = false;
+                              use_mldenoise_CheckBox.checked = false;
+                        }
+                  }
+            });
       var use_starnet2_CheckBox = this.newCheckBox(parent, "StarNet2", this.par.use_starnet2,
             "<p>Use StarNet2 to remove stars from an image.</p>" );
       var use_deepsnr_CheckBox = this.newCheckBox(parent, "DeepSNR", this.par.use_deepsnr,

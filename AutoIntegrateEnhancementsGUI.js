@@ -129,10 +129,6 @@ constructor(parent, guitools, util, global, engine, preview) {
       this.normalize_channels_reference_values = [ 'R', 'G', 'B' ];
       this.rotate_degrees_values = [ '90', '180', '-90' ];
 
-      this.colorized_narrowband_preset_values = [ 'Default', 'North America', 'Eagle' ];
-      this.narrowband_colorized_mapping_values = [ 'RGB', 'GRB', 'GBR', 'BRG', 'BGR', 'RBG' ];
-      this.narrowband_colorized_combine_values = [ 'Channels', 'Screen', 'Sum', 'Mean', 'Max', 'Median' ];
-      this.narrowband_colorized_method_values = [ 'PixelMath' ];
       this.signature_positions_values = [ 'Top left', 'Top middle', 'Top right', 'Bottom left', 'Bottom middle', 'Bottom right' ];
       this.highpass_sharpen_values = [ 'Default', 'MLT', 'UnsharpMask', 'BlurXTerminator', 'None' ];
       this.enhancements_HDRMLT_color_values = [ 'None', 'Preserve hue', 'Color corrected' ];
@@ -604,7 +600,6 @@ createEnhancementsControls(parent)
             "<li>Hue shift for less green</li>" +
             "<li>Hue shift for more orange</li>" +
             "<li>Hue shift for SHO</li>" +
-            "<li>Colorized narrowband</li>" +
             "<li>Remove green cast/Leave some green</li>" +
             "<li>Remove magenta color</li>" +
             "<li>Fix star colors</li>" +

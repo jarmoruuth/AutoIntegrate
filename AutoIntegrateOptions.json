@@ -1,6 +1,6 @@
 {
- "version": "AutoIntegrate v1.87.4",
- "generated": "Sun Sep 27 2026 23:40:32 GMT+0300 (FLE Daylight Time)",
+ "version": "AutoIntegrate v1.87.5",
+ "generated": "Thu Oct 01 2026 22:58:57 GMT+0300 (FLE Daylight Time)",
  "options": [
   {
    "key": "local_normalization",
@@ -3995,27 +3995,27 @@
     {
      "kind": "text",
      "label": "",
-     "tooltip": "<p>Path to the MLDenoise model file. Model files have a .xmlm extension.</p><p>Model file must be specified here, setting it in the PixInsight process does not suffice.</p><p><b>NOTE!</b> Parameter is automatically saved the persistent module settings. The value is automatically restored when the script starts.</p><p>Note that this parameter is not reset or saved to Json file.</p>",
+     "tooltip": "<p>Path to the MLDenoise model file. Model files have a .xmlm extension.</p><p>MLDenoise model files must be downloaded separately and they can be saved to any directory.</p><p>Model file must be specified here, setting it in the PixInsight process does not suffice.</p><p><b>NOTE!</b> Parameter is automatically saved the persistent module settings. The value is automatically restored when the script starts.</p><p>Note that this parameter is not reset or saved to Json file.</p>",
      "values": null,
      "min": null,
      "max": null,
-     "tab": "Postprocessing",
-     "section": "Noise reduction",
-     "expert": true,
+     "tab": "Tools",
+     "section": "MLDenoise",
+     "expert": false,
      "located": true
     }
    ],
-   "expert": true,
+   "expert": false,
    "tabs": [
-    "Postprocessing"
+    "Tools"
    ],
    "sections": [
-    "Noise reduction"
+    "MLDenoise"
    ],
    "in_gui": true,
    "kind": "text",
    "label": "",
-   "tooltip": "<p>Path to the MLDenoise model file. Model files have a .xmlm extension.</p><p>Model file must be specified here, setting it in the PixInsight process does not suffice.</p><p><b>NOTE!</b> Parameter is automatically saved the persistent module settings. The value is automatically restored when the script starts.</p><p>Note that this parameter is not reset or saved to Json file.</p>",
+   "tooltip": "<p>Path to the MLDenoise model file. Model files have a .xmlm extension.</p><p>MLDenoise model files must be downloaded separately and they can be saved to any directory.</p><p>Model file must be specified here, setting it in the PixInsight process does not suffice.</p><p><b>NOTE!</b> Parameter is automatically saved the persistent module settings. The value is automatically restored when the script starts.</p><p>Note that this parameter is not reset or saved to Json file.</p>",
    "values": null,
    "min": null,
    "max": null
@@ -4175,7 +4175,7 @@
     {
      "kind": "checkbox",
      "label": "MLDenoise",
-     "tooltip": "<p>Use MLDenoise for noise reduction.</p><p>MLDenoise is a noise reduction process included in PixInsight. It is available starting from PixInsight version 1.9.5.</p><p>You can change noise reduction settings in the <i>Postprocessing / Noise reduction</i> section.</p><p>Note that before using MLDenoise you need to specify the model file.</p>",
+     "tooltip": "<p>Use MLDenoise for noise reduction.</p><p>MLDenoise is a noise reduction process included in PixInsight. It is available starting from PixInsight version 1.9.5.</p><p>You can change noise reduction settings in the <i>Postprocessing / Noise reduction</i> section.</p><p>Note that before using MLDenoise you need to download a model file and specify it in the <i>Tools / MLDenoise</i> section. If the model file is not specified, it is asked when this option is checked.</p>",
      "values": null,
      "min": null,
      "max": null,
@@ -4195,7 +4195,7 @@
    "in_gui": true,
    "kind": "checkbox",
    "label": "MLDenoise",
-   "tooltip": "<p>Use MLDenoise for noise reduction.</p><p>MLDenoise is a noise reduction process included in PixInsight. It is available starting from PixInsight version 1.9.5.</p><p>You can change noise reduction settings in the <i>Postprocessing / Noise reduction</i> section.</p><p>Note that before using MLDenoise you need to specify the model file.</p>",
+   "tooltip": "<p>Use MLDenoise for noise reduction.</p><p>MLDenoise is a noise reduction process included in PixInsight. It is available starting from PixInsight version 1.9.5.</p><p>You can change noise reduction settings in the <i>Postprocessing / Noise reduction</i> section.</p><p>Note that before using MLDenoise you need to download a model file and specify it in the <i>Tools / MLDenoise</i> section. If the model file is not specified, it is asked when this option is checked.</p>",
    "values": null,
    "min": null,
    "max": null
@@ -7006,7 +7006,7 @@
     {
      "kind": "checkbox",
      "label": "ACDNR noise reduction,",
-     "tooltip": "<p>Runs ACDNR noise reduction.</p>",
+     "tooltip": "<p>Runs ACDNR noise reduction.</p><p>ACDNR is not used during processing if AI based noise reduction using NoiseXTerminator, GraXpert denoise, DeepSNR or MLDenoise is selected.</p>",
      "values": null,
      "min": null,
      "max": null,
@@ -7026,7 +7026,7 @@
    "in_gui": true,
    "kind": "checkbox",
    "label": "ACDNR noise reduction,",
-   "tooltip": "<p>Runs ACDNR noise reduction.</p>",
+   "tooltip": "<p>Runs ACDNR noise reduction.</p><p>ACDNR is not used during processing if AI based noise reduction using NoiseXTerminator, GraXpert denoise, DeepSNR or MLDenoise is selected.</p>",
    "values": null,
    "min": null,
    "max": null
@@ -7042,7 +7042,7 @@
     {
      "kind": "number",
      "label": "StdDev",
-     "tooltip": "<p>If non-zero, sets StdDev value and runs ACDNR noise reduction.</p><p>A mild ACDNR noise reduction with StdDev value between 1.0 and 2.0 can be useful to smooth image and reduce black spots left from previous noise reduction.</p>",
+     "tooltip": "<p>If non-zero, sets StdDev value and runs ACDNR noise reduction.</p><p>ACDNR is not used during processing if AI based noise reduction using NoiseXTerminator, GraXpert denoise, DeepSNR or MLDenoise is selected.</p><p>A mild ACDNR noise reduction with StdDev value between 1.0 and 2.0 can be useful to smooth image and reduce black spots left from previous noise reduction.</p>",
      "values": null,
      "min": 0,
      "max": 5,
@@ -7062,7 +7062,7 @@
    "in_gui": true,
    "kind": "number",
    "label": "StdDev",
-   "tooltip": "<p>If non-zero, sets StdDev value and runs ACDNR noise reduction.</p><p>A mild ACDNR noise reduction with StdDev value between 1.0 and 2.0 can be useful to smooth image and reduce black spots left from previous noise reduction.</p>",
+   "tooltip": "<p>If non-zero, sets StdDev value and runs ACDNR noise reduction.</p><p>ACDNR is not used during processing if AI based noise reduction using NoiseXTerminator, GraXpert denoise, DeepSNR or MLDenoise is selected.</p><p>A mild ACDNR noise reduction with StdDev value between 1.0 and 2.0 can be useful to smooth image and reduce black spots left from previous noise reduction.</p>",
    "values": null,
    "min": 0,
    "max": 5

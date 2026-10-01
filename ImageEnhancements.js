@@ -180,9 +180,14 @@ class AutoIntegrateImageEnhancementsDialog extends Dialog {
     this.GraXpertPathSizerSectionLabel = this.guitools.newSectionLabel(this, "GraXpert path");
     this.GraXpertPathSizer = this.guitools.createGraXpertPathSizer(this);
 
+    this.MLDenoisePathSizerSectionLabel = this.guitools.newSectionLabel(this, "MLDenoise model");
+    this.MLDenoisePathSizer = this.guitools.createMLDenoisePathSizer(this);
+
     this.toolsControl = this.guitools.createImageToolsControl(this);
     this.toolsControl.sizer.add( this.GraXpertPathSizerSectionLabel );
     this.toolsControl.sizer.add( this.GraXpertPathSizer );
+    this.toolsControl.sizer.add( this.MLDenoisePathSizerSectionLabel );
+    this.toolsControl.sizer.add( this.MLDenoisePathSizer );
     this.toolsControl.visible = false;
 
    // -------------------------------------------------------------------------

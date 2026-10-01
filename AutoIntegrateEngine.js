@@ -9501,7 +9501,8 @@ runACDNRReduceNoise(imgWin, maskWin)
           || this.par.ACDNR_noise_reduction.val == 0.0 
           || this.par.use_noisexterminator.val
           || this.par.use_graxpert_denoise.val
-          || this.par.use_mldenoise.val) 
+          || this.par.use_deepsnr.val
+          || this.par.use_mldenoise.val)
       {
             // Skip if not configured or using AI based noise reduction
             return;
@@ -18200,7 +18201,7 @@ check_available_processes()
             }
             if (this.par.use_mldenoise.val) {
                   if (this.par.mldenoise_model_path.val == "") {
-                        this.util.throwFatalError("MLDenoise model path is not specified");
+                        this.util.throwFatalError("MLDenoise model path is not specified, set the model file in the Tools / MLDenoise section");
                   }
             }
       }
