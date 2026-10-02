@@ -48,7 +48,7 @@ constructor(engine, util, global, image, txt) {
       this.move(5, 5);      // move to top left corner
    
       this.windowTitle = "Max preview";
-      this.adjustToContents();
+      util.updateLayout(this);
       this.setFixedSize();
 } // end of constructor
 

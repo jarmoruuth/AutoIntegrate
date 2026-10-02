@@ -41,9 +41,10 @@ by Pleiades Astrophoto and its contributors (https://pixinsight.com/).
 
 class AutoIntegrateNarrowbandSelectMultipleDialog extends Dialog
 {
-      constructor(global, mappings_list)
+      constructor(global, util, mappings_list)
       {
             super();
+            this.util = util;
             this.restyle();
 
       this.labelWidth = this.font.width( "Object identifier:M" );
@@ -126,8 +127,7 @@ class AutoIntegrateNarrowbandSelectMultipleDialog extends Dialog
       this.sizer.add( this.buttons_Sizer );
    
       this.windowTitle = "Select Narrowband Mappings";
-      this.ensureLayoutUpdated();
-      this.adjustToContents();
+      this.util.updateLayout(this);
 
 } // constructor
 } // AutoIntegrateNarrowbandSelectMultipleDialog
@@ -842,6 +842,7 @@ showOrHideFilterSectionBar(pageIndex)
             this.filterSectionbars[pageIndex].hide();
             this.filterSectionbarcontrols[pageIndex].visible = false;
       }
+      this.util.updateLayout(this);
 }
 
 lightsOptions(parent)
@@ -2610,7 +2611,7 @@ metricsVisualizerSSWEIGHT(parent)
       }
       var metricsFilteredOut = this.engine.getMetricsFilteredOut(this.global.saved_measurements, true);
 
-      let metricsVisualizer = new AutoIntegrateMetricsVisualizer(this.global);
+      let metricsVisualizer = new AutoIntegrateMetricsVisualizer(this.global, this.util);
 
       if (metricsVisualizer.main(data, metricsFilteredOut)) {
             // Update all changed data
@@ -2663,7 +2664,7 @@ metricsVisualizerFilters(parent)
       }
       var metricsFilteredOut = this.engine.getMetricsFilteredOut(this.global.saved_measurements);
 
-      let metricsVisualizer = new AutoIntegrateMetricsVisualizer(this.global);
+      let metricsVisualizer = new AutoIntegrateMetricsVisualizer(this.global, this.util);
 
       if (metricsVisualizer.main(data, metricsFilteredOut)) {
             // Update all changed data
@@ -3364,10 +3365,8 @@ switchToSimpleMode(parent)
       parent.welcomeButton.styleSheet = parent.tutorialButton.styleSheet;
     
       parent.setupAllTutorials();
-      parent.mainTabBox.ensureLayoutUpdated();
-      parent.mainTabBox.adjustToContents();
-      parent.ensureLayoutUpdated();
-      parent.adjustToContents();
+      this.util.updateLayout(parent.mainTabBox);
+      this.util.updateLayout(parent);
 
       parent.saveExpertMode();
 }
@@ -3402,10 +3401,8 @@ switchToExpertMode(parent)
             parent.welcomeButton.styleSheet = parent.tutorialButton.styleSheet;
       }
       parent.setupAllTutorials();
-      parent.mainTabBox.ensureLayoutUpdated();
-      parent.mainTabBox.adjustToContents();
-      parent.ensureLayoutUpdated();
-      parent.adjustToContents();
+      this.util.updateLayout(parent.mainTabBox);
+      this.util.updateLayout(parent);
 
       parent.saveExpertMode();
 }
@@ -3840,8 +3837,7 @@ addFileFilterButtonSectionBar(parent, pageIndex)
       sb.hide();
       sb.toolTip = "<p>Select manually files for each filter. Useful if filters are not recognized automatically.</p>";
       sb.onToggleSection = (bar, beginToggle) => {
-            parent.ensureLayoutUpdated();
-            parent.adjustToContents();
+            this.util.updateLayout(parent);
       };
 
       this.filterSectionbars[pageIndex] = sb;
@@ -4372,8 +4368,7 @@ newAdjustToContentButton(parent)
       button.toolTip = "<p>Adjust script window to content.</p>";
       button.onClick = () =>
       {
-            parent.ensureLayoutUpdated();
-            parent.adjustToContents();
+            this.util.updateLayout(parent);
       };
       return button;
 }
@@ -4393,8 +4388,7 @@ newCollapeSectionsButton(parent)
                   if (!this.global.do_not_write_settings) {
                         Settings.write("AutoIntegrate" + '/' + this.global.sectionBars[i].aiName, DataType.Boolean, this.global.sectionBars[i].aiControl.visible);
                   }
-                  parent.ensureLayoutUpdated();
-                  parent.adjustToContents();
+                  this.util.updateLayout(parent);
             }
       };
       return button;
@@ -4457,10 +4451,10 @@ newMaximizeDialogButton(parent)
                   maxDialogButton.icon = parent.scaledResource( ":/real-time-preview/full-view.png" );
                   maxDialogButton.toolTip = maxDialogToolTip;
                   this.previewControl.setSize(this.ppar.preview.side_preview_width, this.ppar.preview.side_preview_height);
-                  this.previewControl.adjustToContents();
+                  this.util.updateLayout(this.previewControl);
                   parent.move(this.dialog_old_position);
                   this.dialog_mode = 1;
-                  parent.adjustToContents();
+                  this.util.updateLayout(parent);
             } else if (this.dialog_mode == 1) {
                   // maximize
                   // calculate starting point for maximized dialog size
@@ -4503,7 +4497,7 @@ newMaximizeDialogButton(parent)
                                   ", max preview " + preview_size.width + "x" + preview_size.height);
 
             }
-            parent.adjustToContents();
+            this.util.updateLayout(parent);
             this.util.runGarbageCollection();
       };
 
@@ -4539,7 +4533,7 @@ newMinimizeDialogButton(parent)
                   this.mainTabBox.show();
                   parent.move(this.dialog_old_position);
                   this.dialog_mode = 1;
-                  parent.adjustToContents();
+                  this.util.updateLayout(parent);
             } else if (this.dialog_mode == 1) {
                   // minimize
                   console.writeln("Minimize dialog: minimize");
@@ -4560,11 +4554,10 @@ newMinimizeDialogButton(parent)
                         parent.move(this.dialog_min_position);
                   }
                   this.dialog_mode = 0;
-                  parent.adjustToContents();
+                  this.util.updateLayout(parent);
             }
             minDialogButton.aiminDialogMode = !minDialogButton.aiminDialogMode;
-            parent.ensureLayoutUpdated();
-            parent.adjustToContents();
+            this.util.updateLayout(parent);
             this.util.runGarbageCollection();
       };
 
@@ -5515,9 +5508,9 @@ AutoIntegrateDialog()
             "<p>Selecting this enables manual adding of filter files for lights and flats.</p>",
             (checked) => {
                   this.autodetect_filter_CheckBox.aiParam.val = checked;
-                  this.showOrHideFilterSectionBar(this.global.LIGHTS);
-                  this.showOrHideFilterSectionBar(this.global.FLATS);
-                  this.showOrHideFilterSectionBar(this.global.FLAT_DARKS);
+                  this.showOrHideFilterSectionBar(this.global.pages.LIGHTS);
+                  this.showOrHideFilterSectionBar(this.global.pages.FLATS);
+                  this.showOrHideFilterSectionBar(this.global.pages.FLAT_DARKS);
             });
       this.save_all_files_CheckBox = this.guitools.newCheckBox(this, "Save all files", this.par.save_all_files, 
             "<p>If selected save buttons will save all processed and iconized files and not just final image files. </p>" );
@@ -7283,7 +7276,7 @@ AutoIntegrateDialog()
       this.narrowbandSelectMultipleButton.toolTip = "<p>Select narrowband mappings.</p>";
       this.narrowbandSelectMultipleButton.onClick = () =>
       {
-            let narrowbandSelectMultiple = new AutoIntegrateNarrowbandSelectMultipleDialog(global, this.par.narrowband_multiple_mappings_list.val);
+            let narrowbandSelectMultiple = new AutoIntegrateNarrowbandSelectMultipleDialog(global, this.util, this.par.narrowband_multiple_mappings_list.val);
             narrowbandSelectMultiple.windowTitle = "Select Narrowband Mappings";
             if (narrowbandSelectMultiple.execute()) {
                   if (narrowbandSelectMultiple.names == null) {
@@ -8720,12 +8713,11 @@ AutoIntegrateDialog()
       // Version number
       this.windowTitle = this.global.autointegrate_version; 
       this.userResizable = true;
-      this.ensureLayoutUpdated();
-      this.adjustToContents();
+      this.util.updateLayout(this);
       
       // Force proper sizing when preview is disabled
       if (!this.global.use_preview) {
-            this.adjustToContents();
+            this.util.updateLayout(this);
             this.setVariableSize();
       }
       //this.files_GroupBox.setFixedHeight();
@@ -8859,7 +8851,7 @@ markAsRun() {
 
 // Show welcome dialog
 showWelcomeDialog(global) {
-      var welcome = new AutoIntegrateWelcomeDialog(global);
+      var welcome = new AutoIntegrateWelcomeDialog(global, this.util);
       var result = welcome.execute();
       
       // Save preference
@@ -8887,7 +8879,7 @@ showWelcomeDialog(global) {
 // Show tutorial manager
 showTutorialManager() {
     
-      var manager = new AutoIntegrateTutorialManagerDialog(this, this.global);
+      var manager = new AutoIntegrateTutorialManagerDialog(this, this.global, this.util);
       manager.execute();
 };
 

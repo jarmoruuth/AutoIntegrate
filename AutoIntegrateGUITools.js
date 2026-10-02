@@ -598,12 +598,11 @@ newSectionBarAdd(parent, groupbox, control, title, name, level = 1)
 {
       var sb = new SectionBar(parent, title);
       sb.setSection(control);
-      sb.onToggleSection = function(bar, beginToggle) {
+      sb.onToggleSection = (bar, beginToggle) => {
             if (!parent.global.do_not_write_settings) {
                   Settings.write("AutoIntegrate" + "/" + name, DataType.Boolean, control.visible);
             }
-            parent.ensureLayoutUpdated();
-            parent.adjustToContents();
+            this.util.updateLayout(parent);
       };
       sb.aiControl = control;
       sb.aiName = name;

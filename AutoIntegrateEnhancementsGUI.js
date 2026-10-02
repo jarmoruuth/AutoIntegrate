@@ -83,8 +83,7 @@ constructor(util) {
       this.sizer.add( this.buttons_Sizer );
    
       this.windowTitle = "Select stars image";
-      this.ensureLayoutUpdated();
-      this.adjustToContents();
+      this.util.updateLayout(this);
 } // constructor
 
 } // AutoIntegrateSelectStarsImageDialog

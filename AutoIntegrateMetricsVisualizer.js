@@ -473,8 +473,7 @@ class AutoIntegrateMetricsVisualizerDialog extends Dialog {
         this.sizer.add(this.buttonsRowSizer);
         this.sizer.addStretch();
 
-        this.ensureLayoutUpdated();
-        this.adjustToContents();
+        this.visualizer.util.updateLayout(this);
     }
 
     // ---- Instance methods (replaces AstroMetricsDialog.updateData = function() pattern) ----
@@ -584,9 +583,10 @@ class AutoIntegrateMetricsVisualizer extends Object {
     numberOfDataSets   = 0;
     dialog             = null;
 
-    constructor(global) {
+    constructor(global, util) {
         super();
         this.global = global;
+        this.util = util;
         this.WINDOW_TITLE = AutoIntegrateMetricsVisualizer.WINDOW_TITLE;
     }
 

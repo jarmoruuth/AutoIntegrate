@@ -3128,10 +3128,8 @@ adjustDialogToScreen(dialog, preview_control, maxsize, preview_width, preview_he
 
       for (var i = 0; i < 100; i++) {
             preview_control.setSize(preview_width, preview_height);
-            preview_control.ensureLayoutUpdated();
-            preview_control.adjustToContents();
-            dialog.ensureLayoutUpdated();
-            dialog.adjustToContents();
+            this.updateLayout(preview_control);
+            this.updateLayout(dialog);
 
             if (dialog_width == dialog.width && dialog_height == dialog.height) {
                   // No change
@@ -3540,6 +3538,13 @@ initStandalone()
     this.readParametersFromPersistentModuleSettings();
     this.restoreLastDir();
     this.restoreMasterDir();
+}
+
+updateLayout(dialog)
+{
+      CoreApplication.processEvents();
+      dialog.ensureLayoutUpdated();
+      dialog.adjustToContents();
 }
 
 /* Interface functions.

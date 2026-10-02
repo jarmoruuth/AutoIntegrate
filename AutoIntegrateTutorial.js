@@ -17,10 +17,11 @@
 
 class AutoIntegrateCreditsDialog extends Dialog {
 
-constructor(global) {
+constructor(global, util) {
         super();
 
         this.global = global;
+        this.util = util;
         
         this.windowTitle = "About AutoIntegrate";
         this.minWidth = 500;
@@ -100,7 +101,7 @@ constructor(global) {
         this.sizer.addSpacing(6);
         this.sizer.add(buttonSizer);
         
-        this.adjustToContents();
+        this.util.updateLayout(this);
 
 } // constructor
 
@@ -112,10 +113,11 @@ constructor(global) {
 
 class AutoIntegrateWelcomeDialog extends Dialog {
 
-constructor(global) {
+constructor(global, util) {
         super();
 
         this.global = global;
+        this.util = util;
         
         this.windowTitle = "Welcome to AutoIntegrate";
         this.minWidth = 600;
@@ -247,7 +249,7 @@ constructor(global) {
         this.creditsButton.text = "Credits";
         this.creditsButton.toolTip = "View credits and version information";
         this.creditsButton.onClick = () => {
-            var credits = new AutoIntegrateCreditsDialog(this.global);
+            var credits = new AutoIntegrateCreditsDialog(this.global, this.util);
             credits.execute();
         };
         
@@ -320,7 +322,7 @@ constructor(global) {
         this.sizer.add(showOnStartupSizer);
         this.sizer.add(buttonSizer);
         
-        this.adjustToContents();
+        this.util.updateLayout(this);
         
         // Store selected tutorial
         this.selectedTutorial = null;
@@ -343,9 +345,10 @@ saveShowOnStartup() {
 
 class AutoIntegrateTutorialManagerDialog extends Dialog {
 
-constructor(parentDialog, global) {
+constructor(parentDialog, global, util) {
       super();
-      
+
+      this.util = util;
       this.parentDialog = parentDialog;
       this.windowTitle = "AutoIntegrate Tutorials";
       this.minWidth = 500;
@@ -449,7 +452,7 @@ constructor(parentDialog, global) {
       }
       this.sizer.add(buttonSizer);
       
-      this.adjustToContents();
+      this.util.updateLayout(this);
 } // constructor
 
 // Define available tutorials
@@ -770,6 +773,7 @@ hideSections() {
       for (var i = 0; i < this.global.sectionBars.length; i++) {
             this.global.sectionBars[i].aiControl.hide();
       }
+      this.util.updateLayout(this.dialog);
 };
 
 showSelectedSections() {
@@ -787,7 +791,7 @@ showSelectedSections() {
                   }
             }
       }
-      this.dialog.adjustToContents();
+      this.util.updateLayout(this.dialog);
       CoreApplication.processEvents();  // Force UI update
 };
 
@@ -818,8 +822,7 @@ showStep(stepIndex) {
       this.counterLabel.text = "Step " + (stepIndex + 1) + " of " + this.steps.length;
 
       // Adjust tooltip size to content (height will adjust, width is fixed)
-      this.tooltipControl.ensureLayoutUpdated();
-      this.tooltipControl.adjustToContents();
+      this.util.updateLayout(this.tooltipControl);
       CoreApplication.processEvents();
 
       // Update button states
@@ -846,7 +849,7 @@ showStep(stepIndex) {
             this.highlightFrame.visible = false;
       }
 
-      this.tooltipControl.adjustToContents();
+      this.util.updateLayout(this.tooltipControl);
 
       // Position tooltip
       this.positionTooltip(step.target, step.tooltipPosition);
@@ -1010,8 +1013,7 @@ endTutorial() {
         Console.noteln("Tutorial completed: " + this.currentTutorialId);
     }
     
-    this.dialog.ensureLayoutUpdated();
-    this.dialog.adjustToContents();
+    this.util.updateLayout(this.dialog);
     CoreApplication.processEvents();
 };
 

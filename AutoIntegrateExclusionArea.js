@@ -203,8 +203,7 @@ constructor(global, util, engine, activeWindow, currentExclusionAreas) {
    this.sizer.add(this.managementSizer);
    
    this.windowTitle = this.title;
-   this.ensureLayoutUpdated();
-   this.adjustToContents();
+   this.util.updateLayout(this);
 } // constructor
 
 // Helper to draw the preview
@@ -373,8 +372,7 @@ setPreviewForView() {
       this.previewControl.setFixedSize(Math.round(imgWidth * this.scale), Math.round(imgHeight * this.scale));
       
       // Force dialog to adjust to the new control size
-      this.ensureLayoutUpdated();
-      this.adjustToContents();
+      this.util.updateLayout(this);
    }
    
    this.updatePreview();
