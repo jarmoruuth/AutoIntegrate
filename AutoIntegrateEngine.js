@@ -5462,15 +5462,23 @@ createNewStarXTerminator(star_mask, linear_data, from_lights, use_unscreen)
       return P;
 }
 
-createNewStarNet2(star_mask, from_lights)
+createNewStarNet2(star_mask, from_lights, use_unscreen)
 {
       if (this.global.get_flowchart_data) {
             return {};
       }
       var node = null;
       try {
+            console.writeln("createNewStarNet2, star_mask "+ star_mask + ", use_unscreen " + use_unscreen);
             var P = new StarNet2;
-            P.mask = star_mask;
+            if (star_mask) {
+                  if (use_unscreen) {
+                        P.unscreen = true;
+                  } else {
+                        P.mask = true;
+                  }
+            }
+            P.linear = false;
             this.engine_end_process(node);
       } catch(err) {
             this.save_images_in_save_id_list(); // Save images so we can retur with AutoContinue
@@ -5531,7 +5539,7 @@ removeStars(imgWin, linear_data, save_stars, save_array, stars_image_name, use_u
       }
 
       var create_star_mask = save_stars;
-      if (save_stars && use_unscreen && !this.par.use_starxterminator.val) {
+      if (save_stars && use_unscreen && !this.par.use_starxterminator.val && !this.par.use_starnet2.val) {
             var originalwin_copy = this.util.copyWindow(imgWin, this.util.ensure_win_prefix(imgWin.mainView.id + "_tmp_original"));
             create_star_mask = false;
       }
@@ -5541,7 +5549,7 @@ removeStars(imgWin, linear_data, save_stars, save_array, stars_image_name, use_u
             var P = this.createNewStarXTerminator(create_star_mask, linear_data, from_lights, use_unscreen);
       } else if (this.par.use_starnet2.val) {
             this.util.addProcessingStep("Run StarNet2 on " + imgWin.mainView.id);
-            var P = this.createNewStarNet2(create_star_mask, from_lights);
+            var P = this.createNewStarNet2(create_star_mask, from_lights, use_unscreen);
       } else {
             this.save_images_in_save_id_list(); // Save images so we can return with AutoContinue
             this.util.throwFatalError("StarNet2 or StarXTerminator must be selected to remove stars.");
@@ -5598,7 +5606,7 @@ removeStars(imgWin, linear_data, save_stars, save_array, stars_image_name, use_u
             if (stars_image_name == null) {
                   stars_image_name = imgWin.mainView.id + "_stars";
             }
-            if (use_unscreen && !this.par.use_starxterminator.val) {
+            if (use_unscreen && !this.par.use_starxterminator.val && !this.par.use_starnet2.val) {
                   // Use unscreen method to get stars image as described by Russell Croman
                   console.writeln("removeStars use unscreen to get star image");
                   var id = this.runPixelMathSingleMappingEx(
@@ -9920,8 +9928,6 @@ runDeepSNR(imgWin, linear)
             var P = new DeepSNR;
             P.linear = linear;
             P.amount = this.par.deepsnr_amount.val;
-            P.shadows_clipping = -2.80;
-            P.target_background = 0.25;
       } catch(err) {
             this.save_images_in_save_id_list(); // Save images so we can retur with AutoContinue
             console.criticalln("DeepSNR failed");
@@ -18121,7 +18127,7 @@ get_local_copies_of_parameters()
       this.local_debayer_pattern = this.par.debayer_pattern.val;
       this.local_RGBHa_prepare_method = this.par.RGBHa_prepare_method.val;
       this.local_RGBHa_combine_method = this.par.RGBHa_combine_method.val;
-}
+}3
 
 // Error text when RGBHa star removal is requested but no star removal tool can be used.
 // Tells if a tool was enabled but is not installed, check_available_processes() disables those.

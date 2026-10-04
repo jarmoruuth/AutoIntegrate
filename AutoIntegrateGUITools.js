@@ -858,10 +858,10 @@ var GraXpert_note = "<p><b>NOTE!</b> A path to GraXpert file must be set in the 
       imageToolsSet2.margin = 6;
       imageToolsSet2.spacing = 4;
       imageToolsSet2.add( imageToolsSet2SectionLabel );
+      imageToolsSet2.add( use_mldenoise_CheckBox );
       imageToolsSet2.add( use_noisexterminator_CheckBox );
       imageToolsSet2.add( use_graxpert_denoise_CheckBox );
       imageToolsSet2.add( use_deepsnr_CheckBox );
-      imageToolsSet2.add( use_mldenoise_CheckBox );
       imageToolsSet2.addStretch();
 
       // Tools set 3, star removal
