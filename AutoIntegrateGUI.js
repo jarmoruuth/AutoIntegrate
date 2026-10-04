@@ -223,7 +223,7 @@ this.RGBHa_combine_method_values = [ 'Bright structure add', 'Screen', 'Med subt
 this.color_calibration_time_values = [ 'auto', 'linear', 'nonlinear', 'both' ];
 this.RGBHa_test_values = [ 'Mapping', 'Continuum', 'All mappings' ];
 this.fast_mode_values = [ 'S', 'M' ];
-this.windows_at_end_values = [ 'Default', 'Close info windows', 'Keep only final images' ];
+this.windows_at_end_values = [ 'Keep all images', 'Close info windows', 'Keep integrated and final images', 'Keep only final images' ];
 this.drizzle_function_values = [ 'Square', 'Circular', 'Gaussian' ];
 
 this.screen_size = "Unknown";       // Screen wxh size as a string
@@ -5374,7 +5374,7 @@ AutoIntegrateDialog()
             "for DBE or for finding the true background.</p>");
       this.CropInfoOnlyCheckBox = this.guitools.newCheckBox(this, "Crop info only", this.par.cropinfo_only, 
             "<p>Run only image integration on *_r.xisf files to create automatic cropping info.</p>" +
-            "<p>Light file list should include all registered *_r.xisf files. The result will be LowRejectionMap_ALL.xisf file " +
+            "<p>Light file list should include all registered *_r.xisf files. The result will be AutoCropInfo.xisf file " +
             "that can be used to crop files to common area during AutoContinue.</p>" );
       this.imageWeightTestingCheckBox = this.guitools.newCheckBox(this, "Image weight testing ", this.par.image_weight_testing, 
             "<p>Run only SubframeSelector to output image weight information and outlier filtering into AutoIntegrate.log AutoWeights.json. " +
@@ -5389,17 +5389,25 @@ AutoIntegrateDialog()
             "<p>Keep integrated images when closing all windows</p>" );
       var windows_at_end_toolTip =
             "<p>Select which windows are left on the desktop at the end of processing.</p>" +
-            "<p><b>Default</b>, info windows and intermediate images are iconized and left on the desktop.</p>" +
+            "<p><b>Keep all images</b>, info windows and intermediate images are iconized and left on the desktop.</p>" +
             "<p><b>Close info windows</b>, close info windows that are only helper images and not part of the " +
             "actual processing result:</p>" +
             "<ul>" +
-            "<li>LowRejectionMap_ALL, contains the cropping information</li>" +
             "<li>AutoBackgroundModel, contains the automatically detected background area as a preview</li>" +
             "</ul>" +
+            "<p><b>Keep integrated and final images</b>, this is the default. Close info windows and intermediate " +
+            "images but leave the integrated images and the final images on the desktop. Integrated images are " +
+            "for example Integration_L, Integration_R or Integration_RGB. Closed intermediate images include for example " +
+            "Integration_L_processed, Integration_RGB_HT, Integration_RGB_combined, processed channel images and masks.</p>" +
             "<p><b>Keep only final images</b>, close info windows and all intermediate images and leave only the " +
             "final images on the desktop. Intermediate images include for example integrated channel images, " +
-            "processed channel images and masks.</p>" +
+            "AutoCropInfo, processed channel images and masks.</p>" +
+            "<p>AutoCropInfo image contains the automatic crop information. It is kept with the integrated images " +
+            "since AutoContinue needs it when the <i>Crop to common area</i> option is checked. It is closed only " +
+            "with the <i>Keep only final images</i> selection.</p>" +
             "<p>Note that info windows and intermediate images are not always generated.</p>" +
+            "<p>Note that with AutoContinue, processing starts from the most processed image that is on the desktop. " +
+            "When intermediate images are closed, AutoContinue starts from the integrated images.</p>" +
             "<p>Note also that closed images cannot be reused in AutoContinue. If images are saved on disk they " +
             "can be opened again before running AutoContinue.</p>";
       this.windowsAtEndLabel = this.guitools.newLabel(this, "Windows at end of processing", windows_at_end_toolTip);
@@ -5547,7 +5555,9 @@ AutoIntegrateDialog()
       this.imageintegration_clipping_CheckBox = this.guitools.newCheckBox(this, "No ImageIntegration clipping", this.par.skip_imageintegration_clipping, 
             "<p>Do not use clipping in ImageIntegration</p>" );
       this.crop_to_common_area_CheckBox = this.guitools.newCheckBox(this, "Crop to common area", this.par.crop_to_common_area, 
-            "<p>Crop all channels to area covered by all images</p>" );
+            "<p>Crop all channels to area covered by all images</p>" +
+            "<p>Crop information is saved as a crop preview in the AutoCropInfo image. AutoContinue uses " +
+            "the AutoCropInfo image to crop the images. The crop area can be adjusted by changing the crop preview.</p>" );
       this.RRGB_image_CheckBox = this.guitools.newCheckBox(this, "RRGB image", this.par.RRGB_image, 
             "<p>RRGB image using R as Luminance.</p>" );
       this.synthetic_l_image_CheckBox = this.guitools.newCheckBox(this, "Synthetic L image", this.par.synthetic_l_image, 

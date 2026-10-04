@@ -1319,7 +1319,7 @@
     {
      "kind": "checkbox",
      "label": "Crop to common area",
-     "tooltip": "<p>Crop all channels to area covered by all images</p>",
+     "tooltip": "<p>Crop all channels to area covered by all images</p><p>Crop information is saved as a crop preview in the AutoCropInfo image. AutoContinue uses the AutoCropInfo image to crop the images. The crop area can be adjusted by changing the crop preview.</p>",
      "values": null,
      "min": null,
      "max": null,
@@ -1339,7 +1339,7 @@
    "in_gui": true,
    "kind": "checkbox",
    "label": "Crop to common area",
-   "tooltip": "<p>Crop all channels to area covered by all images</p>",
+   "tooltip": "<p>Crop all channels to area covered by all images</p><p>Crop information is saved as a crop preview in the AutoCropInfo image. AutoContinue uses the AutoCropInfo image to crop the images. The crop area can be adjusted by changing the crop preview.</p>",
    "values": null,
    "min": null,
    "max": null
@@ -1823,7 +1823,7 @@
     {
      "kind": "checkbox",
      "label": "Crop info only",
-     "tooltip": "<p>Run only image integration on *_r.xisf files to create automatic cropping info.</p><p>Light file list should include all registered *_r.xisf files. The result will be LowRejectionMap_ALL.xisf file that can be used to crop files to common area during AutoContinue.</p>",
+     "tooltip": "<p>Run only image integration on *_r.xisf files to create automatic cropping info.</p><p>Light file list should include all registered *_r.xisf files. The result will be AutoCropInfo.xisf file that can be used to crop files to common area during AutoContinue.</p>",
      "values": null,
      "min": null,
      "max": null,
@@ -1843,7 +1843,7 @@
    "in_gui": true,
    "kind": "checkbox",
    "label": "Crop info only",
-   "tooltip": "<p>Run only image integration on *_r.xisf files to create automatic cropping info.</p><p>Light file list should include all registered *_r.xisf files. The result will be LowRejectionMap_ALL.xisf file that can be used to crop files to common area during AutoContinue.</p>",
+   "tooltip": "<p>Run only image integration on *_r.xisf files to create automatic cropping info.</p><p>Light file list should include all registered *_r.xisf files. The result will be AutoCropInfo.xisf file that can be used to crop files to common area during AutoContinue.</p>",
    "values": null,
    "min": null,
    "max": null
@@ -2542,17 +2542,18 @@
    "key": "windows_at_end",
    "name": "Windows at end of processing",
    "type": "S",
-   "def": "Default",
+   "def": "Keep integrated and final images",
    "tip": "",
    "applies": "interface",
    "controls": [
     {
      "kind": "list",
      "label": "",
-     "tooltip": "<p>Select which windows are left on the desktop at the end of processing.</p><p><b>Default</b>, info windows and intermediate images are iconized and left on the desktop.</p><p><b>Close info windows</b>, close info windows that are only helper images and not part of the actual processing result:</p><ul><li>LowRejectionMap_ALL, contains the cropping information</li><li>AutoBackgroundModel, contains the automatically detected background area as a preview</li></ul><p><b>Keep only final images</b>, close info windows and all intermediate images and leave only the final images on the desktop. Intermediate images include for example integrated channel images, processed channel images and masks.</p><p>Note that info windows and intermediate images are not always generated.</p><p>Note also that closed images cannot be reused in AutoContinue. If images are saved on disk they can be opened again before running AutoContinue.</p>",
+     "tooltip": "<p>Select which windows are left on the desktop at the end of processing.</p><p><b>Keep all images</b>, info windows and intermediate images are iconized and left on the desktop.</p><p><b>Close info windows</b>, close info windows that are only helper images and not part of the actual processing result:</p><ul><li>AutoBackgroundModel, contains the automatically detected background area as a preview</li></ul><p><b>Keep integrated and final images</b>, this is the default. Close info windows and intermediate images but leave the integrated images and the final images on the desktop. Integrated images are for example Integration_L, Integration_R or Integration_RGB. Closed intermediate images include for example Integration_L_processed, Integration_RGB_HT, Integration_RGB_combined, processed channel images and masks.</p><p><b>Keep only final images</b>, close info windows and all intermediate images and leave only the final images on the desktop. Intermediate images include for example integrated channel images, AutoCropInfo, processed channel images and masks.</p><p>AutoCropInfo image contains the automatic crop information. It is kept with the integrated images since AutoContinue needs it when the <i>Crop to common area</i> option is checked. It is closed only with the <i>Keep only final images</i> selection.</p><p>Note that info windows and intermediate images are not always generated.</p><p>Note that with AutoContinue, processing starts from the most processed image that is on the desktop. When intermediate images are closed, AutoContinue starts from the integrated images.</p><p>Note also that closed images cannot be reused in AutoContinue. If images are saved on disk they can be opened again before running AutoContinue.</p>",
      "values": [
-      "Default",
+      "Keep all images",
       "Close info windows",
+      "Keep integrated and final images",
       "Keep only final images"
      ],
      "min": null,
@@ -2573,10 +2574,11 @@
    "in_gui": true,
    "kind": "list",
    "label": "",
-   "tooltip": "<p>Select which windows are left on the desktop at the end of processing.</p><p><b>Default</b>, info windows and intermediate images are iconized and left on the desktop.</p><p><b>Close info windows</b>, close info windows that are only helper images and not part of the actual processing result:</p><ul><li>LowRejectionMap_ALL, contains the cropping information</li><li>AutoBackgroundModel, contains the automatically detected background area as a preview</li></ul><p><b>Keep only final images</b>, close info windows and all intermediate images and leave only the final images on the desktop. Intermediate images include for example integrated channel images, processed channel images and masks.</p><p>Note that info windows and intermediate images are not always generated.</p><p>Note also that closed images cannot be reused in AutoContinue. If images are saved on disk they can be opened again before running AutoContinue.</p>",
+   "tooltip": "<p>Select which windows are left on the desktop at the end of processing.</p><p><b>Keep all images</b>, info windows and intermediate images are iconized and left on the desktop.</p><p><b>Close info windows</b>, close info windows that are only helper images and not part of the actual processing result:</p><ul><li>AutoBackgroundModel, contains the automatically detected background area as a preview</li></ul><p><b>Keep integrated and final images</b>, this is the default. Close info windows and intermediate images but leave the integrated images and the final images on the desktop. Integrated images are for example Integration_L, Integration_R or Integration_RGB. Closed intermediate images include for example Integration_L_processed, Integration_RGB_HT, Integration_RGB_combined, processed channel images and masks.</p><p><b>Keep only final images</b>, close info windows and all intermediate images and leave only the final images on the desktop. Intermediate images include for example integrated channel images, AutoCropInfo, processed channel images and masks.</p><p>AutoCropInfo image contains the automatic crop information. It is kept with the integrated images since AutoContinue needs it when the <i>Crop to common area</i> option is checked. It is closed only with the <i>Keep only final images</i> selection.</p><p>Note that info windows and intermediate images are not always generated.</p><p>Note that with AutoContinue, processing starts from the most processed image that is on the desktop. When intermediate images are closed, AutoContinue starts from the integrated images.</p><p>Note also that closed images cannot be reused in AutoContinue. If images are saved on disk they can be opened again before running AutoContinue.</p>",
    "values": [
-    "Default",
+    "Keep all images",
     "Close info windows",
+    "Keep integrated and final images",
     "Keep only final images"
    ],
    "min": null,

@@ -1611,12 +1611,20 @@ setFinalImageKeyword(imageWindow)
             [ this.autoIntegrateVersionKeyword() ]);
 }
 
-/* Should info windows (LowRejectionMap_ALL, AutoBackgroundModel) be closed
- * at the end of processing.
+/* Should info windows (AutoBackgroundModel) be closed at the end of processing.
  */
 closeInfoWindowsAtEnd()
 {
-      return this.par.windows_at_end.val == 'Close info windows' || this.keepOnlyFinalImagesAtEnd();
+      return this.par.windows_at_end.val == 'Close info windows' ||
+             this.keepIntegratedAndFinalImagesAtEnd() ||
+             this.keepOnlyFinalImagesAtEnd();
+}
+
+/* Should all but the integrated and final images be closed at the end of processing.
+ */
+keepIntegratedAndFinalImagesAtEnd()
+{
+      return this.par.windows_at_end.val == 'Keep integrated and final images';
 }
 
 /* Should all but the final images be closed at the end of processing.
@@ -1624,6 +1632,18 @@ closeInfoWindowsAtEnd()
 keepOnlyFinalImagesAtEnd()
 {
       return this.par.windows_at_end.val == 'Keep only final images';
+}
+
+/* Check if the image is one of the integrated channel images, like Integration_L
+ * or Integration_RGB.
+ */
+isIntegratedImage(id)
+{
+      if (id == null) {
+            return false;
+      }
+      var integrated_ids = [ this.L_id, this.R_id, this.G_id, this.B_id, this.H_id, this.S_id, this.O_id, this.RGB_color_id ];
+      return integrated_ids.indexOf(id) != -1;
 }
 
 /* Check if the image is marked as a final image with the AutoIntegrate keyword.
@@ -1638,12 +1658,18 @@ isFinalImage(id)
 }
 
 /* Iconize an intermediate window at the end of processing. If only final
- * images are kept the window is closed instead. Images marked as final
- * images are never closed here.
+ * images, or only integrated and final images, are kept the window is closed
+ * instead. Images marked as final images are never closed here.
  */
 endProcessingIconizeAndKeywordif(id, show_image, find_prefix)
 {
-      if (this.keepOnlyFinalImagesAtEnd() && !this.isFinalImage(id)) {
+      var close_window = false;
+      if (this.keepOnlyFinalImagesAtEnd()) {
+            close_window = !this.isFinalImage(id);
+      } else if (this.keepIntegratedAndFinalImagesAtEnd()) {
+            close_window = !this.isFinalImage(id) && !this.isIntegratedImage(id);
+      }
+      if (close_window) {
             this.util.closeOneWindowById(id);
       } else {
             this.util.windowIconizeAndKeywordif(id, show_image, find_prefix);
@@ -7442,7 +7468,7 @@ runImageIntegrationForCrop(images)
 
       if (this.global.get_flowchart_data) {
             // we should have this.par.crop_use_rejection_low.val == false here
-            var id = this.flowchartNewIntegrationImage(images[0][1], this.ppar.win_prefix + "LowRejectionMap_ALL");
+            var id = this.flowchartNewIntegrationImage(images[0][1], this.ppar.win_prefix + this.global.crop_info_image_name);
             return { integrated_image_id: id, rejection_map_id: id };
       }
 
@@ -7578,8 +7604,8 @@ runImageIntegrationForCrop(images)
       //   console.writeln("integrationImageId ", P.integrationImageId)
       //   console.writeln("lowRejectionMapImageId ", P.lowRejectionMapImageId)
 
-      //console.writeln("Rename '",P.integrationImageId,"' to ",this.ppar.win_prefix + "LowRejectionMap_ALL")
-      var new_name = this.util.windowRename(P.integrationImageId, this.ppar.win_prefix + "LowRejectionMap_ALL");
+      //console.writeln("Rename '",P.integrationImageId,"' to ",this.ppar.win_prefix + this.global.crop_info_image_name)
+      var new_name = this.util.windowRename(P.integrationImageId, this.ppar.win_prefix + this.global.crop_info_image_name);
 
       if (this.par.use_drizzle.val && this.par.drizzle_scale.val > 1) {
             this.cropHandleDrizzle(new_name);
@@ -17860,7 +17886,7 @@ createCropInformationEx()
       }
       if (this.global.get_flowchart_data) {
             this.crop_truncate_amount = "Yes";
-            this.crop_lowClipImageName = this.ppar.win_prefix + "LowRejectionMap_ALL";
+            this.crop_lowClipImageName = this.ppar.win_prefix + this.global.crop_info_image_name;
             return;
       }
 
@@ -17947,7 +17973,7 @@ createCropInformationEx()
             false,
             false);
       
-      this.save_id_list.push([this.crop_lowClipImageName, this.crop_lowClipImageName]);  /* LowRejectionMap_ALL */
+      this.save_id_list.push([this.crop_lowClipImageName, this.crop_lowClipImageName]);  /* AutoCropInfo */
       this.crop_lowClipImage_changed = false;
 
       console.noteln("Generated data for cropping");
@@ -17981,7 +18007,14 @@ createCropInformation()
 findCropInformationAutoContinue()
 {
       this.util.addProcessingStepAndStatusInfo("Cropping all channel images to fully integrated area in AutoContinue");
-      let lowClipImageName = this.autocontinue_prefix + "LowRejectionMap_ALL";
+      let lowClipImageName = this.autocontinue_prefix + this.global.crop_info_image_name;
+      if (this.util.findWindowOrFile(lowClipImageName) == null) {
+            // Check also the old name of the crop info image
+            let oldLowClipImageName = this.autocontinue_prefix + this.global.crop_info_image_name_old;
+            if (this.util.findWindowOrFile(oldLowClipImageName) != null) {
+                  lowClipImageName = oldLowClipImageName;
+            }
+      }
       this.crop_lowClipImageName = lowClipImageName;       // save the name for minimizing
       var res = this.calculate_crop_amount(lowClipImageName, lowClipImageName, true);
       this.crop_truncate_amount = res.truncate_amount;
@@ -18731,7 +18764,7 @@ autointegrateProcessingEngine(parent, auto_continue, autocontinue_narrowband, tx
             this.saveProcessedWindow(this.RGB_color_id);          /* Final renamed substack integrated image. */
        }
        if (this.crop_lowClipImage_changed) {
-             this.saveProcessedWindow(this.crop_lowClipImageName);  /* LowRejectionMap_ALL */
+             this.saveProcessedWindow(this.crop_lowClipImageName);  /* AutoCropInfo */
        }
        if (this.preprocessed_images < this.global.start_images.L_R_G_B_GC) {
              // We have generated integrated images, save them
@@ -18787,10 +18820,11 @@ autointegrateProcessingEngine(parent, auto_continue, autocontinue_narrowband, tx
        this.endProcessingIconizeAndKeywordif(this.O_id);                  /* Integration_O */
        this.endProcessingIconizeAndKeywordif(this.RGB_color_id);          /* Integration_RGB */
        if (this.crop_lowClipImageName != null) {
-             if (this.closeInfoWindowsAtEnd()) {
-                   this.util.closeOneWindowById(this.crop_lowClipImageName);   /* LowRejectionMap_ALL */
+             /* Crop info is kept with integrated images since it is needed in AutoContinue. */
+             if (this.keepOnlyFinalImagesAtEnd()) {
+                   this.util.closeOneWindowById(this.crop_lowClipImageName);   /* AutoCropInfo */
              } else {
-                   this.util.windowIconizeif(this.crop_lowClipImageName);      /* LowRejectionMap_ALL */
+                   this.util.windowIconizeif(this.crop_lowClipImageName);      /* AutoCropInfo */
              }
        }
        if (this.closeInfoWindowsAtEnd()) {

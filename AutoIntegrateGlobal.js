@@ -33,6 +33,8 @@ this.autointegrate_info = "MLDenoise";                // For updates.xri
 
 this.autointegrate_version_info = [
       "Changes since the previous version:",
+      "- By default only integrated images and the final images",
+      "  are left on the desktop at the end of processing.",
       "- Support for MLDenoise",
       "- Small improvements",
       "- Bug fixes",
@@ -295,7 +297,7 @@ this.par = {
       drizzle_scale: { val: 2, def: 2, name : "Drizzle scale", type : 'I' },
       drizzle_drop_shrink: { val: 0.9, def: 0.9, name : "Drizzle drop shrink", type : 'R' },
       keep_integrated_images: { val: false, def: false, name : "Keep integrated images", type : 'B', applies : "interface" },
-      windows_at_end: { val: 'Default', def: 'Default', name : "Windows at end of processing", type : 'S', applies : "interface" },
+      windows_at_end: { val: 'Keep integrated and final images', def: 'Keep integrated and final images', name : "Windows at end of processing", type : 'S', applies : "interface" },
       reset_on_setup_load: { val: true, def: true, name : "Reset on setup load", type : 'B', applies : "interface" },
       keep_temporary_images: { val: false, def: false, name : "Keep temporary images", type : 'B', applies : "interface" },
       keep_processed_images: { val: false, def: false, name : "Keep processed images", type : 'B', applies : "interface" },
@@ -929,8 +931,14 @@ this.integration_color_windows = [
       "Integration_RGB"
 ];
 
+// Image that contains the automatic crop information as a crop preview.
+// The old name is still checked in AutoContinue.
+this.crop_info_image_name = "AutoCropInfo";
+this.crop_info_image_name_old = "LowRejectionMap_ALL";
+
 this.integration_data_windows = [
-      "LowRejectionMap_ALL",
+      this.crop_info_image_name,
+      this.crop_info_image_name_old,
       "AutoBackgroundModel"
 ];
 
