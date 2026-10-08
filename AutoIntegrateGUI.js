@@ -3670,7 +3670,7 @@ addExpertMode(parent)
       parent.expertRadio = new RadioButton(parent);
       parent.expertRadio.text = "Expert";
       parent.expertRadio.toolTip = toolTip;
-      parent.simpleRadio.checked = !this.global.expert_mode;
+      parent.expertRadio.textAlignment = TextAlignment.VertCenter;
       parent.expertRadio.checked = this.global.expert_mode;
       parent.expertRadio.onCheck = (checked) => {
             if (checked) {
