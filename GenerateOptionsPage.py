@@ -229,11 +229,11 @@ RULES = [
      r'|integration_combination|use_clipping|skip_imageintegration_clipping|percentile_|sigma_'
      r'|winsorised_cutoff|linearfit_|ESD_|large_scale_pixel_rejection|use_fastintegration'
      r'|fastintegration_)', 'integration'),
-    (r'^(GC_|use_GC_|gc_|mgc_|ABE_|dbe_|use_abe|use_dbe|use_multiscalegradientcorrection'
+    (r'^(GC_|use_GC_|gc_|mgc_|ABE_|dbe_|use_abe|use_dbe|use_multiscalegradientcorrection|use_gradientcorrection'
      r'|use_graxpert$|graxpert_(path|correction|smoothing)|smoothbackground$)', 'gradient'),
     (r'^(use_graxpert_denoise|graxpert_denoise_)', 'noise'),
     (r'^(use_graxpert_deconvolution|graxpert_deconvolution_|graxpert_median_psf'
-     r'|use_blurxterminator|bxt_|skip_sharpening)', 'sharpen'),
+     r'|use_blurxterminator|bxt_|skip_sharpening|use_mlt_sharpening)', 'sharpen'),
     (r'^(skip_color_calibration|skip_auto_background|use_spcc|spcc_|use_background_neutralization'
      r'|color_calibration_|solve_image|target_)', 'colorcal'),
     (r'^(image_stretching|STF_targetBackground|MaskedStretch_|Arcsinh_|MAS_|veralux_'
@@ -242,7 +242,7 @@ RULES = [
      r'|noise_reduction_strength|luminance_noise_reduction_strength|combined_image_noise_reduction'
      r'|processed_image_noise_reduction|use_color_noise_reduction|use_ACDNR_noise_reduction'
      r'|ACDNR_noise_reduction|skip_noise_reduction|skip_star_noise_reduction|use_noisexterminator'
-     r'|nxt_|use_deepsnr|deepsnr_|use_mldenoise|mldenoise_)', 'noise'),
+     r'|nxt_|use_deepsnr|deepsnr_|use_mldenoise|mldenoise_|use_mlt_noise_reduction)', 'noise'),
     (r'^(use_starxterminator|use_starnet2|starxterminator_|unscreen_stars|remove_stars_'
      r'|create_RGB_stars|stars_stretching|stars_combine|skip_mask_contrast|force_new_mask)',
      'stars'),

@@ -5569,14 +5569,17 @@ AutoIntegrateDialog()
       this.unique_file_names_CheckBox = this.guitools.newCheckBox(this, "Use unique file names", this.par.unique_file_names, 
             "<p>Use unique file names by adding a timestamp when saving to disk.</p>" );
       this.skip_noise_reduction_CheckBox = this.guitools.newCheckBox(this, "No noise reduction", this.par.skip_noise_reduction, 
-            "<p>Do not use noise reduction. This option disables all noise reduction regardless of what other noise reduction settings are selected.</p>" + 
-            "<p>More fine grained noise reduction settings can be found in the <i>Postprocessing / Noise reduction</i> section.</p>" );
+            "<p>Do not use noise reduction. This option disables all noise reduction regardless of what other noise reduction settings are selected.</p>" +
+            "<p>Noise reduction tool is selected in the <i>Settings / Tools</i> section.</p>" );
       this.skip_star_noise_reduction_CheckBox = this.guitools.newCheckBox(this, "No star noise reduction", this.par.skip_star_noise_reduction, 
             "<p>Do not use star noise reduction. Star noise reduction is used when stars are removed from image.</p>" );
       this.no_mask_contrast_CheckBox = this.guitools.newCheckBox(this, "No added contrast on mask", this.par.skip_mask_contrast, 
             "<p>Do not add contrast on automatically created luminance mask.</p>" );
       this.no_sharpening_CheckBox = this.guitools.newCheckBox(this, "No sharpening", this.par.skip_sharpening, 
-            "<p>Do not use sharpening on the image. Sharpening uses a luminance and star mask to target light parts of the image.</p>" );
+            "<p>Do not use sharpening or deconvolution on the image.</p>" +
+            "<p>Sharpening and deconvolution tool is selected in the <i>Settings / Tools</i> section. Deconvolution tools like BlurXTerminator " +
+            "are run on the linear image. MultiscaleLinearTransform sharpening is run on the non-linear image " +
+            "and it uses a luminance and star mask to target light parts of the image.</p>" );
       this.forceNewMask_CheckBox = this.guitools.newCheckBox(this, "New mask", this.par.force_new_mask, 
             "<p>Do not use an existing mask but always create a new mask.</p>");
       this.no_SCNR_CheckBox = this.guitools.newCheckBox(this, "No SCNR", this.par.skip_SCNR, 
@@ -5768,9 +5771,6 @@ AutoIntegrateDialog()
       this.otherParamsSet02 = new VerticalSizer;
       this.otherParamsSet02.margin = 6;
       this.otherParamsSet02.spacing = 4;
-      this.otherParamsSet02.add( this.no_sharpening_CheckBox );
-      this.otherParamsSet02.add( this.skip_noise_reduction_CheckBox );
-      this.otherParamsSet02.add( this.skip_star_noise_reduction_CheckBox );
       this.otherParamsSet02.add( this.skip_color_calibration_CheckBox );
       this.otherParamsSet02.add( this.skip_auto_background_CheckBox );
       this.otherParamsSet02.add( this.GC_on_lights_CheckBox );
@@ -6110,10 +6110,13 @@ AutoIntegrateDialog()
       this.noiseReductionGroupBoxSizer12.add( this.ACDNR_noise_reduction_Control );
       this.noiseReductionGroupBoxSizer12.addStretch();
 
+      this.noiseReductionGroupBoxSizer10 = this.guitools.newHorizontalSizer(2, true, [ this.skip_noise_reduction_CheckBox, this.skip_star_noise_reduction_CheckBox ]);
+
       this.noiseReductionGroupBoxLabel1 = this.guitools.newSectionLabel(this, "Generic noise reduction settings");
       this.noiseReductionGroupBoxSizer1 = new VerticalSizer;
       this.noiseReductionGroupBoxSizer1.margin = 6;
       this.noiseReductionGroupBoxSizer1.spacing = 4;
+      this.noiseReductionGroupBoxSizer1.add( this.noiseReductionGroupBoxSizer10 );
       this.noiseReductionGroupBoxSizer1.add( this.noiseReductionGroupBoxSizer11 );
       this.noiseReductionGroupBoxSizer1.add( this.noiseReductionGroupBoxSizer12 );
       this.noiseReductionGroupBoxSizer1.addStretch();
@@ -6240,7 +6243,7 @@ AutoIntegrateDialog()
       // BlurXTerminator settings
       //
       this.blurxterminatorGroupBoxLabel = this.guitools.newSectionLabel(this, "BlurXTerminator settings");
-      this.blurxterminatorGroupBoxLabel.toolTip = "Settings for BlurXTerminator. To use BlurXTerminator you need to check <i>Use BlurXTerminator</i> in <i>Settings / Tools</i> section.";
+      this.blurxterminatorGroupBoxLabel.toolTip = "Settings for BlurXTerminator. BlurXTerminator is used when it is selected in the <i>Settings / Tools</i> section, or when <i>Auto</i> is selected and BlurXTerminator is installed.";
 
       this.bxtSharpenStars = this.guitools.newNumericEdit(this, "Sharpen stars", this.par.bxt_sharpen_stars, 0, 0.50, "Amount to reduce the diameter of stars.  Use a value between 0.00 and 0.50.");
       this.bxtAdjustHalo = this.guitools.newNumericEdit(this, "Adjust star halos", this.par.bxt_adjust_halo, -0.50, 0.50, "Amount to adjust star halos. Use a value between -0.50 and 0.50.");
@@ -6318,16 +6321,6 @@ AutoIntegrateDialog()
       this.StarXTerminatorSizer.addStretch();
 
       this.StarXTerminatorGroupBoxLabel = this.guitools.newSectionLabel(this, "StarXTerminator settings");
-
-      // NoiseXterminator info
-      //
-      this.NoiseXTerminatorInfoGroupBoxLabel = this.guitools.newSectionLabel(this, "NoiseXTerminator");
-      this.NoiseXTerminatorInfoTxt = this.guitools.newLabel(this, "NoiseXTerminator settings are in the Postprocessing / Noise reduction section.", ".", true);
-      this.NoiseXTerminatorInfoSizer = new VerticalSizer;
-      this.NoiseXTerminatorInfoSizer.margin = 6;
-      this.NoiseXTerminatorInfoSizer.spacing = 4;
-      this.NoiseXTerminatorInfoSizer.add( this.NoiseXTerminatorInfoTxt );
-      this.NoiseXTerminatorInfoSizer.addStretch();
 
       // Binning settings
       //
@@ -6856,11 +6849,10 @@ AutoIntegrateDialog()
       this.linearFitGroupBoxLabel = this.guitools.newSectionLabel(this, "Linear fit settings");
       this.linearFitSizer = this.guitools.newHorizontalSizer(6, true, [this.linearFitLabel, this.linearFitComboBox]);
 
+      // GraXpert path, shown in Tools tab. GraXpert gradient correction settings are
+      // in the gradient correction section, deconvolution settings in the sharpening
+      // and deconvolution section and denoise settings in the noise reduction section.
       this.graxpertPathSizer = this.guitools.createGraXpertPathSizer(this);
-
-      // GraXpert Gradient correction
-      //
-      this.graxpertGradientCorrectionSizer = this.guitools.createGraXpertGradientCorrectionSizer(this);
 
       // GraXpert Deconvolution
       //
@@ -6877,36 +6869,15 @@ AutoIntegrateDialog()
             "<p>Use median FWHM from subframe selector as FWHM value.</p>" + 
             "<p>Value is saved to the FITS header and used if available. Value is also printed to the AutoIntegrate.log file with a name AutoIntegrateMEDFWHM.</p>");
 
-      this.graxpertDenconvolutionLabel = this.guitools.newSectionLabel(this, "Deconvolution settings");
+      this.graxpertDenconvolutionLabel = this.guitools.newSectionLabel(this, "GraXpert deconvolution settings");
       this.graxpertDenconvolutionLabel.toolTip = graxpertDenconvolutionToolTip;
 
-      this.graxpertDenconvolutionSizer = this.guitools.newVerticalSizer(2, true, [this.graxpertDenconvolutionStellarSizer, this.graxpertDenconvolutionNonStellarSizer, this.graxpertDenconvolutionMedianPSF]);
+      this.graxpertDenconvolutionSizer = this.guitools.newVerticalSizer(6, true, [this.graxpertDenconvolutionStellarSizer, this.graxpertDenconvolutionNonStellarSizer, this.graxpertDenconvolutionMedianPSF]);
 
-      // Noise reduction
+      // Sharpening and deconvolution generic settings
       //
-      this.graxpertInfoDenoiseLabel = this.guitools.newSectionLabel(this, "Denoise settings");
-      this.graxpertInfoDenoiseText = this.guitools.newLabel(this, "GraXpert denoise settings are in the Postprocessing / Noise reduction section.", "", true);
-      this.graxpertInfoDenoiseSizer = this.guitools.newVerticalSizer(6, true, [this.graxpertInfoDenoiseText]);
-
-      this.graxpertControl = new Control( this );
-      this.graxpertControl.sizer = new VerticalSizer;
-      this.graxpertControl.sizer.margin = 6;
-      this.graxpertControl.sizer.spacing = 4;
-      this.graxpertControl.sizer.add( this.graxpertGradientCorrectionSizer );
-      this.graxpertControl.sizer.add( this.graxpertDenconvolutionLabel );
-      this.graxpertControl.sizer.add( this.graxpertDenconvolutionSizer );
-      this.graxpertControl.sizer.add( this.graxpertInfoDenoiseLabel );
-      this.graxpertControl.sizer.add( this.graxpertInfoDenoiseSizer );
-      this.graxpertControl.visible = true;
-
-      // Graxpert all settings
-      //
-      this.graxpertGroupBoxSizer = this.guitools.newVerticalSizer(6, true, [
-            this.graxpertPathSizer, 
-            this.graxpertControl
-      ]);
-
-      this.global.expert_mode_controls.push(this.graxpertControl);
+      this.sharpeningGroupBoxLabel = this.guitools.newSectionLabel(this, "Generic sharpening settings");
+      this.sharpeningGroupBoxSizer = this.guitools.newHorizontalSizer(6, true, [ this.no_sharpening_CheckBox ]);
 
       // Cropping settings
       //
@@ -8464,14 +8435,24 @@ AutoIntegrateDialog()
       this.guitools.newSectionBarAddArray(this, this.postProcessingGroupBox, "Stretching", "ps_stretching",
             [ this.StretchingSettingsGroupBoxSizer ]);
       this.guitools.newSectionBarAddArray(this, this.postProcessingGroupBox, "Star stretching and removing", "ps_starstretching",
-            [ this.StarStretchingGroupBoxSizer ]);
+            [ this.StarStretchingGroupBoxSizer,
+            this.StarXTerminatorGroupBoxLabel,
+            this.StarXTerminatorSizer ]);
       this.guitools.newSectionBarAddArray(this, this.postProcessingGroupBox, "RGB stars", "ps_rgb_stars",
             [ this.RGBStarsGroupBoxSizer ]);
-      this.guitools.newSectionBarAddArray(this, this.postProcessingGroupBox, "Gradient correction, ABE settings, DBE settings", "ps_ave_graxpert",
+      // Keep the old section name to preserve saved section visibility
+      this.guitools.newSectionBarAddArray(this, this.postProcessingGroupBox, "Gradient correction", "ps_ave_graxpert",
             [ this.GCStarXSizer ]);
       this.guitools.newSectionBarAddArray(this, this.postProcessingGroupBox, "Saturation", "ps_saturation",
             [ this.saturationGroupBoxLabel,
             this.saturationGroupBoxSizer ]);
+      this.guitools.newSectionBarAddArray(this, this.postProcessingGroupBox, "Sharpening and deconvolution", "ps_sharpening",
+            [ this.sharpeningGroupBoxLabel,
+            this.sharpeningGroupBoxSizer,
+            this.blurxterminatorGroupBoxLabel,
+            this.blurxterminatorGroupBoxSizer,
+            this.graxpertDenconvolutionLabel,
+            this.graxpertDenconvolutionSizer ]);
       this.guitools.newSectionBarAddArray(this, this.postProcessingGroupBox, "Noise reduction", "ps_noise",
             [ this.noiseReductionGroupBoxLabel1,
             this.noiseReductionGroupBoxSizer1,
@@ -8502,17 +8483,10 @@ AutoIntegrateDialog()
       // ---------------------------------------------
       if (this.global.debug) console.writeln("Create tools group box");
       this.toolsGroupBox = this.guitools.newGroupBoxSizer(this);
-      var sb_control = this.guitools.newSectionBarAddArray(this, this.toolsGroupBox, "StarXTerminator, BlurXTerminator, NoiseXTerminator", "ps_rcastro",
-            [ this.StarXTerminatorGroupBoxLabel,
-            this.StarXTerminatorSizer,
-            this.blurxterminatorGroupBoxLabel,
-            this.blurxterminatorGroupBoxSizer,
-            this.NoiseXTerminatorInfoGroupBoxLabel,
-            this.NoiseXTerminatorInfoSizer ]);
-      this.global.expert_mode_sections.push(sb_control.section);
-      this.global.expert_mode_controls.push(sb_control.control);
+      // Tools tab has only tool setup like paths and model files. Tool specific processing
+      // settings are in the processing step sections.
       this.guitools.newSectionBarAddArray(this, this.toolsGroupBox, "GraXpert", "ps_graxpert",
-            [ this.graxpertGroupBoxSizer  ]);
+            [ this.graxpertPathSizer ]);
       this.guitools.newSectionBarAddArray(this, this.toolsGroupBox, "MLDenoise", "ps_mldenoise",
             [ this.mldenoisePathSizer ]);
       this.toolsGroupBox.sizer.addStretch();
@@ -9242,8 +9216,8 @@ getCometProcessingSteps = () => {
         },
         {
             title: "Select star removal tool",
-            description: "<p>Check desired star removal tool (StarXTerminator or StarNet2) in <i>Settings / Tools</i> section.</p>",
-            target: this.guitools.use_StarXTerminator_CheckBox,
+            description: "<p>Select desired star removal tool (Auto, StarXTerminator or StarNet2) in <i>Settings / Tools</i> section.</p>",
+            target: this.guitools.starRemovalToolsControl,
             tooltipPosition: "center"
         },
         {

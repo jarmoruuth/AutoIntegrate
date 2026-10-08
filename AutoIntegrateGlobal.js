@@ -246,6 +246,7 @@ this.par = {
       use_abe: { val: false, def: false, name : "Use AutomaticBackgroundExtractor", type : 'B' },
       use_dbe: { val: false, def: false, name : "Use DynamicBackgroundExtractor", type : 'B' },
       use_multiscalegradientcorrection: { val: false, def: false, name : "Use MultiscaleGradientCorrection", type : 'B' },
+      use_gradientcorrection: { val: false, def: false, name : "Use GradientCorrection", type : 'B' },
       skip_color_calibration: { val: false, def: false, name : "No color calibration", type : 'B', applies : "color" },
       skip_auto_background: { val: false, def: false, name : "No auto background", type : 'B', applies : "color" },
       use_spcc: { val: false, def: false, name : "Use SPCC for color calibration", type : 'B', applies : "color" },
@@ -353,6 +354,8 @@ this.par = {
       use_mldenoise: { val: false, def: false, name : "Use MLDenoise", type : 'B' },
       use_starnet2: { val: false, def: false, name : "Use StarNet2", type : 'B' },
       use_deepsnr: { val: false, def: false, name : "Use DeepSNR", type : 'B' },
+      use_mlt_noise_reduction: { val: false, def: false, name : "Use MultiscaleLinearTransform noise reduction", type : 'B' },
+      use_mlt_sharpening: { val: false, def: false, name : "Use MultiscaleLinearTransform sharpening", type : 'B' },
       win_prefix_to_log_files: { val: false, def: false, name : "Add window prefix to log files", type : 'B', applies : "interface" },
       start_from_imageintegration: { val: false, def: false, name : "Start from ImageIntegration", type : 'B' },
       generate_xdrz: { val: false, def: false, name : "Generate .xdrz files", type : 'B', applies : "interface" },
@@ -1064,6 +1067,7 @@ setParameterValue(param, val) {
             }
       }
       param.val = val;
+      param.auto_selected = false;   // Value set explicitly, not an automatically selected tool
       if (param.set_callback != undefined) {
             if (this.debug) console.writeln("setParameterValue call set_callbacklback for " + param.name);
             param.set_callback(param);
@@ -1079,7 +1083,8 @@ isParameterChanged(param) {
             return param.is_changed_callback(param);
       } else {
             if (this.debug) console.writeln("isParameterChanged default for " + param.name);
-            return param.val != param.def;
+            // Tool selected automatically by the engine is not a user change
+            return param.val != param.def && !param.auto_selected;
       }
 };
 

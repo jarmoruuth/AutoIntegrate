@@ -14793,7 +14793,9 @@ createRGBstars()
       console.writeln("RGB stars, saturation on RGB stars image " + win.mainView.id);
       this.runCurvesTransformationSaturation(win, null);
 
-      if (this.par.use_blurxterminator.val) {
+      if (this.par.skip_sharpening.val) {
+            console.writeln("RGB stars, no sharpening on RGB stars image " + win.mainView.id);
+      } else if (this.par.use_blurxterminator.val) {
             console.writeln("RGB stars, run BlurXTerminator on RGB stars image " + win.mainView.id);
             this.runBlurXTerminator(win, false);
       } else if (this.par.use_graxpert_deconvolution.val) {
@@ -16883,6 +16885,8 @@ enhancementsProcessing(parent, id, apply_directly)
 
       this.global.enhancements_info = [];
 
+      this.resolveAutoTools();
+
       var enhancements_image_id = id;
       var enhancements_stars_image_id = null;
       var enhancements_starless_image_id = null;
@@ -18180,6 +18184,91 @@ RGBHaNoStarRemovalError()
       }
 }
 
+// Returns true if a process can be created, i.e. it is installed.
+isProcessAvailable(createProcess)
+{
+      try {
+            createProcess();
+            return true;
+      } catch (e) {
+            return false;
+      }
+}
+
+isGraXpertAvailable()
+{
+      var path = this.par.graxpert_path.val;
+      return path != "" && (File.exists(path) || File.directoryExists(path));
+}
+
+// Auto tool selection. If no tool is selected in a tool category, select
+// the first available tool from candidates. Candidates are in priority order,
+// AI based tools first. Automatically selected tool is marked with auto_selected
+// so it is not saved as a user setting and it is cleared on the next run.
+// If no tool is available the built-in processing is used.
+resolveAutoTool(category, candidates)
+{
+      for (var i = 0; i < candidates.length; i++) {
+            if (candidates[i].param.auto_selected) {
+                  candidates[i].param.val = false;
+                  candidates[i].param.auto_selected = false;
+            }
+      }
+      for (var i = 0; i < candidates.length; i++) {
+            if (candidates[i].param.val) {
+                  // Tool selected by the user
+                  return;
+            }
+      }
+      for (var i = 0; i < candidates.length; i++) {
+            if (candidates[i].ai && this.global.testmode) {
+                  // In test mode Auto uses only non-AI tools so test results do not
+                  // depend on installed tools. Tools can still be selected explicitly.
+                  continue;
+            }
+            if (candidates[i].available()) {
+                  candidates[i].param.val = true;
+                  candidates[i].param.auto_selected = true;
+                  console.writeln("Auto " + category + " tool: " + candidates[i].name);
+                  return;
+            }
+      }
+      console.writeln("Auto " + category + " tool: no tool available, using built-in processing");
+}
+
+// Resolve Auto selections in Settings / Tools to the best available tools.
+// Candidate order must match the order of options in Settings / Tools.
+// Candidates with ai: true are AI based tools, they are skipped in test mode.
+resolveAutoTools()
+{
+      // Other gradient correction tools are selected only by the user
+      this.resolveAutoTool("gradient correction", [
+            { name: "GradientCorrection", param: this.par.use_gradientcorrection, available: () => this.global.is_gc_process },
+            { name: "MultiscaleGradientCorrection", param: this.par.use_multiscalegradientcorrection, available: () => false },
+            { name: "GraXpert", ai: true, param: this.par.use_graxpert, available: () => false },
+            { name: "ABE", param: this.par.use_abe, available: () => false },
+            { name: "DBE", param: this.par.use_dbe, available: () => false }
+      ]);
+      this.resolveAutoTool("noise removal", [
+            { name: "MLDenoise", ai: true, param: this.par.use_mldenoise,
+              available: () => this.par.mldenoise_model_path.val != "" && File.exists(this.par.mldenoise_model_path.val) &&
+                               this.isProcessAvailable(() => new MLDenoise) },
+            { name: "NoiseXTerminator", ai: true, param: this.par.use_noisexterminator, available: () => this.isProcessAvailable(() => new NoiseXTerminator) },
+            { name: "DeepSNR", ai: true, param: this.par.use_deepsnr, available: () => this.isProcessAvailable(() => new DeepSNR) },
+            { name: "GraXpert denoise", ai: true, param: this.par.use_graxpert_denoise, available: () => this.isGraXpertAvailable() },
+            { name: "MultiscaleLinearTransform", param: this.par.use_mlt_noise_reduction, available: () => true }
+      ]);
+      this.resolveAutoTool("star removal", [
+            { name: "StarXTerminator", ai: true, param: this.par.use_starxterminator, available: () => this.isProcessAvailable(() => new StarXTerminator) },
+            { name: "StarNet2", ai: true, param: this.par.use_starnet2, available: () => this.isProcessAvailable(() => new StarNet2) }
+      ]);
+      this.resolveAutoTool("deconvolution", [
+            { name: "BlurXTerminator", ai: true, param: this.par.use_blurxterminator, available: () => this.isProcessAvailable(() => new BlurXTerminator) },
+            { name: "GraXpert deconvolution", ai: true, param: this.par.use_graxpert_deconvolution, available: () => this.isGraXpertAvailable() },
+            { name: "MultiscaleLinearTransform", param: this.par.use_mlt_sharpening, available: () => true }
+      ]);
+}
+
 // V8 limitations for now
 check_available_processes()
 {
@@ -18244,6 +18333,9 @@ check_available_processes()
                   }
             }
       }
+      // Resolve Auto after the checks so an unavailable tool is replaced with
+      // the best available tool
+      this.resolveAutoTools();
 }
 
 /***************************************************************************

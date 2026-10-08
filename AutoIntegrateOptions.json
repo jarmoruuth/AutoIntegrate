@@ -1,6 +1,6 @@
 {
  "version": "AutoIntegrate v1.87.5",
- "generated": "Thu Oct 01 2026 22:58:57 GMT+0300 (FLE Daylight Time)",
+ "generated": "Thu Oct 08 2026 22:03:42 GMT+0300 (FLE Daylight Time)",
  "options": [
   {
    "key": "local_normalization",
@@ -633,9 +633,9 @@
    "applies": "",
    "controls": [
     {
-     "kind": "checkbox",
-     "label": "GraXpert gradient",
-     "tooltip": "<p>Use GraXpert instead of GradientCorrection process to correct gradients in images.</p></p>By default no gradient correction is done. To use GraXpert for gradient correction you need to also check one of the gradient correction options in the <i>Settings / Image processing parameters</i> section.</p><p>GraXpert always uses the AI background model. In the <i>Tools / GraXpert</i> section it is possible to set some settings.</p><p><b>NOTE!</b> A path to GraXpert file must be set in the <i>Tools / GraXpert</i> section before it can be used.</p><p><b>NOTE2!</b> You need to manually start GraXpert once to ensure that the correct AI model is loaded into your computer.</p>",
+     "kind": "radiobutton",
+     "label": "Gradient correction / GraXpert",
+     "tooltip": "<p>Use GraXpert instead of GradientCorrection process to correct gradients in images.</p><p>GraXpert always uses the AI background model. Settings for GraXpert are in <i>Postprocessing / Gradient correction</i> section.</p><p><b>NOTE!</b> A path to GraXpert file must be set in the <i>Tools / GraXpert</i> section before it can be used.</p><p><b>NOTE2!</b> You need to manually start GraXpert once to ensure that the correct AI model is loaded into your computer.</p>",
      "values": null,
      "min": null,
      "max": null,
@@ -653,9 +653,9 @@
     "Tools"
    ],
    "in_gui": true,
-   "kind": "checkbox",
-   "label": "GraXpert gradient",
-   "tooltip": "<p>Use GraXpert instead of GradientCorrection process to correct gradients in images.</p></p>By default no gradient correction is done. To use GraXpert for gradient correction you need to also check one of the gradient correction options in the <i>Settings / Image processing parameters</i> section.</p><p>GraXpert always uses the AI background model. In the <i>Tools / GraXpert</i> section it is possible to set some settings.</p><p><b>NOTE!</b> A path to GraXpert file must be set in the <i>Tools / GraXpert</i> section before it can be used.</p><p><b>NOTE2!</b> You need to manually start GraXpert once to ensure that the correct AI model is loaded into your computer.</p>",
+   "kind": "radiobutton",
+   "label": "Gradient correction / GraXpert",
+   "tooltip": "<p>Use GraXpert instead of GradientCorrection process to correct gradients in images.</p><p>GraXpert always uses the AI background model. Settings for GraXpert are in <i>Postprocessing / Gradient correction</i> section.</p><p><b>NOTE!</b> A path to GraXpert file must be set in the <i>Tools / GraXpert</i> section before it can be used.</p><p><b>NOTE2!</b> You need to manually start GraXpert once to ensure that the correct AI model is loaded into your computer.</p>",
    "values": null,
    "min": null,
    "max": null
@@ -669,9 +669,9 @@
    "applies": "",
    "controls": [
     {
-     "kind": "checkbox",
-     "label": "GraXpert denoise",
-     "tooltip": "<p>Use GraXpert for noise reduction.</p><p>In the <i>Tools / GraXpert</i> section it is possible to set some settings.</p><p><b>NOTE!</b> A path to GraXpert file must be set in the <i>Tools / GraXpert</i> section before it can be used.</p><p><b>NOTE2!</b> You need to manually start GraXpert once to ensure that the correct AI model is loaded into your computer.</p>",
+     "kind": "radiobutton",
+     "label": "Noise removal / GraXpert denoise",
+     "tooltip": "<p>Use GraXpert for noise reduction.</p><p>Settings for GraXpert denoise are in <i>Postprocessing / Noise reduction</i> section.</p><p><b>NOTE!</b> A path to GraXpert file must be set in the <i>Tools / GraXpert</i> section before it can be used.</p><p><b>NOTE2!</b> You need to manually start GraXpert once to ensure that the correct AI model is loaded into your computer.</p>",
      "values": null,
      "min": null,
      "max": null,
@@ -689,9 +689,9 @@
     "Tools"
    ],
    "in_gui": true,
-   "kind": "checkbox",
-   "label": "GraXpert denoise",
-   "tooltip": "<p>Use GraXpert for noise reduction.</p><p>In the <i>Tools / GraXpert</i> section it is possible to set some settings.</p><p><b>NOTE!</b> A path to GraXpert file must be set in the <i>Tools / GraXpert</i> section before it can be used.</p><p><b>NOTE2!</b> You need to manually start GraXpert once to ensure that the correct AI model is loaded into your computer.</p>",
+   "kind": "radiobutton",
+   "label": "Noise removal / GraXpert denoise",
+   "tooltip": "<p>Use GraXpert for noise reduction.</p><p>Settings for GraXpert denoise are in <i>Postprocessing / Noise reduction</i> section.</p><p><b>NOTE!</b> A path to GraXpert file must be set in the <i>Tools / GraXpert</i> section before it can be used.</p><p><b>NOTE2!</b> You need to manually start GraXpert once to ensure that the correct AI model is loaded into your computer.</p>",
    "values": null,
    "min": null,
    "max": null
@@ -705,9 +705,9 @@
    "applies": "",
    "controls": [
     {
-     "kind": "checkbox",
-     "label": "GraXpert deconvolution",
-     "tooltip": "<p>Use GraXpert deconvolution for stellar and non-stellar sharpening.</p><p>In the <i>Tools / GraXpert</i> section it is possible to set some settings.</p><p><b>NOTE!</b> A path to GraXpert file must be set in the <i>Tools / GraXpert</i> section before it can be used.</p><p><b>NOTE2!</b> You need to manually start GraXpert once to ensure that the correct AI model is loaded into your computer.</p>",
+     "kind": "radiobutton",
+     "label": "Deconvolution/sharpening / GraXpert deconvolution",
+     "tooltip": "<p>Use GraXpert deconvolution for stellar and non-stellar sharpening.</p><p>Settings for GraXpert deconvolution are in <i>Postprocessing / Sharpening and deconvolution</i> section.</p><p><b>NOTE!</b> A path to GraXpert file must be set in the <i>Tools / GraXpert</i> section before it can be used.</p><p><b>NOTE2!</b> You need to manually start GraXpert once to ensure that the correct AI model is loaded into your computer.</p>",
      "values": null,
      "min": null,
      "max": null,
@@ -725,9 +725,9 @@
     "Tools"
    ],
    "in_gui": true,
-   "kind": "checkbox",
-   "label": "GraXpert deconvolution",
-   "tooltip": "<p>Use GraXpert deconvolution for stellar and non-stellar sharpening.</p><p>In the <i>Tools / GraXpert</i> section it is possible to set some settings.</p><p><b>NOTE!</b> A path to GraXpert file must be set in the <i>Tools / GraXpert</i> section before it can be used.</p><p><b>NOTE2!</b> You need to manually start GraXpert once to ensure that the correct AI model is loaded into your computer.</p>",
+   "kind": "radiobutton",
+   "label": "Deconvolution/sharpening / GraXpert deconvolution",
+   "tooltip": "<p>Use GraXpert deconvolution for stellar and non-stellar sharpening.</p><p>Settings for GraXpert deconvolution are in <i>Postprocessing / Sharpening and deconvolution</i> section.</p><p><b>NOTE!</b> A path to GraXpert file must be set in the <i>Tools / GraXpert</i> section before it can be used.</p><p><b>NOTE2!</b> You need to manually start GraXpert once to ensure that the correct AI model is loaded into your computer.</p>",
    "values": null,
    "min": null,
    "max": null
@@ -741,9 +741,9 @@
    "applies": "",
    "controls": [
     {
-     "kind": "checkbox",
-     "label": "ABE",
-     "tooltip": "<p>Run AutomaticBackgroundExtractor (ABE) to correct gradients in images.</p></p>By default no gradient correction is done. To use ABE for gradient correction you need to also check one of the gradient correction options in the <i>Settings / Image processing parameters</i> section.</p><p>Settings for ABE are in <i>Postprocessing / ABE settings</i> section.</p>",
+     "kind": "radiobutton",
+     "label": "Gradient correction / ABE",
+     "tooltip": "<p>Run AutomaticBackgroundExtractor (ABE) to correct gradients in images.</p><p>Settings for ABE are in <i>Postprocessing / Gradient correction</i> section.</p>",
      "values": null,
      "min": null,
      "max": null,
@@ -761,9 +761,9 @@
     "Tools"
    ],
    "in_gui": true,
-   "kind": "checkbox",
-   "label": "ABE",
-   "tooltip": "<p>Run AutomaticBackgroundExtractor (ABE) to correct gradients in images.</p></p>By default no gradient correction is done. To use ABE for gradient correction you need to also check one of the gradient correction options in the <i>Settings / Image processing parameters</i> section.</p><p>Settings for ABE are in <i>Postprocessing / ABE settings</i> section.</p>",
+   "kind": "radiobutton",
+   "label": "Gradient correction / ABE",
+   "tooltip": "<p>Run AutomaticBackgroundExtractor (ABE) to correct gradients in images.</p><p>Settings for ABE are in <i>Postprocessing / Gradient correction</i> section.</p>",
    "values": null,
    "min": null,
    "max": null
@@ -777,9 +777,9 @@
    "applies": "",
    "controls": [
     {
-     "kind": "checkbox",
-     "label": "DBE",
-     "tooltip": "<p>Use DynamicBackgroundExtraction (DBE) to correct gradients in images.</p></p>By default no gradient correction is done. To use DBE for gradient correction you need to also check one of the gradient correction options in the <i>Settings / Image processing parameters</i> section.</p><p>Sample points are automatically generated for DBE. Settings for DBE are in <i>Postprocessing / DBE settings</i> section.</p>",
+     "kind": "radiobutton",
+     "label": "Gradient correction / DBE",
+     "tooltip": "<p>Use DynamicBackgroundExtraction (DBE) to correct gradients in images.</p><p>Sample points are automatically generated for DBE. Settings for DBE are in <i>Postprocessing / Gradient correction</i> section.</p>",
      "values": null,
      "min": null,
      "max": null,
@@ -797,9 +797,9 @@
     "Tools"
    ],
    "in_gui": true,
-   "kind": "checkbox",
-   "label": "DBE",
-   "tooltip": "<p>Use DynamicBackgroundExtraction (DBE) to correct gradients in images.</p></p>By default no gradient correction is done. To use DBE for gradient correction you need to also check one of the gradient correction options in the <i>Settings / Image processing parameters</i> section.</p><p>Sample points are automatically generated for DBE. Settings for DBE are in <i>Postprocessing / DBE settings</i> section.</p>",
+   "kind": "radiobutton",
+   "label": "Gradient correction / DBE",
+   "tooltip": "<p>Use DynamicBackgroundExtraction (DBE) to correct gradients in images.</p><p>Sample points are automatically generated for DBE. Settings for DBE are in <i>Postprocessing / Gradient correction</i> section.</p>",
    "values": null,
    "min": null,
    "max": null
@@ -813,9 +813,9 @@
    "applies": "",
    "controls": [
     {
-     "kind": "checkbox",
-     "label": "MultiscaleGradientCorrection",
-     "tooltip": "<p>Use MultiscaleGradientCorrection instead of GradientCorrection process to correct gradients in images.</p></p>By default no gradient correction is done. To use MultiscaleGradientCorrection for gradient correction you need to also check one of the gradient correction options in the <i>Settings / Image processing parameters</i> section.</p><p>Settings for MultiscaleGradientCorrection are in <i>Postprocessing / Gradient correction</i> section.</p><p>Note that you need to set up MARS database settings using the PixInsight MultiscaleGradientCorrection process before using this option.</p><p>When MultiscaleGradientCorrection is selected, image solving and SpectrophotometricFluxCalibration are run automatically for the image.</p><p>MultiscaleGradientCorrection may fail if the image is not part of the sky area in the MARS database. In that case the script reverts to another gradient correction method. If other gradient correction methods are checked then they are selected in the following order: GraXpert, ABE, DBE, GradientCorrection.</p>",
+     "kind": "radiobutton",
+     "label": "Gradient correction / MultiscaleGradientCorrection",
+     "tooltip": "<p>Use MultiscaleGradientCorrection instead of GradientCorrection process to correct gradients in images.</p><p>Settings for MultiscaleGradientCorrection are in <i>Postprocessing / Gradient correction</i> section.</p><p>Note that you need to set up MARS database settings using the PixInsight MultiscaleGradientCorrection process before using this option.</p><p>If MultiscaleGradientCorrection fails, the GradientCorrection process is used.</p><p>When MultiscaleGradientCorrection is selected, image solving and SpectrophotometricFluxCalibration are run automatically for the image.</p><p>MultiscaleGradientCorrection may fail if the image is not part of the sky area in the MARS database. In that case the script reverts to another gradient correction method. If other gradient correction methods are checked then they are selected in the following order: GraXpert, ABE, DBE, GradientCorrection.</p>",
      "values": null,
      "min": null,
      "max": null,
@@ -833,9 +833,45 @@
     "Tools"
    ],
    "in_gui": true,
-   "kind": "checkbox",
-   "label": "MultiscaleGradientCorrection",
-   "tooltip": "<p>Use MultiscaleGradientCorrection instead of GradientCorrection process to correct gradients in images.</p></p>By default no gradient correction is done. To use MultiscaleGradientCorrection for gradient correction you need to also check one of the gradient correction options in the <i>Settings / Image processing parameters</i> section.</p><p>Settings for MultiscaleGradientCorrection are in <i>Postprocessing / Gradient correction</i> section.</p><p>Note that you need to set up MARS database settings using the PixInsight MultiscaleGradientCorrection process before using this option.</p><p>When MultiscaleGradientCorrection is selected, image solving and SpectrophotometricFluxCalibration are run automatically for the image.</p><p>MultiscaleGradientCorrection may fail if the image is not part of the sky area in the MARS database. In that case the script reverts to another gradient correction method. If other gradient correction methods are checked then they are selected in the following order: GraXpert, ABE, DBE, GradientCorrection.</p>",
+   "kind": "radiobutton",
+   "label": "Gradient correction / MultiscaleGradientCorrection",
+   "tooltip": "<p>Use MultiscaleGradientCorrection instead of GradientCorrection process to correct gradients in images.</p><p>Settings for MultiscaleGradientCorrection are in <i>Postprocessing / Gradient correction</i> section.</p><p>Note that you need to set up MARS database settings using the PixInsight MultiscaleGradientCorrection process before using this option.</p><p>If MultiscaleGradientCorrection fails, the GradientCorrection process is used.</p><p>When MultiscaleGradientCorrection is selected, image solving and SpectrophotometricFluxCalibration are run automatically for the image.</p><p>MultiscaleGradientCorrection may fail if the image is not part of the sky area in the MARS database. In that case the script reverts to another gradient correction method. If other gradient correction methods are checked then they are selected in the following order: GraXpert, ABE, DBE, GradientCorrection.</p>",
+   "values": null,
+   "min": null,
+   "max": null
+  },
+  {
+   "key": "use_gradientcorrection",
+   "name": "Use GradientCorrection",
+   "type": "B",
+   "def": false,
+   "tip": "",
+   "applies": "",
+   "controls": [
+    {
+     "kind": "radiobutton",
+     "label": "Gradient correction / GradientCorrection",
+     "tooltip": "<p>Use the GradientCorrection process to correct gradients in images.</p><p>Settings for GradientCorrection are in <i>Postprocessing / Gradient correction</i> section.</p>",
+     "values": null,
+     "min": null,
+     "max": null,
+     "tab": "Settings",
+     "section": "Tools",
+     "expert": false,
+     "located": true
+    }
+   ],
+   "expert": false,
+   "tabs": [
+    "Settings"
+   ],
+   "sections": [
+    "Tools"
+   ],
+   "in_gui": true,
+   "kind": "radiobutton",
+   "label": "Gradient correction / GradientCorrection",
+   "tooltip": "<p>Use the GradientCorrection process to correct gradients in images.</p><p>Settings for GradientCorrection are in <i>Postprocessing / Gradient correction</i> section.</p>",
    "values": null,
    "min": null,
    "max": null
@@ -1103,27 +1139,27 @@
     {
      "kind": "checkbox",
      "label": "No noise reduction",
-     "tooltip": "<p>Do not use noise reduction. This option disables all noise reduction regardless of what other noise reduction settings are selected.</p><p>More fine grained noise reduction settings can be found in the <i>Postprocessing / Noise reduction</i> section.</p>",
+     "tooltip": "<p>Do not use noise reduction. This option disables all noise reduction regardless of what other noise reduction settings are selected.</p><p>Noise reduction tool is selected in the <i>Settings / Tools</i> section.</p>",
      "values": null,
      "min": null,
      "max": null,
-     "tab": "Other",
-     "section": "Other parameters",
+     "tab": "Postprocessing",
+     "section": "Noise reduction",
      "expert": true,
      "located": true
     }
    ],
    "expert": true,
    "tabs": [
-    "Other"
+    "Postprocessing"
    ],
    "sections": [
-    "Other parameters"
+    "Noise reduction"
    ],
    "in_gui": true,
    "kind": "checkbox",
    "label": "No noise reduction",
-   "tooltip": "<p>Do not use noise reduction. This option disables all noise reduction regardless of what other noise reduction settings are selected.</p><p>More fine grained noise reduction settings can be found in the <i>Postprocessing / Noise reduction</i> section.</p>",
+   "tooltip": "<p>Do not use noise reduction. This option disables all noise reduction regardless of what other noise reduction settings are selected.</p><p>Noise reduction tool is selected in the <i>Settings / Tools</i> section.</p>",
    "values": null,
    "min": null,
    "max": null
@@ -1143,18 +1179,18 @@
      "values": null,
      "min": null,
      "max": null,
-     "tab": "Other",
-     "section": "Other parameters",
+     "tab": "Postprocessing",
+     "section": "Noise reduction",
      "expert": true,
      "located": true
     }
    ],
    "expert": true,
    "tabs": [
-    "Other"
+    "Postprocessing"
    ],
    "sections": [
-    "Other parameters"
+    "Noise reduction"
    ],
    "in_gui": true,
    "kind": "checkbox",
@@ -1211,27 +1247,27 @@
     {
      "kind": "checkbox",
      "label": "No sharpening",
-     "tooltip": "<p>Do not use sharpening on the image. Sharpening uses a luminance and star mask to target light parts of the image.</p>",
+     "tooltip": "<p>Do not use sharpening or deconvolution on the image.</p><p>Sharpening and deconvolution tool is selected in the <i>Settings / Tools</i> section. Deconvolution tools like BlurXTerminator are run on the linear image. MultiscaleLinearTransform sharpening is run on the non-linear image and it uses a luminance and star mask to target light parts of the image.</p>",
      "values": null,
      "min": null,
      "max": null,
-     "tab": "Other",
-     "section": "Other parameters",
+     "tab": "Postprocessing",
+     "section": "Sharpening and deconvolution",
      "expert": true,
      "located": true
     }
    ],
    "expert": true,
    "tabs": [
-    "Other"
+    "Postprocessing"
    ],
    "sections": [
-    "Other parameters"
+    "Sharpening and deconvolution"
    ],
    "in_gui": true,
    "kind": "checkbox",
    "label": "No sharpening",
-   "tooltip": "<p>Do not use sharpening on the image. Sharpening uses a luminance and star mask to target light parts of the image.</p>",
+   "tooltip": "<p>Do not use sharpening or deconvolution on the image.</p><p>Sharpening and deconvolution tool is selected in the <i>Settings / Tools</i> section. Deconvolution tools like BlurXTerminator are run on the linear image. MultiscaleLinearTransform sharpening is run on the non-linear image and it uses a luminance and star mask to target light parts of the image.</p>",
    "values": null,
    "min": null,
    "max": null
@@ -3095,9 +3131,9 @@
    "applies": "",
    "controls": [
     {
-     "kind": "checkbox",
-     "label": "StarXTerminator",
-     "tooltip": "<p>Use StarXTerminator to remove stars from an image.</p><p>You can change some StarXTerminator settings in the <i>Tools / StarXTerminator</i> section.</p>",
+     "kind": "radiobutton",
+     "label": "Star removal / StarXTerminator",
+     "tooltip": "<p>Use StarXTerminator to remove stars from an image.</p><p>You can change some StarXTerminator settings in the <i>Postprocessing / Star stretching and removing</i> section.</p>",
      "values": null,
      "min": null,
      "max": null,
@@ -3115,9 +3151,9 @@
     "Tools"
    ],
    "in_gui": true,
-   "kind": "checkbox",
-   "label": "StarXTerminator",
-   "tooltip": "<p>Use StarXTerminator to remove stars from an image.</p><p>You can change some StarXTerminator settings in the <i>Tools / StarXTerminator</i> section.</p>",
+   "kind": "radiobutton",
+   "label": "Star removal / StarXTerminator",
+   "tooltip": "<p>Use StarXTerminator to remove stars from an image.</p><p>You can change some StarXTerminator settings in the <i>Postprocessing / Star stretching and removing</i> section.</p>",
    "values": null,
    "min": null,
    "max": null
@@ -3275,9 +3311,9 @@
    "applies": "",
    "controls": [
     {
-     "kind": "checkbox",
-     "label": "BlurXTerminator",
-     "tooltip": "<p>Use BlurXTerminator for sharpening and deconvolution.</p><p>BlurXTerminator is applied on the linear image just before it is stretched to non-linear. Enhancements option for sharpening can be used to apply BlurXTerminator on non-linear image.</p><p>Some options for BlurXTerminator can be adjusted in the <i>Tools / BlurXTerminator</i> section.</p><p>Noise reduction should be done after BlurXTerminator. Option <i>Auto</i> in the noise reduction options does that, other possible options are <i>Processed linear image</i> and <i>Non-linear image</i>. But it is always good to experiment what is best for your own data.</p><p>Sometimes on starless images PSF value can not be calculated. Then a manual value should be given or BlurXTerminator should not be used.</p>",
+     "kind": "radiobutton",
+     "label": "Deconvolution/sharpening / BlurXTerminator",
+     "tooltip": "<p>Use BlurXTerminator for sharpening and deconvolution.</p><p>BlurXTerminator is applied on the linear image just before it is stretched to non-linear. Enhancements option for sharpening can be used to apply BlurXTerminator on non-linear image.</p><p>Some options for BlurXTerminator can be adjusted in the <i>Postprocessing / Sharpening and deconvolution</i> section.</p><p>Noise reduction should be done after BlurXTerminator. Option <i>Auto</i> in the noise reduction options does that, other possible options are <i>Processed linear image</i> and <i>Non-linear image</i>. But it is always good to experiment what is best for your own data.</p><p>Sometimes on starless images PSF value can not be calculated. Then a manual value should be given or BlurXTerminator should not be used.</p>",
      "values": null,
      "min": null,
      "max": null,
@@ -3295,9 +3331,9 @@
     "Tools"
    ],
    "in_gui": true,
-   "kind": "checkbox",
-   "label": "BlurXTerminator",
-   "tooltip": "<p>Use BlurXTerminator for sharpening and deconvolution.</p><p>BlurXTerminator is applied on the linear image just before it is stretched to non-linear. Enhancements option for sharpening can be used to apply BlurXTerminator on non-linear image.</p><p>Some options for BlurXTerminator can be adjusted in the <i>Tools / BlurXTerminator</i> section.</p><p>Noise reduction should be done after BlurXTerminator. Option <i>Auto</i> in the noise reduction options does that, other possible options are <i>Processed linear image</i> and <i>Non-linear image</i>. But it is always good to experiment what is best for your own data.</p><p>Sometimes on starless images PSF value can not be calculated. Then a manual value should be given or BlurXTerminator should not be used.</p>",
+   "kind": "radiobutton",
+   "label": "Deconvolution/sharpening / BlurXTerminator",
+   "tooltip": "<p>Use BlurXTerminator for sharpening and deconvolution.</p><p>BlurXTerminator is applied on the linear image just before it is stretched to non-linear. Enhancements option for sharpening can be used to apply BlurXTerminator on non-linear image.</p><p>Some options for BlurXTerminator can be adjusted in the <i>Postprocessing / Sharpening and deconvolution</i> section.</p><p>Noise reduction should be done after BlurXTerminator. Option <i>Auto</i> in the noise reduction options does that, other possible options are <i>Processed linear image</i> and <i>Non-linear image</i>. But it is always good to experiment what is best for your own data.</p><p>Sometimes on starless images PSF value can not be calculated. Then a manual value should be given or BlurXTerminator should not be used.</p>",
    "values": null,
    "min": null,
    "max": null
@@ -3317,18 +3353,18 @@
      "values": null,
      "min": 0,
      "max": 0.5,
-     "tab": "Tools",
-     "section": "StarXTerminator, BlurXTerminator, NoiseXTerminator",
+     "tab": "Postprocessing",
+     "section": "Sharpening and deconvolution",
      "expert": true,
      "located": true
     }
    ],
    "expert": true,
    "tabs": [
-    "Tools"
+    "Postprocessing"
    ],
    "sections": [
-    "StarXTerminator, BlurXTerminator, NoiseXTerminator"
+    "Sharpening and deconvolution"
    ],
    "in_gui": true,
    "kind": "number",
@@ -3353,18 +3389,18 @@
      "values": null,
      "min": -0.5,
      "max": 0.5,
-     "tab": "Tools",
-     "section": "StarXTerminator, BlurXTerminator, NoiseXTerminator",
+     "tab": "Postprocessing",
+     "section": "Sharpening and deconvolution",
      "expert": true,
      "located": true
     }
    ],
    "expert": true,
    "tabs": [
-    "Tools"
+    "Postprocessing"
    ],
    "sections": [
-    "StarXTerminator, BlurXTerminator, NoiseXTerminator"
+    "Sharpening and deconvolution"
    ],
    "in_gui": true,
    "kind": "number",
@@ -3389,18 +3425,18 @@
      "values": null,
      "min": 0,
      "max": 1,
-     "tab": "Tools",
-     "section": "StarXTerminator, BlurXTerminator, NoiseXTerminator",
+     "tab": "Postprocessing",
+     "section": "Sharpening and deconvolution",
      "expert": true,
      "located": true
     }
    ],
    "expert": true,
    "tabs": [
-    "Tools"
+    "Postprocessing"
    ],
    "sections": [
-    "StarXTerminator, BlurXTerminator, NoiseXTerminator"
+    "Sharpening and deconvolution"
    ],
    "in_gui": true,
    "kind": "number",
@@ -3425,18 +3461,18 @@
      "values": null,
      "min": 0,
      "max": 8,
-     "tab": "Tools",
-     "section": "StarXTerminator, BlurXTerminator, NoiseXTerminator",
+     "tab": "Postprocessing",
+     "section": "Sharpening and deconvolution",
      "expert": true,
      "located": true
     }
    ],
    "expert": true,
    "tabs": [
-    "Tools"
+    "Postprocessing"
    ],
    "sections": [
-    "StarXTerminator, BlurXTerminator, NoiseXTerminator"
+    "Sharpening and deconvolution"
    ],
    "in_gui": true,
    "kind": "number",
@@ -3461,18 +3497,18 @@
      "values": null,
      "min": null,
      "max": null,
-     "tab": "Tools",
-     "section": "StarXTerminator, BlurXTerminator, NoiseXTerminator",
+     "tab": "Postprocessing",
+     "section": "Sharpening and deconvolution",
      "expert": true,
      "located": true
     }
    ],
    "expert": true,
    "tabs": [
-    "Tools"
+    "Postprocessing"
    ],
    "sections": [
-    "StarXTerminator, BlurXTerminator, NoiseXTerminator"
+    "Sharpening and deconvolution"
    ],
    "in_gui": true,
    "kind": "checkbox",
@@ -3497,18 +3533,18 @@
      "values": null,
      "min": null,
      "max": null,
-     "tab": "Tools",
-     "section": "StarXTerminator, BlurXTerminator, NoiseXTerminator",
+     "tab": "Postprocessing",
+     "section": "Sharpening and deconvolution",
      "expert": true,
      "located": true
     }
    ],
    "expert": true,
    "tabs": [
-    "Tools"
+    "Postprocessing"
    ],
    "sections": [
-    "StarXTerminator, BlurXTerminator, NoiseXTerminator"
+    "Sharpening and deconvolution"
    ],
    "in_gui": true,
    "kind": "checkbox",
@@ -3533,18 +3569,18 @@
      "values": null,
      "min": null,
      "max": null,
-     "tab": "Tools",
-     "section": "StarXTerminator, BlurXTerminator, NoiseXTerminator",
+     "tab": "Postprocessing",
+     "section": "Sharpening and deconvolution",
      "expert": true,
      "located": true
     }
    ],
    "expert": true,
    "tabs": [
-    "Tools"
+    "Postprocessing"
    ],
    "sections": [
-    "StarXTerminator, BlurXTerminator, NoiseXTerminator"
+    "Sharpening and deconvolution"
    ],
    "in_gui": true,
    "kind": "checkbox",
@@ -3569,18 +3605,18 @@
      "values": null,
      "min": null,
      "max": null,
-     "tab": "Tools",
-     "section": "StarXTerminator, BlurXTerminator, NoiseXTerminator",
+     "tab": "Postprocessing",
+     "section": "Sharpening and deconvolution",
      "expert": true,
      "located": true
     }
    ],
    "expert": true,
    "tabs": [
-    "Tools"
+    "Postprocessing"
    ],
    "sections": [
-    "StarXTerminator, BlurXTerminator, NoiseXTerminator"
+    "Sharpening and deconvolution"
    ],
    "in_gui": true,
    "kind": "checkbox",
@@ -4139,8 +4175,8 @@
    "applies": "",
    "controls": [
     {
-     "kind": "checkbox",
-     "label": "NoiseXTerminator",
+     "kind": "radiobutton",
+     "label": "Noise removal / NoiseXTerminator",
      "tooltip": "<p>Use NoiseXTerminator for noise reduction.</p><p>You can change noise reduction settings in the <i>Postprocessing / Noise reduction</i> section.</p>",
      "values": null,
      "min": null,
@@ -4159,8 +4195,8 @@
     "Tools"
    ],
    "in_gui": true,
-   "kind": "checkbox",
-   "label": "NoiseXTerminator",
+   "kind": "radiobutton",
+   "label": "Noise removal / NoiseXTerminator",
    "tooltip": "<p>Use NoiseXTerminator for noise reduction.</p><p>You can change noise reduction settings in the <i>Postprocessing / Noise reduction</i> section.</p>",
    "values": null,
    "min": null,
@@ -4175,9 +4211,9 @@
    "applies": "",
    "controls": [
     {
-     "kind": "checkbox",
-     "label": "MLDenoise",
-     "tooltip": "<p>Use MLDenoise for noise reduction.</p><p>MLDenoise is a noise reduction process included in PixInsight. It is available starting from PixInsight version 1.9.5.</p><p>You can change noise reduction settings in the <i>Postprocessing / Noise reduction</i> section.</p><p>Note that before using MLDenoise you need to download a model file and specify it in the <i>Tools / MLDenoise</i> section. If the model file is not specified, it is asked when this option is checked.</p>",
+     "kind": "radiobutton",
+     "label": "Noise removal / MLDenoise",
+     "tooltip": "<p>Use MLDenoise for noise reduction.</p><p>MLDenoise is a noise reduction process included in PixInsight. It is available starting from PixInsight version 1.9.5.</p><p>You can change noise reduction settings in the <i>Postprocessing / Noise reduction</i> section.</p><p>Note that before using MLDenoise you need to download a model file and specify it in the <i>Tools / MLDenoise</i> section. If the model file is not specified, it is asked when this option is selected.</p>",
      "values": null,
      "min": null,
      "max": null,
@@ -4195,9 +4231,9 @@
     "Tools"
    ],
    "in_gui": true,
-   "kind": "checkbox",
-   "label": "MLDenoise",
-   "tooltip": "<p>Use MLDenoise for noise reduction.</p><p>MLDenoise is a noise reduction process included in PixInsight. It is available starting from PixInsight version 1.9.5.</p><p>You can change noise reduction settings in the <i>Postprocessing / Noise reduction</i> section.</p><p>Note that before using MLDenoise you need to download a model file and specify it in the <i>Tools / MLDenoise</i> section. If the model file is not specified, it is asked when this option is checked.</p>",
+   "kind": "radiobutton",
+   "label": "Noise removal / MLDenoise",
+   "tooltip": "<p>Use MLDenoise for noise reduction.</p><p>MLDenoise is a noise reduction process included in PixInsight. It is available starting from PixInsight version 1.9.5.</p><p>You can change noise reduction settings in the <i>Postprocessing / Noise reduction</i> section.</p><p>Note that before using MLDenoise you need to download a model file and specify it in the <i>Tools / MLDenoise</i> section. If the model file is not specified, it is asked when this option is selected.</p>",
    "values": null,
    "min": null,
    "max": null
@@ -4211,8 +4247,8 @@
    "applies": "",
    "controls": [
     {
-     "kind": "checkbox",
-     "label": "StarNet2",
+     "kind": "radiobutton",
+     "label": "Star removal / StarNet2",
      "tooltip": "<p>Use StarNet2 to remove stars from an image.</p>",
      "values": null,
      "min": null,
@@ -4231,8 +4267,8 @@
     "Tools"
    ],
    "in_gui": true,
-   "kind": "checkbox",
-   "label": "StarNet2",
+   "kind": "radiobutton",
+   "label": "Star removal / StarNet2",
    "tooltip": "<p>Use StarNet2 to remove stars from an image.</p>",
    "values": null,
    "min": null,
@@ -4247,8 +4283,8 @@
    "applies": "",
    "controls": [
     {
-     "kind": "checkbox",
-     "label": "DeepSNR",
+     "kind": "radiobutton",
+     "label": "Noise removal / DeepSNR",
      "tooltip": "<p>Use DeepSNR for noise reduction.</p><p>Note that with DeepSNR increasing the noise reduction strength value will decrease the noise reduction.</p>",
      "values": null,
      "min": null,
@@ -4267,9 +4303,81 @@
     "Tools"
    ],
    "in_gui": true,
-   "kind": "checkbox",
-   "label": "DeepSNR",
+   "kind": "radiobutton",
+   "label": "Noise removal / DeepSNR",
    "tooltip": "<p>Use DeepSNR for noise reduction.</p><p>Note that with DeepSNR increasing the noise reduction strength value will decrease the noise reduction.</p>",
+   "values": null,
+   "min": null,
+   "max": null
+  },
+  {
+   "key": "use_mlt_noise_reduction",
+   "name": "Use MultiscaleLinearTransform noise reduction",
+   "type": "B",
+   "def": false,
+   "tip": "",
+   "applies": "",
+   "controls": [
+    {
+     "kind": "radiobutton",
+     "label": "Noise removal / MultiscaleLinearTransform",
+     "tooltip": "<p>Use MultiscaleLinearTransform for noise reduction. It is a non-AI noise reduction process included in PixInsight.</p><p>You can change noise reduction settings in the <i>Postprocessing / Noise reduction</i> section.</p>",
+     "values": null,
+     "min": null,
+     "max": null,
+     "tab": "Settings",
+     "section": "Tools",
+     "expert": false,
+     "located": true
+    }
+   ],
+   "expert": false,
+   "tabs": [
+    "Settings"
+   ],
+   "sections": [
+    "Tools"
+   ],
+   "in_gui": true,
+   "kind": "radiobutton",
+   "label": "Noise removal / MultiscaleLinearTransform",
+   "tooltip": "<p>Use MultiscaleLinearTransform for noise reduction. It is a non-AI noise reduction process included in PixInsight.</p><p>You can change noise reduction settings in the <i>Postprocessing / Noise reduction</i> section.</p>",
+   "values": null,
+   "min": null,
+   "max": null
+  },
+  {
+   "key": "use_mlt_sharpening",
+   "name": "Use MultiscaleLinearTransform sharpening",
+   "type": "B",
+   "def": false,
+   "tip": "",
+   "applies": "",
+   "controls": [
+    {
+     "kind": "radiobutton",
+     "label": "Deconvolution/sharpening / MultiscaleLinearTransform",
+     "tooltip": "<p>Use MultiscaleLinearTransform for sharpening. It is a non-AI process included in PixInsight.</p><p>Sharpening is done on the non-linear image using a luminance and star mask to target light parts of the image. No deconvolution is done on the linear image.</p>",
+     "values": null,
+     "min": null,
+     "max": null,
+     "tab": "Settings",
+     "section": "Tools",
+     "expert": false,
+     "located": true
+    }
+   ],
+   "expert": false,
+   "tabs": [
+    "Settings"
+   ],
+   "sections": [
+    "Tools"
+   ],
+   "in_gui": true,
+   "kind": "radiobutton",
+   "label": "Deconvolution/sharpening / MultiscaleLinearTransform",
+   "tooltip": "<p>Use MultiscaleLinearTransform for sharpening. It is a non-AI process included in PixInsight.</p><p>Sharpening is done on the non-linear image using a luminance and star mask to target light parts of the image. No deconvolution is done on the linear image.</p>",
    "values": null,
    "min": null,
    "max": null
@@ -8853,18 +8961,18 @@
      ],
      "min": null,
      "max": null,
-     "tab": "Tools",
-     "section": "GraXpert",
+     "tab": "Postprocessing",
+     "section": "GraXpert settings",
      "expert": true,
      "located": true
     }
    ],
    "expert": true,
    "tabs": [
-    "Tools"
+    "Postprocessing"
    ],
    "sections": [
-    "GraXpert"
+    "GraXpert settings"
    ],
    "in_gui": true,
    "kind": "list",
@@ -8892,18 +9000,18 @@
      "values": null,
      "min": 0,
      "max": 1,
-     "tab": "Tools",
-     "section": "GraXpert",
+     "tab": "Postprocessing",
+     "section": "GraXpert settings",
      "expert": true,
      "located": true
     }
    ],
    "expert": true,
    "tabs": [
-    "Tools"
+    "Postprocessing"
    ],
    "sections": [
-    "GraXpert"
+    "GraXpert settings"
    ],
    "in_gui": true,
    "kind": "number",
@@ -9014,18 +9122,18 @@
      "values": null,
      "min": 0,
      "max": 1,
-     "tab": "Tools",
-     "section": "GraXpert",
+     "tab": "Postprocessing",
+     "section": "Sharpening and deconvolution",
      "expert": true,
      "located": true
     }
    ],
    "expert": true,
    "tabs": [
-    "Tools"
+    "Postprocessing"
    ],
    "sections": [
-    "GraXpert"
+    "Sharpening and deconvolution"
    ],
    "in_gui": true,
    "kind": "number",
@@ -9050,18 +9158,18 @@
      "values": null,
      "min": 0,
      "max": 14,
-     "tab": "Tools",
-     "section": "GraXpert",
+     "tab": "Postprocessing",
+     "section": "Sharpening and deconvolution",
      "expert": true,
      "located": true
     }
    ],
    "expert": true,
    "tabs": [
-    "Tools"
+    "Postprocessing"
    ],
    "sections": [
-    "GraXpert"
+    "Sharpening and deconvolution"
    ],
    "in_gui": true,
    "kind": "number",
@@ -9086,18 +9194,18 @@
      "values": null,
      "min": 0,
      "max": 1,
-     "tab": "Tools",
-     "section": "GraXpert",
+     "tab": "Postprocessing",
+     "section": "Sharpening and deconvolution",
      "expert": true,
      "located": true
     }
    ],
    "expert": true,
    "tabs": [
-    "Tools"
+    "Postprocessing"
    ],
    "sections": [
-    "GraXpert"
+    "Sharpening and deconvolution"
    ],
    "in_gui": true,
    "kind": "number",
@@ -9122,18 +9230,18 @@
      "values": null,
      "min": 0,
      "max": 14,
-     "tab": "Tools",
-     "section": "GraXpert",
+     "tab": "Postprocessing",
+     "section": "Sharpening and deconvolution",
      "expert": true,
      "located": true
     }
    ],
    "expert": true,
    "tabs": [
-    "Tools"
+    "Postprocessing"
    ],
    "sections": [
-    "GraXpert"
+    "Sharpening and deconvolution"
    ],
    "in_gui": true,
    "kind": "number",
@@ -9158,18 +9266,18 @@
      "values": null,
      "min": null,
      "max": null,
-     "tab": "Tools",
-     "section": "GraXpert",
+     "tab": "Postprocessing",
+     "section": "Sharpening and deconvolution",
      "expert": true,
      "located": true
     }
    ],
    "expert": true,
    "tabs": [
-    "Tools"
+    "Postprocessing"
    ],
    "sections": [
-    "GraXpert"
+    "Sharpening and deconvolution"
    ],
    "in_gui": true,
    "kind": "checkbox",
@@ -9194,18 +9302,18 @@
      "values": null,
      "min": null,
      "max": null,
-     "tab": "Tools",
-     "section": "StarXTerminator, BlurXTerminator, NoiseXTerminator",
+     "tab": "Postprocessing",
+     "section": "Star stretching and removing",
      "expert": true,
      "located": true
     }
    ],
    "expert": true,
    "tabs": [
-    "Tools"
+    "Postprocessing"
    ],
    "sections": [
-    "StarXTerminator, BlurXTerminator, NoiseXTerminator"
+    "Star stretching and removing"
    ],
    "in_gui": true,
    "kind": "text",
@@ -9230,18 +9338,18 @@
      "values": null,
      "min": null,
      "max": null,
-     "tab": "Tools",
-     "section": "StarXTerminator, BlurXTerminator, NoiseXTerminator",
+     "tab": "Postprocessing",
+     "section": "Star stretching and removing",
      "expert": true,
      "located": true
     }
    ],
    "expert": true,
    "tabs": [
-    "Tools"
+    "Postprocessing"
    ],
    "sections": [
-    "StarXTerminator, BlurXTerminator, NoiseXTerminator"
+    "Star stretching and removing"
    ],
    "in_gui": true,
    "kind": "checkbox",
@@ -16578,7 +16686,7 @@
     {
      "kind": "list",
      "label": "",
-     "tooltip": "<p>High pass sharpen type to sharpen the high pass image before combining it back to original image.</p><ul><li>Option 'Default' uses MultiscaleLinearTransform sharpening on high pass image. See below for settings.</li><li>Option 'MLT' uses MultiscaleLinearTransform sharpening on high pass image. Settings for iterations are taken from the <i>Enhancements / Generic enhancements</i> section <i>Sharpening</i> options.</li><li>Option 'UnsharpMask' uses UnsharpMask on a high pass image. Settings are taken from the <i>Generic enhancements</i> section.</li><li>Option 'BlurXTerminator' uses BlurXTerminator on a high pass image. Settings are taken from the <i>Tools / BlurXTerminator</i> section.</li></ul>",
+     "tooltip": "<p>High pass sharpen type to sharpen the high pass image before combining it back to original image.</p><ul><li>Option 'Default' uses MultiscaleLinearTransform sharpening on high pass image. See below for settings.</li><li>Option 'MLT' uses MultiscaleLinearTransform sharpening on high pass image. Settings for iterations are taken from the <i>Enhancements / Generic enhancements</i> section <i>Sharpening</i> options.</li><li>Option 'UnsharpMask' uses UnsharpMask on a high pass image. Settings are taken from the <i>Generic enhancements</i> section.</li><li>Option 'BlurXTerminator' uses BlurXTerminator on a high pass image. Settings are taken from the <i>Postprocessing / Sharpening and deconvolution</i> section.</li></ul>",
      "values": [
       "Default",
       "MLT",
@@ -16604,7 +16712,7 @@
    "in_gui": true,
    "kind": "list",
    "label": "",
-   "tooltip": "<p>High pass sharpen type to sharpen the high pass image before combining it back to original image.</p><ul><li>Option 'Default' uses MultiscaleLinearTransform sharpening on high pass image. See below for settings.</li><li>Option 'MLT' uses MultiscaleLinearTransform sharpening on high pass image. Settings for iterations are taken from the <i>Enhancements / Generic enhancements</i> section <i>Sharpening</i> options.</li><li>Option 'UnsharpMask' uses UnsharpMask on a high pass image. Settings are taken from the <i>Generic enhancements</i> section.</li><li>Option 'BlurXTerminator' uses BlurXTerminator on a high pass image. Settings are taken from the <i>Tools / BlurXTerminator</i> section.</li></ul>",
+   "tooltip": "<p>High pass sharpen type to sharpen the high pass image before combining it back to original image.</p><ul><li>Option 'Default' uses MultiscaleLinearTransform sharpening on high pass image. See below for settings.</li><li>Option 'MLT' uses MultiscaleLinearTransform sharpening on high pass image. Settings for iterations are taken from the <i>Enhancements / Generic enhancements</i> section <i>Sharpening</i> options.</li><li>Option 'UnsharpMask' uses UnsharpMask on a high pass image. Settings are taken from the <i>Generic enhancements</i> section.</li><li>Option 'BlurXTerminator' uses BlurXTerminator on a high pass image. Settings are taken from the <i>Postprocessing / Sharpening and deconvolution</i> section.</li></ul>",
    "values": [
     "Default",
     "MLT",

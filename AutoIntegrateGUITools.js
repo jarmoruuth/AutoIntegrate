@@ -732,173 +732,248 @@ createMLDenoisePathSizer(parent)
 }
 
 
+// Create a group of radio buttons where only one tool can be selected.
+// Each option is { text, param, toolTip, onSelect }. Option with param null
+// is Auto and it is selected when no option parameter is set.
+// Option onSelect is called after selection, if it returns false
+// the previous selection is restored.
+// Priority lists option parameters in the order the engine checks them,
+// it is used to show the correct selection if multiple parameters are set,
+// for example from old saved settings.
+// Each radio group has its own parent control so the groups are independent.
+newToolRadioGroup(parent, title, titleToolTip, options, priority)
+{
+      var groupControl = new Control( parent );
+      groupControl.sizer = new VerticalSizer;
+      groupControl.sizer.margin = 6;
+      groupControl.sizer.spacing = 4;
+
+      var label = this.newSectionLabel(groupControl, title);
+      label.toolTip = titleToolTip;
+      groupControl.sizer.add( label );
+
+      var updating = false;
+
+      var refresh = () => {
+            var selected = null;
+            for (var i = 0; i < priority.length && selected == null; i++) {
+                  // Tool selected automatically by the engine is shown as Auto
+                  if (priority[i].val && !priority[i].auto_selected) {
+                        selected = priority[i];
+                  }
+            }
+            updating = true;
+            for (var i = 0; i < options.length; i++) {
+                  options[i].radio.checked = (options[i].param == selected);
+            }
+            updating = false;
+      };
+
+      var select = (option) => {
+            var prev = options.map((o) => o.param != null ? o.param.val : false);
+            for (var i = 0; i < options.length; i++) {
+                  if (options[i].param != null) {
+                        options[i].param.val = (options[i] == option);
+                        options[i].param.auto_selected = false;
+                  }
+            }
+            if (option.onSelect != undefined && !option.onSelect()) {
+                  for (var i = 0; i < options.length; i++) {
+                        if (options[i].param != null) {
+                              options[i].param.val = prev[i];
+                        }
+                  }
+                  refresh();
+            }
+      };
+
+      options.forEach((option) => {
+            var rb = new RadioButton( groupControl );
+            rb.text = option.text;
+            rb.toolTip = this.util.formatToolTip(option.toolTip);
+            rb.onCheck = (checked) => {
+                  if (checked && !updating) {
+                        select(option);
+                  }
+            };
+            option.radio = rb;
+            if (option.param != null) {
+                  option.param.reset = refresh;
+                  this.util.recordParam(option.param, rb, { kind: "radiobutton", label: title + " / " + option.text, tooltip: option.toolTip });
+            }
+            groupControl.sizer.add( rb );
+      });
+      groupControl.sizer.addStretch();
+
+      refresh();
+
+      return groupControl;
+}
+
 createImageToolsControl(parent)
 {
       if (this.global.debug) console.writeln("AutoIntegrateGUITools::createImageToolsControl");
 
-#ifndef AUTOINTEGRATE_STANDALONE
-      if (this.global.is_gc_process) {
-            var use_abe_CheckBox = this.newCheckBox(parent, "ABE", this.par.use_abe,
-            "<p>Run AutomaticBackgroundExtractor (ABE) to correct gradients in images.</p>" +
-            "</p>By default no gradient correction is done. To use ABE for gradient correction you need to also check one of " +
-            "the gradient correction options in the <i>Settings / Image processing parameters</i> section.</p>" +
-            "<p>Settings for ABE are in <i>Postprocessing / ABE settings</i> section.</p>");
-      }
-      var use_dbe_CheckBox = this.newCheckBox(parent, "DBE", this.par.use_dbe,
-            "<p>Use DynamicBackgroundExtraction (DBE) to correct gradients in images.</p>" +
-            "</p>By default no gradient correction is done. To use DBE for gradient correction you need to also check one of " +
-            "the gradient correction options in the <i>Settings / Image processing parameters</i> section.</p>" +
-            "<p>Sample points are automatically generated for DBE. Settings for DBE are in <i>Postprocessing / DBE settings</i> section.</p>");
-
-      if (this.global.is_mgc_process) {
-            var use_multiscalegradientcorrection_CheckBox = this.newCheckBox(parent, "MultiscaleGradientCorrection", this.par.use_multiscalegradientcorrection, 
-                  "<p>Use MultiscaleGradientCorrection instead of GradientCorrection process to correct gradients in images.</p>" +
-                  "</p>By default no gradient correction is done. To use MultiscaleGradientCorrection for gradient correction you need to also check one of " +
-                  "the gradient correction options in the <i>Settings / Image processing parameters</i> section.</p>" +
-                  "<p>Settings for MultiscaleGradientCorrection are in <i>Postprocessing / Gradient correction</i> section.</p>" +
-                  "<p>Note that you need to set up MARS database settings using the PixInsight MultiscaleGradientCorrection process before " +
-                  "using this option.</p>" +
-                  this.MGCToolTip);
-      }
-#endif // AUTOINTEGRATE_STANDALONE
-
-      this.use_StarXTerminator_CheckBox = this.newCheckBox(parent, "StarXTerminator", this.par.use_starxterminator,
-            "<p>Use StarXTerminator to remove stars from an image.</p>" +
-            "<p>You can change some StarXTerminator settings in the <i>Tools / StarXTerminator</i> section.</p>" );
-      var use_noisexterminator_CheckBox = this.newCheckBox(parent, "NoiseXTerminator", this.par.use_noisexterminator,
-            "<p>Use NoiseXTerminator for noise reduction.</p>" +
-            "<p>You can change noise reduction settings in the <i>Postprocessing / Noise reduction</i> section.</p>" );
-      var use_mldenoise_CheckBox = this.newCheckBox(parent, "MLDenoise", this.par.use_mldenoise,
-            "<p>Use MLDenoise for noise reduction.</p>" +
-            "<p>MLDenoise is a noise reduction process included in PixInsight. It is available starting from PixInsight version 1.9.5.</p>" +
-            "<p>You can change noise reduction settings in the <i>Postprocessing / Noise reduction</i> section.</p>" +
-            "<p>Note that before using MLDenoise you need to download a model file and specify it in the <i>Tools / MLDenoise</i> section. " +
-            "If the model file is not specified, it is asked when this option is checked.</p>",
-            () => {
-                  // Model file is required, ask for it if it is not set
-                  if (this.par.use_mldenoise.val && this.par.mldenoise_model_path.val == "") {
-                        if (!this.selectMLDenoiseModelFile()) {
-                              console.warningln("MLDenoise model file is not specified, MLDenoise is not used.");
-                              this.par.use_mldenoise.val = false;
-                              use_mldenoise_CheckBox.checked = false;
-                        }
-                  }
-            });
-      var use_starnet2_CheckBox = this.newCheckBox(parent, "StarNet2", this.par.use_starnet2,
-            "<p>Use StarNet2 to remove stars from an image.</p>" );
-      var use_deepsnr_CheckBox = this.newCheckBox(parent, "DeepSNR", this.par.use_deepsnr,
-            "<p>Use DeepSNR for noise reduction.</p>" +
-            "<p>Note that with DeepSNR increasing the noise reduction strength value will decrease the noise reduction.</p>" );
-      var use_blurxterminator_CheckBox = this.newCheckBox(parent, "BlurXTerminator", this.par.use_blurxterminator, 
-            "<p>Use BlurXTerminator for sharpening and deconvolution.</p>" +
-            "<p>BlurXTerminator is applied on the linear image just before it is stretched to non-linear. Enhancements " +
-            "option for sharpening can be used to apply BlurXTerminator on non-linear image.</p>" +
-            "<p>Some options for BlurXTerminator can be adjusted in the <i>Tools / BlurXTerminator</i> section.</p>" +
-            "<p>Noise reduction should be done after BlurXTerminator. Option <i>Auto</i> in the noise reduction " + 
-            "options does that, other possible options are <i>Processed linear image</i> and <i>Non-linear image</i>. " + 
-            "But it is always good to experiment what " +
-            "is best for your own data.</p>" + 
-            "<p>" + this.BXT_no_PSF_tip + "</p>");
-
-var GraXpert_note = "<p><b>NOTE!</b> A path to GraXpert file must be set in the <i>Tools / GraXpert</i> section before it can be used.</p>" +
-                    "<p><b>NOTE2!</b> You need to manually start GraXpert once to ensure that the correct AI model is loaded into your computer.</p>";
-
-#ifndef AUTOINTEGRATE_STANDALONE
-      if (this.global.is_gc_process) {
-            var use_graxpert_toolTip = "<p>Use GraXpert instead of GradientCorrection process to correct gradients in images.</p>";
-      } else {
-            var use_graxpert_toolTip = "<p>Use GraXpert instead of AutomaticBackgroundExtractor (ABE) to correct gradients in images.</p>";
-      }
-      use_graxpert_toolTip += "</p>By default no gradient correction is done. To use GraXpert for gradient correction you need to also check one of " +
-                              "the gradient correction options in the <i>Settings / Image processing parameters</i> section.</p>";
-      
-      var use_graxpert_CheckBox = this.newCheckBox(parent, "GraXpert gradient", this.par.use_graxpert,
-            use_graxpert_toolTip +
-            "<p>GraXpert always uses the AI background model. In the <i>Tools / GraXpert</i> section " +
-            "it is possible to set some settings.</p>" +
-            GraXpert_note);
-#endif // AUTOINTEGRATE_STANDALONE
-
-      var use_graxpert_denoise_CheckBox = this.newCheckBox(parent, "GraXpert denoise", this.par.use_graxpert_denoise,
-            "<p>Use GraXpert for noise reduction.</p>" +
-            "<p>In the <i>Tools / GraXpert</i> section it is possible to set some settings.</p>" +
-            GraXpert_note);
-
-      var use_graxpert_deconvolution_CheckBox = this.newCheckBox(parent, "GraXpert deconvolution", this.par.use_graxpert_deconvolution,
-            "<p>Use GraXpert deconvolution for stellar and non-stellar sharpening.</p>" +
-            "<p>In the <i>Tools / GraXpert</i> section it is possible to set some settings.</p>" +
-            GraXpert_note);
+      var GraXpert_note = "<p><b>NOTE!</b> A path to GraXpert file must be set in the <i>Tools / GraXpert</i> section before it can be used.</p>" +
+                          "<p><b>NOTE2!</b> You need to manually start GraXpert once to ensure that the correct AI model is loaded into your computer.</p>";
 
 #ifndef AUTOINTEGRATE_STANDALONE
       // Tools set 1, gradient correction
-      var imageToolsSet1SectionLabel = this.newSectionLabel(parent, "Gradient correction");
-      imageToolsSet1SectionLabel.toolTip = "<p>Select tools for gradient correction if you do not want to use the default gradient correction.</p>";
-      var imageToolsSet1 = new VerticalSizer;
-      imageToolsSet1.margin = 6;
-      imageToolsSet1.spacing = 4;
-      imageToolsSet1.add( imageToolsSet1SectionLabel );
-      if (this.global.is_gc_process || this.global.is_mgc_process) {
-            if (this.global.is_gc_process) {
-                  imageToolsSet1.add( use_abe_CheckBox );
-            }
-            imageToolsSet1.add( use_dbe_CheckBox );
-            if (this.global.is_mgc_process) {
-                  imageToolsSet1.add( use_multiscalegradientcorrection_CheckBox );
-            }
+      // Options are in the same order as Auto checks them in engine resolveAutoTools
+      var gradientOptions = [
+            { text: "Auto", param: null,
+              toolTip: "<p>Use the best available gradient correction process.</p>" +
+                       "<p>Currently the GradientCorrection process is used. On old PixInsight versions without GradientCorrection " +
+                       "AutomaticBackgroundExtractor (ABE) is used.</p>" }
+      ];
+      if (this.global.is_gc_process) {
+            gradientOptions.push({ text: "GradientCorrection", param: this.par.use_gradientcorrection,
+                  toolTip: "<p>Use the GradientCorrection process to correct gradients in images.</p>" +
+                           "<p>Settings for GradientCorrection are in <i>Postprocessing / Gradient correction</i> section.</p>" });
       }
-      imageToolsSet1.add( use_graxpert_CheckBox );
-      imageToolsSet1.addStretch();
+      if (this.global.is_mgc_process) {
+            gradientOptions.push({ text: "MultiscaleGradientCorrection", param: this.par.use_multiscalegradientcorrection,
+                  toolTip: "<p>Use MultiscaleGradientCorrection instead of GradientCorrection process to correct gradients in images.</p>" +
+                           "<p>Settings for MultiscaleGradientCorrection are in <i>Postprocessing / Gradient correction</i> section.</p>" +
+                           "<p>Note that you need to set up MARS database settings using the PixInsight MultiscaleGradientCorrection process before " +
+                           "using this option.</p>" +
+                           "<p>If MultiscaleGradientCorrection fails, the GradientCorrection process is used.</p>" +
+                           this.MGCToolTip });
+      }
+      gradientOptions.push({ text: "GraXpert", param: this.par.use_graxpert,
+            toolTip: (this.global.is_gc_process ?
+                        "<p>Use GraXpert instead of GradientCorrection process to correct gradients in images.</p>" :
+                        "<p>Use GraXpert instead of AutomaticBackgroundExtractor (ABE) to correct gradients in images.</p>") +
+                     "<p>GraXpert always uses the AI background model. Settings for GraXpert are in <i>Postprocessing / Gradient correction</i> section.</p>" +
+                     GraXpert_note });
+      if (this.global.is_gc_process) {
+            gradientOptions.push({ text: "ABE", param: this.par.use_abe,
+                  toolTip: "<p>Run AutomaticBackgroundExtractor (ABE) to correct gradients in images.</p>" +
+                           "<p>Settings for ABE are in <i>Postprocessing / Gradient correction</i> section.</p>" });
+      }
+      if (this.global.is_gc_process || this.global.is_mgc_process) {
+            gradientOptions.push({ text: "DBE", param: this.par.use_dbe,
+                  toolTip: "<p>Use DynamicBackgroundExtraction (DBE) to correct gradients in images.</p>" +
+                           "<p>Sample points are automatically generated for DBE. Settings for DBE are in <i>Postprocessing / Gradient correction</i> section.</p>" });
+      }
+      // Same order as in engine getDefaultGradientCorrectionMethod, GradientCorrection is used when nothing else is set
+      var gradientPriority = [ this.par.use_multiscalegradientcorrection, this.par.use_graxpert, this.par.use_abe, this.par.use_dbe, this.par.use_gradientcorrection ];
+      var imageToolsSet1 = this.newToolRadioGroup(parent, "Gradient correction",
+            "<p>Select tool for gradient correction.</p>" +
+            "<p>This option only selects the tool. By default no gradient correction is done. To use gradient correction you need to also check one of " +
+            "the gradient correction options in the <i>Settings / Image processing parameters</i> section.</p>",
+            gradientOptions, gradientPriority);
 #endif // AUTOINTEGRATE_STANDALONE
 
       // Tools set 2, noise removal
-      var imageToolsSet2SectionLabel = this.newSectionLabel(parent, "Noise removal");
-      imageToolsSet2SectionLabel.toolTip = "<p>Select tools for noise removal if you do not want to use the default noise removal.</p>" + 
-                                                "<p>Note that except for MLDenoise these are external tools and you need to have them installed and set up correctly.</p>";
-      var imageToolsSet2 = new VerticalSizer;
-      imageToolsSet2.margin = 6;
-      imageToolsSet2.spacing = 4;
-      imageToolsSet2.add( imageToolsSet2SectionLabel );
-      imageToolsSet2.add( use_mldenoise_CheckBox );
-      imageToolsSet2.add( use_noisexterminator_CheckBox );
-      imageToolsSet2.add( use_graxpert_denoise_CheckBox );
-      imageToolsSet2.add( use_deepsnr_CheckBox );
-      imageToolsSet2.addStretch();
+      // Options are in the same order as Auto checks them in engine resolveAutoTools
+      var imageToolsSet2 = this.newToolRadioGroup(parent, "Noise removal",
+            "<p>Select tool for noise removal.</p>" +
+            "<p>This option only selects the tool. Noise reduction is done by default. It can be disabled with the <i>No noise reduction</i> option " +
+            "in the <i>Postprocessing / Noise reduction</i> section where also other noise reduction settings are.</p>" +
+            "<p>Note that except for MLDenoise and MultiscaleLinearTransform these are external tools and you need to have them installed and set up correctly.</p>",
+            [
+                  { text: "Auto", param: null,
+                    toolTip: "<p>Select the best available noise removal tool automatically when processing starts. " +
+                             "AI based tools are preferred.</p>" +
+                             "<p>Tools are checked in the order they are listed: MLDenoise, NoiseXTerminator, DeepSNR, GraXpert denoise. " +
+                             "MLDenoise is used only if the model file is set in the <i>Tools / MLDenoise</i> section " +
+                             "and GraXpert only if the GraXpert path is set in the <i>Tools / GraXpert</i> section.</p>" +
+                             "<p>If no tool is available, noise removal is done using MultiscaleLinearTransform.</p>" },
+                  { text: "MLDenoise", param: this.par.use_mldenoise,
+                    toolTip: "<p>Use MLDenoise for noise reduction.</p>" +
+                             "<p>MLDenoise is a noise reduction process included in PixInsight. It is available starting from PixInsight version 1.9.5.</p>" +
+                             "<p>You can change noise reduction settings in the <i>Postprocessing / Noise reduction</i> section.</p>" +
+                             "<p>Note that before using MLDenoise you need to download a model file and specify it in the <i>Tools / MLDenoise</i> section. " +
+                             "If the model file is not specified, it is asked when this option is selected.</p>",
+                    onSelect: () => {
+                        // Model file is required, ask for it if it is not set
+                        if (this.par.mldenoise_model_path.val == "" && !this.selectMLDenoiseModelFile()) {
+                              console.warningln("MLDenoise model file is not specified, MLDenoise is not used.");
+                              return false;
+                        }
+                        return true;
+                    } },
+                  { text: "NoiseXTerminator", param: this.par.use_noisexterminator,
+                    toolTip: "<p>Use NoiseXTerminator for noise reduction.</p>" +
+                             "<p>You can change noise reduction settings in the <i>Postprocessing / Noise reduction</i> section.</p>" },
+                  { text: "DeepSNR", param: this.par.use_deepsnr,
+                    toolTip: "<p>Use DeepSNR for noise reduction.</p>" +
+                             "<p>Note that with DeepSNR increasing the noise reduction strength value will decrease the noise reduction.</p>" },
+                  { text: "GraXpert denoise", param: this.par.use_graxpert_denoise,
+                    toolTip: "<p>Use GraXpert for noise reduction.</p>" +
+                             "<p>Settings for GraXpert denoise are in <i>Postprocessing / Noise reduction</i> section.</p>" +
+                             GraXpert_note },
+                  { text: "MultiscaleLinearTransform", param: this.par.use_mlt_noise_reduction,
+                    toolTip: "<p>Use MultiscaleLinearTransform for noise reduction. It is a non-AI noise reduction process included in PixInsight.</p>" +
+                             "<p>You can change noise reduction settings in the <i>Postprocessing / Noise reduction</i> section.</p>" }
+            ],
+            // Same order as in engine getNoiseReductionName, MultiscaleLinearTransform is used when nothing else is set
+            [ this.par.use_noisexterminator, this.par.use_graxpert_denoise, this.par.use_deepsnr, this.par.use_mldenoise, this.par.use_mlt_noise_reduction ]);
 
       // Tools set 3, star removal
-      var imageToolsSet3SectionLabel = this.newSectionLabel(parent, "Star removal");
-      imageToolsSet3SectionLabel.toolTip = "<p>Select tools for star removal.</p>" + 
-                                                "<p>Note that these are external tools and you need to have them installed and set up correctly.</p>";
-      var imageToolsSet3 = new VerticalSizer;
-      imageToolsSet3.margin = 6;
-      imageToolsSet3.spacing = 4;
-      imageToolsSet3.add( imageToolsSet3SectionLabel );
-      imageToolsSet3.add( this.use_StarXTerminator_CheckBox );
-      imageToolsSet3.add( use_starnet2_CheckBox );
-      imageToolsSet3.addStretch();
+      this.starRemovalToolsControl = this.newToolRadioGroup(parent, "Star removal",
+            "<p>Select tool for star removal.</p>" +
+            "<p>This option only selects the tool. By default stars are not removed. Star removal is enabled with the <i>Remove stars</i> options " +
+            "in the <i>Postprocessing / Star stretching and removing</i> section.</p>" +
+            "<p>Note that these are external tools and you need to have them installed and set up correctly.</p>",
+            [
+                  { text: "Auto", param: null,
+                    toolTip: "<p>Select the best available star removal tool automatically when processing starts.</p>" +
+                             "<p>Tools are checked in the order they are listed: StarXTerminator, StarNet2.</p>" +
+                             "<p>If no tool is available, star removal options cannot be used.</p>" },
+                  { text: "StarXTerminator", param: this.par.use_starxterminator,
+                    toolTip: "<p>Use StarXTerminator to remove stars from an image.</p>" +
+                             "<p>You can change some StarXTerminator settings in the <i>Postprocessing / Star stretching and removing</i> section.</p>" },
+                  { text: "StarNet2", param: this.par.use_starnet2,
+                    toolTip: "<p>Use StarNet2 to remove stars from an image.</p>" }
+            ],
+            [ this.par.use_starxterminator, this.par.use_starnet2 ]);
 
       // Tools set 4, deconvolution
-      var imageToolsSet4SectionLabel = this.newSectionLabel(parent, "Deconvolution/sharpening");
-      imageToolsSet4SectionLabel.toolTip = "<p>Select tools for deconvolution and sharpening if you do not want to use the default sharpening.</p>" + 
-                                                "<p>Note that these are external tools and you need to have them installed and set up correctly.</p>";
-      var imageToolsSet4 = new VerticalSizer;
-      imageToolsSet4.margin = 6;
-      imageToolsSet4.spacing = 4;
-      imageToolsSet4.add( imageToolsSet4SectionLabel );
-      imageToolsSet4.add( use_blurxterminator_CheckBox );
-      imageToolsSet4.add( use_graxpert_deconvolution_CheckBox );
-      imageToolsSet4.addStretch();
+      var imageToolsSet4 = this.newToolRadioGroup(parent, "Deconvolution/sharpening",
+            "<p>Select tool for deconvolution and sharpening.</p>" +
+            "<p>This option only selects the tool. Deconvolution and sharpening is done by default. It can be disabled with the <i>No sharpening</i> option " +
+            "in the <i>Postprocessing / Sharpening and deconvolution</i> section where also other sharpening and deconvolution settings are.</p>" +
+            "<p>Note that except for MultiscaleLinearTransform these are external tools and you need to have them installed and set up correctly.</p>",
+            [
+                  { text: "Auto", param: null,
+                    toolTip: "<p>Select the best available deconvolution tool automatically when processing starts. " +
+                             "AI based tools are preferred.</p>" +
+                             "<p>Tools are checked in the order they are listed: BlurXTerminator, GraXpert deconvolution. " +
+                             "GraXpert is used only if the GraXpert path is set in the <i>Tools / GraXpert</i> section.</p>" +
+                             "<p>If no tool is available, sharpening is done using MultiscaleLinearTransform.</p>" },
+                  { text: "BlurXTerminator", param: this.par.use_blurxterminator,
+                    toolTip: "<p>Use BlurXTerminator for sharpening and deconvolution.</p>" +
+                             "<p>BlurXTerminator is applied on the linear image just before it is stretched to non-linear. Enhancements " +
+                             "option for sharpening can be used to apply BlurXTerminator on non-linear image.</p>" +
+                             "<p>Some options for BlurXTerminator can be adjusted in the <i>Postprocessing / Sharpening and deconvolution</i> section.</p>" +
+                             "<p>Noise reduction should be done after BlurXTerminator. Option <i>Auto</i> in the noise reduction " +
+                             "options does that, other possible options are <i>Processed linear image</i> and <i>Non-linear image</i>. " +
+                             "But it is always good to experiment what " +
+                             "is best for your own data.</p>" +
+                             "<p>" + this.BXT_no_PSF_tip + "</p>" },
+                  { text: "GraXpert deconvolution", param: this.par.use_graxpert_deconvolution,
+                    toolTip: "<p>Use GraXpert deconvolution for stellar and non-stellar sharpening.</p>" +
+                             "<p>Settings for GraXpert deconvolution are in <i>Postprocessing / Sharpening and deconvolution</i> section.</p>" +
+                             GraXpert_note },
+                  { text: "MultiscaleLinearTransform", param: this.par.use_mlt_sharpening,
+                    toolTip: "<p>Use MultiscaleLinearTransform for sharpening. It is a non-AI process included in PixInsight.</p>" +
+                             "<p>Sharpening is done on the non-linear image using a luminance and star mask to target light parts of the image. " +
+                             "No deconvolution is done on the linear image.</p>" }
+            ],
+            [ this.par.use_blurxterminator, this.par.use_graxpert_deconvolution, this.par.use_mlt_sharpening ]);
 
       // Create separate sizer for tools so we use Vertical sizer in tools control.
       // We may add more items below tools.
       var imageToolsSizer = new HorizontalSizer;
-      imageToolsSizer = new HorizontalSizer;
       imageToolsSizer.margin = 6;
       imageToolsSizer.spacing = 4;
 #ifndef AUTOINTEGRATE_STANDALONE
       imageToolsSizer.add( imageToolsSet1 );  // Tools set 1, gradient correction
 #endif
       imageToolsSizer.add( imageToolsSet2 );  // Tools set 2, noise removal
-      imageToolsSizer.add( imageToolsSet3 );  // Tools set 3, star removal
+      imageToolsSizer.add( this.starRemovalToolsControl );  // Tools set 3, star removal
       imageToolsSizer.add( imageToolsSet4 );  // Tools set 4, deconvolution/sharpening
       imageToolsSizer.addStretch();
 
@@ -907,7 +982,7 @@ var GraXpert_note = "<p><b>NOTE!</b> A path to GraXpert file must be set in the 
       imageToolsControl.sizer = new VerticalSizer;
       imageToolsControl.sizer.margin = 6;
       imageToolsControl.sizer.spacing = 4;
-      imageToolsControl.sizer.add( imageToolsSizer );  // Tools set 2, noise removal
+      imageToolsControl.sizer.add( imageToolsSizer );
       imageToolsControl.sizer.addStretch();
 
       return imageToolsControl;
@@ -1674,8 +1749,15 @@ createGradientCorrectionSizer(parent, level = 1)
                                           [ this.DBEMainSizer ], level);
       this.DBESettingsSection.control.visible = true;
 
+#ifndef AUTOINTEGRATE_STANDALONE
       /*
-            Final sizer.
+            GraXpert settings, standalone script adds them separately
+      */
+      var graxpertSettingsSection = this.createGraXpertGradientCorrectionSizer(parent, level);
+#endif
+
+      /*
+            Final sizer. Processes are in the same order as in Settings / Tools.
       */
       var processes = [];
       processes.push(this.GC_commonSettingsSection.section);
@@ -1684,21 +1766,25 @@ createGradientCorrectionSizer(parent, level = 1)
             processes.push(this.GCSettingsSection.section);
             processes.push(this.GCSettingsSection.control);
       }
-      processes.push(this.ABESettingsSection.section);
-      processes.push(this.ABESettingsSection.control);
-      processes.push(this.DBESettingsSection.section);
-      processes.push(this.DBESettingsSection.control);
       if (this.global.is_mgc_process) {
             processes.push(this.MGCSettingsSection.section);
             processes.push(this.MGCSettingsSection.control);
       }
+#ifndef AUTOINTEGRATE_STANDALONE
+      processes.push(graxpertSettingsSection.section);
+      processes.push(graxpertSettingsSection.control);
+#endif
+      processes.push(this.ABESettingsSection.section);
+      processes.push(this.ABESettingsSection.control);
+      processes.push(this.DBESettingsSection.section);
+      processes.push(this.DBESettingsSection.control);
 
       this.GCSizer = this.newVerticalSizer(0, true, processes);
 
       return this.GCSizer;
 }
 
-createGraXpertGradientCorrectionSizer(parent)
+createGraXpertGradientCorrectionSizer(parent, level = 1)
 {
       if (this.global.debug) console.writeln("AutoIntegrateGUITools::createGraXpertGradientCorrectionSizer");
 
@@ -1714,9 +1800,10 @@ createGraXpertGradientCorrectionSizer(parent)
                                                 [ this.graxpertGradientCorrectionSizer ]);
       return this.graxpertSettingsSection;
 #else
-      this.graxpertGradientCorrectionLabel = this.newSectionLabel(parent, "Gradient correction settings");
-      this.graxpertGradientCorrectionSizer = this.newVerticalSizer(2, true, [this.graxpertGradientCorrectionLabel, this.graxpertGradientCorrectionSizer1]);
-      return this.graxpertGradientCorrectionSizer;
+      // GraXpert path is set in the Tools tab
+      this.graxpertSettingsSection = this.newSectionBarAddArray(parent, null, "GraXpert settings", "GraXpert_GC_Settings_Section",
+                                                [ this.graxpertGradientCorrectionSizer1 ], level);
+      return this.graxpertSettingsSection;
 #endif
      
 }

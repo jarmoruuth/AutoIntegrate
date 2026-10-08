@@ -1163,7 +1163,7 @@ createEnhancementsControls(parent)
             "<li>Option 'UnsharpMask' uses UnsharpMask on a high pass image. Settings are taken from the <i>Generic enhancements</i> section.</li>" +
             "<li>Option 'BlurXTerminator' uses BlurXTerminator on a high pass image." + 
 #ifndef AUTOINTEGRATE_STANDALONE
-            " Settings are taken from the <i>Tools / BlurXTerminator</i> section." + 
+            " Settings are taken from the <i>Postprocessing / Sharpening and deconvolution</i> section." + 
 #endif
             "</li>" +
             "</ul>"
