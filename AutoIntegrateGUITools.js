@@ -1042,6 +1042,45 @@ createClippedSizer(parent, preview_control)
       return enhancementsSetClippedPixelsSizer;
 }
 
+// Button to run the Auto stretching sky analysis on the current preview image.
+// The image is analyzed as it is shown in the preview, so it is usually stretched
+// and it may be resampled. Analysis works on stretched images too.
+createSkyAnalysisButton(parent, engine)
+{
+      var button = new PushButton( parent );
+      button.text = "Sky analysis";
+      button.toolTip = "<p>Analyze how much of the current preview image is dark sky background.</p>" +
+                       "<p>The result is printed to the console. It tells which stretching method <i>Auto</i> " +
+                       "would select based on the sky fraction: MultiscaleAdaptiveStretch when there is enough " +
+                       "dark sky, Auto STF when the target fills most of the image.</p>" +
+                       "<p>The image is analyzed as shown in the preview. It is usually stretched with AutoSTF " +
+                       "and it may be resampled.</p>" +
+                       "<p>This is a test feature, Auto does not use the result yet.</p>";
+      button.onClick = () => {
+            var tmp_win = null;
+            if (this.current_preview.imgWin != null) {
+                  var win = this.current_preview.imgWin;
+            } else if (this.current_preview.image != null) {
+                  tmp_win = this.util.createWindowFromImage(this.current_preview.image, "AutoIntegrateSkyAnalysis", true);
+                  var win = tmp_win;
+            } else {
+                  console.criticalln("Sky analysis: no preview image");
+                  return;
+            }
+            console.writeln("Sky analysis on " + (this.current_preview.txt != null ? this.current_preview.txt : win.mainView.id) +
+                            (this.current_preview.resampled ? ", resampled preview image" : ""));
+            try {
+                  engine.autoStretchingAnalysis(win, null);
+            } catch (e) {
+                  console.criticalln("Sky analysis: " + e);
+            }
+            if (tmp_win != null) {
+                  this.util.closeOneWindow(tmp_win);
+            }
+      };
+      return button;
+}
+
 createStretchingSettingsSizer(parent, engine, level, preview_control = null)
 {
       if (this.global.debug) console.writeln("AutoIntegrateGUITools::createStretchingSettingsSizer");
@@ -1091,6 +1130,10 @@ createStretchingSettingsSizer(parent, engine, level, preview_control = null)
             StretchGenericSizer.addSpacing(10);
             StretchGenericSizer.add( clippedSizer );
       }
+#ifndef AUTOINTEGRATE_STANDALONE
+      StretchGenericSizer.addSpacing(10);
+      StretchGenericSizer.add( this.createSkyAnalysisButton(parent, engine) );
+#endif
       StretchGenericSizer.addStretch();
                                     
       var StretchGenericSection = this.newSectionBarAddArray(parent, null, "Generic settings", "Stretching_Generic_Settings_Section",

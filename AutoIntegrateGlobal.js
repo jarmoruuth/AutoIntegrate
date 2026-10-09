@@ -770,6 +770,7 @@ this.par = {
       // Misc settings
       show_flowchart: { val: true, def: true, name : "Show flowchart", type : 'B', skip_reset: true, ignore_used: true, applies : "interface" },     // Ignore because when not using preview
       preview_autostf: { val: true, def: true, name : "Preview AutoSTF", type : 'B', applies : "interface" },
+      preview_browse_autostf: { val: true, def: true, name : "Preview AutoSTF when browsing", type : 'B', applies : "interface" },
       preview_resample: { val: false, def: false, name : "Preview resample", type : 'B', applies : "interface" },
       preview_resample_target: { val: 2000, def: 2000, name : "Preview resample target", type : 'I', applies : "interface" },
 

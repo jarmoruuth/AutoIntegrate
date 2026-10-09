@@ -1523,7 +1523,9 @@ loadBrowsePreview(filename)
             this.forceNewHistogram(imageWindow);
             histogramInfo = this.getHistogramInfo(imageWindow, true);
       }
-      this.engine.autoStretch(imageWindow);
+      if (this.par.preview_browse_autostf.val) {
+            this.engine.autoStretch(imageWindow);
+      }
       if (this.par.debug.val) console.writeln("--- loadBrowsePreview:histogram and autostretch " + (Date.now()-start_time)/1000 + " sec");
       return { imgWin: imageWindow, width: width, height: height, resampled: resampled, histogramInfo: histogramInfo };
 }
@@ -1577,7 +1579,7 @@ browsePreviewFile(files_TreeBox)
       }
       if (this.par.debug.val) console.writeln("--- browsePreviewFile:load " + (Date.now()-start_time)/1000 + " sec");
       if (this.par.debug.val) start_time = Date.now();
-      // Image is already stretched so we do not run AutoSTF
+      // Image is already stretched if needed so we do not run AutoSTF
       this.updatePreviewWinTxt(
             loaded.imgWin,
             File.extractName(filename) + File.extractExtension(filename),
@@ -7866,13 +7868,23 @@ AutoIntegrateDialog()
             }
       }
 
-      this.previewAutoSTFCheckBox = this.guitools.newCheckBoxEx(this, "AutoSTF", this.par.preview_autostf, 
-            "<p>When checked, a preview image during the processing is always shown in a stretched (non-linear) format. " + 
-            "Image name on top of the preview window has text AutoSTF when image is stretched for preview.</p>" + 
+      this.previewAutoSTFCheckBox = this.guitools.newCheckBoxEx(this, "AutoSTF during processing", this.par.preview_autostf,
+            "<p>When checked, a preview image during the processing is always shown in a stretched (non-linear) format. " +
+            "Image name on top of the preview window has text AutoSTF when image is stretched for preview.</p>" +
             "<p>When unchecked preview image is shown in original format.</p>" +
-            "<p>Stretched format can be useful for visualizing the current processed image.</p>",
-            (checked) => { 
+            "<p>Stretched format can be useful for visualizing the current processed image.</p>" +
+            "<p>Preview of files when browsing them in the <i>Files</i> tab is controlled by the <i>AutoSTF when browsing</i> option.</p>",
+            (checked) => {
                   this.par.preview_autostf.val = checked;
+            });
+      this.previewBrowseAutoSTFCheckBox = this.guitools.newCheckBoxEx(this, "AutoSTF when browsing", this.par.preview_browse_autostf,
+            "<p>When checked, preview of a file when browsing files in the <i>Files</i> tab is shown in a stretched (non-linear) format.</p>" +
+            "<p>When unchecked preview image is shown in original format. Linear images look very dark without stretching.</p>" +
+            "<p>Blink window is always stretched.</p>",
+            (checked) => {
+                  this.par.preview_browse_autostf.val = checked;
+                  // Cached previews are stretched or not, clear cache so the new setting is used
+                  this.previewCacheClear();
             });
 
       this.resampleCheckBox = this.guitools.newCheckBox(this, "Resample", this.par.preview_resample, 
@@ -7982,9 +7994,10 @@ AutoIntegrateDialog()
       this.saveInterfaceButton = new PushButton( this );
       this.saveInterfaceButton.text = "Save";
       this.saveInterfaceButton.toolTip = 
-            "<p>Save current interface settings.</p>" +
-            "<p>Settings are saved by default when exiting the script. This button can be used " +
-            "to save settings without exiting. It can be useful if the Exit button is not visible.</p>";
+            "<p>Save current preferences in this box.</p>" +
+            "<p>Preferences are saved by default when exiting the script. This button can be used " +
+            "to save preferences without exiting. It can be useful if the Exit button is not visible.</p>" +
+            "<p>Other options are saved using the wrench button at the bottom left corner.</p>";
       this.saveInterfaceButton.onClick = () => {
             this.savePersistentSettings(false);
       };
@@ -8029,16 +8042,19 @@ AutoIntegrateDialog()
       this.preview1Sizer.spacing = 4;
       this.preview1Sizer.add( this.show_preview_CheckBox );
       this.preview1Sizer.add( this.show_histogram_CheckBox );
+      this.preview1Sizer.add( this.show_black_background_CheckBox );
       this.preview1Sizer.addStretch();
 
-      this.preview10SizerLabel = this.guitools.newLabel(this, 'Preview options', "Options for preview image.");
+      this.preview10SizerLabel = this.guitools.newLabel(this, 'Preview options', 
+            "<p>Options for preview image.</p>" +
+            "<p>These options are saved using the wrench button at the bottom left corner and they are reset to defaults with other options.</p>");
       this.preview10Sizer = new HorizontalSizer;
       this.preview10Sizer.margin = 6;
       this.preview10Sizer.spacing = 4;
       this.preview10Sizer.add( this.preview10SizerLabel );
       this.preview10Sizer.add( this.previewAutoSTFCheckBox );
+      this.preview10Sizer.add( this.previewBrowseAutoSTFCheckBox );
       this.preview10Sizer.add( this.resampleCheckBox );
-      this.preview10Sizer.add( this.show_black_background_CheckBox );
       this.preview10Sizer.addStretch();
 
       this.preview11Sizer = new HorizontalSizer;
@@ -8082,7 +8098,6 @@ AutoIntegrateDialog()
       this.preview2Sizer.add( this.side_histogram_height_label );
       this.preview2Sizer.add( this.side_histogram_height_edit );
       this.preview2Sizer.addStretch();
-      this.preview2Sizer.add( this.saveInterfaceButton );
 
       this.resample_target_Label = this.guitools.newLabel(this, 'Resample target', "<p>Target size for preview image resample.</p>" +
                                                                      "<p>Note that resample may alter how preview image and histogram are shown during the preview.</p>");
@@ -8137,20 +8152,38 @@ AutoIntegrateDialog()
       this.interfaceSizer2.spacing = 4;
       this.interfaceSizer2.addStretch();
 
+      // Preferences are saved to persistent module settings on exit and with the Save button.
+      // They are not reset to defaults and they are not saved to setup files.
+      this.preferencesSaveSizer = new HorizontalSizer;
+      this.preferencesSaveSizer.margin = 6;
+      this.preferencesSaveSizer.spacing = 4;
+      this.preferencesSaveSizer.addStretch();
+      this.preferencesSaveSizer.add( this.saveInterfaceButton );
+
+      this.preferencesGroupBox = this.guitools.newGroupBox(this, "Preferences (saved on exit, not reset to defaults)",
+            "<p>Preferences for this computer, like preview size and layout.</p>" +
+            "<p>Preferences are saved automatically when exiting the script, or with the Save button. " +
+            "They are not reset when default values are set for parameters and they are not saved to setup files.</p>");
+      this.preferencesGroupBox.sizer = new VerticalSizer;
+      this.preferencesGroupBox.sizer.margin = 6;
+      this.preferencesGroupBox.sizer.spacing = 4;
+      this.preferencesGroupBox.sizer.add( this.preview1Sizer );
+      this.preferencesGroupBox.sizer.add( this.preview11Sizer );
+      this.preferencesGroupBox.sizer.add( this.preview2Sizer );
+      if (this.par.use_manual_icon_column.val) {
+            this.preferencesGroupBox.sizer.add( this.interfaceManualColumnSizer );
+      }
+      this.preferencesGroupBox.sizer.add( this.preferencesSaveSizer );
+
       this.interfaceControl = new Control( this );
       this.interfaceControl.sizer = new VerticalSizer;
       this.interfaceControl.sizer.margin = 6;
       this.interfaceControl.sizer.spacing = 4;
       this.interfaceControl.sizer.add( this.preview0Sizer );
-      this.interfaceControl.sizer.add( this.preview1Sizer );
       this.interfaceControl.sizer.add( this.preview10Sizer );
-      this.interfaceControl.sizer.add( this.preview11Sizer );
-      this.interfaceControl.sizer.add( this.preview2Sizer );
       this.interfaceControl.sizer.add( this.preview4Sizer );
       this.interfaceControl.sizer.add( this.interfaceSizer );
-      if (this.par.use_manual_icon_column.val) {
-            this.interfaceControl.sizer.add( this.interfaceManualColumnSizer );
-      }
+      this.interfaceControl.sizer.add( this.preferencesGroupBox );
       this.interfaceControl.sizer.add( this.interfaceSizer2 );
 
       this.interfaceControl.sizer.addStretch();

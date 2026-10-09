@@ -237,6 +237,7 @@ constructor(global, util, flowchart) {
       this.local_G_mapping = "";
       this.local_B_mapping = "";
       this.local_image_stretching = "";
+      this.image_stretching_auto = false;
       this.local_debayer_pattern = "";
       this.local_RGBHa_prepare_method = "";
       this.local_RGBHa_combine_method = "";
@@ -565,6 +566,119 @@ targetTypeToStretching(targetType)
       }
 }
 
+// Analyze how much of the image is dark sky background. Image is divided into a
+// grid of tiles and the median of each tile is calculated, averaged over channels.
+// Background level is a low percentile of the tile medians and noise is estimated
+// from the darkest tiles. A tile is sky if its median is close to the background
+// level compared to the noise. Sky fraction is the share of sky tiles.
+// Outermost tiles are skipped to avoid stacking edges, and tiles in the DBE
+// exclusion areas are skipped. Comparison is relative to the image noise so the
+// analysis works both on linear and stretched images.
+// Returns null if the image is too small.
+analyzeSkyFraction(win)
+{
+      const grid = 32;                    // tiles in each direction
+      const background_percentile = 0.10; // tile median percentile used as background level
+      const noise_percentile = 0.25;      // darkest tiles used for noise estimate
+      const sky_limits = [ 0.5, 1, 2 ];   // sky tile limits in noise units, logged for comparison
+
+      var image = win.mainView.image;
+      var tileWidth = Math.floor(image.width / grid);
+      var tileHeight = Math.floor(image.height / grid);
+      if (tileWidth < 4 || tileHeight < 4) {
+            console.writeln("analyzeSkyFraction: image " + image.width + "x" + image.height + " is too small");
+            return null;
+      }
+      var nchannels = image.numberOfChannels;
+      var polygons = this.util.getScaledExclusionAreas(this.global.exclusion_areas, win).polygons;
+
+      var tiles = [];
+      var rect = new Rect(0, 0, tileWidth, tileHeight);
+      for (var ty = 1; ty < grid - 1; ty++) {
+            for (var tx = 1; tx < grid - 1; tx++) {
+                  var x = tx * tileWidth;
+                  var y = ty * tileHeight;
+                  if (polygons.length > 0 && this.isPointExcluded(x + tileWidth / 2, y + tileHeight / 2, polygons)) {
+                        continue;
+                  }
+                  rect.moveTo(x, y);
+                  var median = 0;
+                  var mad = 0;
+                  for (var c = 0; c < nchannels; c++) {
+                        var channel_median = image.median(rect, c, c);
+                        median += channel_median;
+                        // MAD( [center[, rect[, firstChannel[, lastChannel]]]] ), center is the tile median
+                        mad += image.MAD(channel_median, rect, c, c);
+                  }
+                  tiles.push({ median: median / nchannels, mad: mad / nchannels });
+            }
+            if (ty % 10 == 0) {
+                  this.checkCancel();
+            }
+      }
+      if (tiles.length == 0) {
+            console.writeln("analyzeSkyFraction: no tiles to analyze");
+            return null;
+      }
+
+      var medians = tiles.map((t) => t.median).sort((a, b) => a - b);
+      var background = medians[Math.floor(background_percentile * (medians.length - 1))];
+      var noise_limit = medians[Math.floor(noise_percentile * (medians.length - 1))];
+      var dark_mads = tiles.filter((t) => t.median <= noise_limit).map((t) => t.mad);
+      var noise = this.calculateMedian(dark_mads) * 1.4826;
+      var image_median = this.calculateMedian(medians);
+
+      var fractions = [];
+      for (var i = 0; i < sky_limits.length; i++) {
+            var limit = background + sky_limits[i] * noise;
+            var nsky = 0;
+            for (var j = 0; j < medians.length; j++) {
+                  if (medians[j] <= limit) {
+                        nsky++;
+                  }
+            }
+            fractions.push({ limit: sky_limits[i], fraction: nsky / medians.length });
+      }
+
+      return {
+            tiles: tiles.length,
+            background: background,
+            noise: noise,
+            median: image_median,
+            // Distance of the median tile from the background in noise units
+            median_snr: noise > 0 ? (image_median - background) / noise : 0,
+            fractions: fractions
+      };
+}
+
+// Measure sky fraction and log which stretching method Auto would select based
+// on it. This is only for testing the analysis, the result is not used yet.
+// Returns the analysis result with the suggested method, or null.
+autoStretchingAnalysis(win, selected_stretching)
+{
+      const sky_limit = 1;                // sky tile limit in noise units used for the suggestion
+      const min_sky_fraction = 0.25;      // MultiscaleAdaptiveStretch needs at least this much sky
+
+      var start_time = Date.now();
+      var res = this.analyzeSkyFraction(win);
+      if (res == null) {
+            return null;
+      }
+      var sky_fraction = res.fractions.find((f) => f.limit == sky_limit).fraction;
+      res.suggestion = sky_fraction >= min_sky_fraction ? 'MultiscaleAdaptiveStretch' : 'Auto STF';
+      res.sky_fraction = sky_fraction;
+
+      var fraction_txt = res.fractions.map((f) => f.limit + " noise " + Math.round(f.fraction * 100) + "%").join(", ");
+      console.noteln("Auto stretching analysis on " + win.mainView.id + ": sky fraction " + Math.round(sky_fraction * 100) + "%" +
+                     " (" + fraction_txt + "), limit " + Math.round(min_sky_fraction * 100) + "%");
+      console.noteln("  background " + res.background.toExponential(3) + ", noise " + res.noise.toExponential(3) +
+                     ", median tile " + res.median_snr.toFixed(1) + " noise above background, " + res.tiles + " tiles" +
+                     ", linear " + this.imageIsLinear(win) + ", " + (Date.now() - start_time) / 1000 + " sec");
+      console.noteln("  would select " + res.suggestion +
+                     (selected_stretching != null ? ", Auto selected " + selected_stretching : ""));
+      return res;
+}
+
 // Resolve image stretching method. Auto is resolved to a stretching method,
 // other values are explicit user choices and they are used as is.
 // With Auto the target type selects the method if it is given. Otherwise
@@ -573,6 +687,8 @@ targetTypeToStretching(targetType)
 resolveImageStretching()
 {
       var stretching = this.par.image_stretching.val;
+      // Remember if stretching method was selected automatically, used for sky analysis logging
+      this.image_stretching_auto = (stretching == 'Auto');
       if (stretching != 'Auto') {
             return stretching;
       }
@@ -9450,6 +9566,11 @@ runHistogramTransform(GC_win, iscolor, type)
             default:
                   var flowchart_name = "";
                   break;
+      }
+
+      if (this.image_stretching_auto && type != 'stars' && type != 'mask' && !this.global.get_flowchart_data) {
+            // Log what sky analysis would select, does not change the stretching method yet
+            this.autoStretchingAnalysis(GC_win, image_stretching);
       }
 
       if (image_stretching == 'MultiscaleAdaptiveStretch' && this.par.MAS_backgroundReference.val) {
