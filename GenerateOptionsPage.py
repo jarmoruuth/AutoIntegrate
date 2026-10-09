@@ -201,7 +201,7 @@ GROUPS = [
 RULES = [
     (r'^astrobin_', 'metadata'),
     (r'^(debug|null_processing|flowchart_debug|print_process_values|create_executed_processes_js'
-     r'|image_weight_testing|RGBHa_test_value)$', 'debug'),
+     r'|image_weight_testing|RGBHa_test_value|auto_builtin_tools_only)$', 'debug'),
     (r'^(show_flowchart|preview_autostf|preview_resample|preview_resample_target'
      r'|flowchart_background_image|flowchart_time|flowchart_saveimage|run_get_flowchart_data'
      r'|start_with_empty_window_prefix|use_manual_icon_column|windows_at_end|create_process_icons'

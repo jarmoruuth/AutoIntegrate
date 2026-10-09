@@ -135,6 +135,11 @@ constructor(parent, global, util, engine) {
       this.stretchingTootip = 
             "<p>Select how image is stretched from linear to non-linear.</p>" +
             "<ul>" +
+#ifndef AUTOINTEGRATE_STANDALONE
+            "<li><p>Auto - Select the stretching method automatically when processing starts. Available only for <i>Image stretching</i>.<br>" +
+                 "If <i>Target type</i> is given, it selects the method: MultiscaleAdaptiveStretch for Galaxy and Star cluster, or Masked Stretch if MultiscaleAdaptiveStretch is not available, and Auto STF for Nebula.<br>" +
+                 "Otherwise MultiscaleAdaptiveStretch is used if it is available in PixInsight, and Auto STF if it is not.</p></li>" +
+#endif
             "<li><p>Auto STF - Use Auto Screen Transfer Function to stretch image to non-linear.<br>" + 
                  "For galaxies and other small but bright objects you should adjust <i>targetBackground</i> in <i>" + this.postprocessing_section + "AutoSTF settings</i> section to a smaller value, like 0.10</i><br>" +
                  "Parameters are set in <i>" + this.postprocessing_section + "AutoSTF settings</i> section.</p></li>" +
@@ -166,7 +171,6 @@ constructor(parent, global, util, engine) {
             "</ul>" + 
 #ifndef AUTOINTEGRATE_STANDALONE
             "<p>See <i>" + this.postprocessing_section + "Stretching settings</i> section for stretching specific parameters.</p>" +
-            "<p>Note that when non-default <i>Target</i> type is selected then this option is disabled.</p>" +
 #endif
             ""
             ;
@@ -990,7 +994,7 @@ createImageToolsControl(parent)
 
 createStrechingChoiceSizer(parent, update_parameter_dependencies_callback)
 {
-      this.stretchingComboBox = this.newComboBox(parent, this.par.image_stretching, this.global.image_stretching_values, this.stretchingTootip);
+      this.stretchingComboBox = this.newComboBox(parent, this.par.image_stretching, this.global.image_stretching_choice_values, this.stretchingTootip);
       if (update_parameter_dependencies_callback != null) {
             update_parameter_dependencies_callback(parent);
       }

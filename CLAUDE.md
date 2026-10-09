@@ -83,8 +83,31 @@ These are standalone PixInsight scripts that reuse AutoIntegrate modules via `#i
 
 ## Related Repositories
 
-- `../website/ruuth.xyz/ai/AutoIntegrateInfo.html` - HTML documentation for the script
+- `../website/ruuth.xyz/ai/` - HTML documentation for the script, see Documentation below
 - `../TestAutoIntegrate/` - Automated test suite
+
+## Documentation
+
+HTML documentation is in `../website/ruuth.xyz/ai/`, split into pages:
+
+| Page | Content |
+|------|---------|
+| `AutoIntegrateInfo.html` | Start page, links to other pages, redirects for old anchors |
+| `AutoIntegrateGettingStarted.html` | First run, target type, tabs overview, tips |
+| `AutoIntegrateGuides.html` | Data guides (LRGB, OSC, narrowband, comet, etc.) |
+| `AutoIntegrateProcessing.html` | Processing steps, tool selection, external tools |
+| `AutoIntegrateFiles.html` | Files and calibration |
+| `AutoIntegrateEnhancements.html` | Enhancements and standalone scripts |
+| `AutoIntegrateSetup.html` | Setup, settings, process icons |
+| `AutoIntegrateHelp.html` | Troubleshooting and tips |
+| `AutoIntegrateAbout.html` | About and supported tools |
+| `AutoIntegrate_JSON_Format.html` | Setup JSON file format |
+
+Options reference pages `AutoIntegrateOptions.html`, `AutoIntegrateOptionsSimple.html` and
+`AutoIntegrateOptionsEnhancements.html` are generated, do not edit them by hand. Regenerate with
+`updateoptions.bat` or `GenerateOptionsPage.py` after running *Write options metadata* in AutoIntegrate.
+`python GenerateOptionsPage.py --check` checks options and sources; new options in `this.par` need a
+grouping rule in `GenerateOptionsPage.py`.
 
 ## Dependencies
 

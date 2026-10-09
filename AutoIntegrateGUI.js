@@ -3174,7 +3174,6 @@ loadJsonFileCallback = (parent, pagearray) =>
       if (this.par.show_flowchart.val && this.global.flowchartData != null) {
             this.flowchartUpdated();
       }
-      this.updateParameterDependencies(parent);
 }
 
 addOneFilesButton(parent, filetype, pageIndex, toolTip)
@@ -3310,18 +3309,15 @@ addTargetType(parent)
       lbl.text = "Target type";
       lbl.textAlignment = TextAlignment.Left|TextAlignment.VertCenter;
       lbl.toolTip = "<p>Give target type.</p>" +
-                    "<p>If target type is given then image stretching settings are selected automatically.</p>" +
+                    "<p>If target type is given and <i>Image stretching</i> is <i>Auto</i>, then the stretching method is selected based on the target type. " +
+                    "Galaxy and Star cluster use MultiscaleAdaptiveStretch, or Masked Stretch if MultiscaleAdaptiveStretch is not available. Nebula uses Auto STF. " +
+                    "If a stretching method is selected explicitly, it is used regardless of the target type.</p>" +
                     "<p>If no target type is given then current settings are used. They should work reasonably fine in many cases.</p>" +
                     "<p>Galaxy works well when target is a lot brighter than the background.</p>" +
-                    "<p>Nebula works well when target fills the whole image or is not much brighter than the background.</p>" +
-                    "<p>When non-default target type is selected then stretching option is disabled.</p>";
-      
+                    "<p>Nebula works well when target fills the whole image or is not much brighter than the background.</p>";
+
       var targetTypeComboBox = this.guitools.newComboBox(parent, this.par.target_type, this.target_type_values, lbl.toolTip);
       this.global.rootingArr.push(targetTypeComboBox);
-      targetTypeComboBox.onItemSelected = (itemIndex) => {
-            targetTypeComboBox.aiParam.val = targetTypeComboBox.aiValarray[itemIndex];
-            this.updateParameterDependencies(this);
-      }
 
       var outputdir_Sizer = new HorizontalSizer;
       outputdir_Sizer.spacing = 4;
@@ -4412,18 +4408,6 @@ blinkArrowButton(parent, icon, x, y)
             }
       };
       return blinkArrowButton;
-}
-
-updateParameterDependencies(parent)
-{
-      // Update the enabled state of the stretchingComboBox based on the target_type
-      parent.guitools.stretchingComboBox.enabled = (parent.par.target_type.val === "Default");
-      let stretching = parent.engine.targetTypeToStretching(parent.par.target_type.val);
-      if (stretching != null) {
-            parent.guitools.stretchingComboBox.currentItem = parent.guitools.stretchingComboBox.aiValarray.indexOf(stretching);
-            parent.guitools.stretchingComboBox.aiParam.val = stretching;
-      }
-      // console.writeln("Setting stretchingComboBox.enabled to " + dialog.stretchingComboBox.enabled + " based on target_type " + this.par.target_type.val);
 }
 
 newMaximizeDialogButton(parent)
@@ -5575,6 +5559,12 @@ AutoIntegrateDialog()
             "<p>Do not use star noise reduction. Star noise reduction is used when stars are removed from image.</p>" );
       this.no_mask_contrast_CheckBox = this.guitools.newCheckBox(this, "No added contrast on mask", this.par.skip_mask_contrast, 
             "<p>Do not add contrast on automatically created luminance mask.</p>" );
+      this.auto_builtin_tools_only_CheckBox = this.guitools.newCheckBox(this, "Auto: built-in tools only", this.par.auto_builtin_tools_only, 
+            "<p>When <i>Auto</i> is selected in the <i>Settings / Tools</i> section, use only tools that are included in PixInsight, " +
+            "like GradientCorrection, MLDenoise and MultiscaleLinearTransform. Installed external tools like RC Astro tools, " +
+            "StarNet2, DeepSNR and GraXpert are not selected automatically.</p>" +
+            "<p>Tools that are selected explicitly are still used.</p>" +
+            "<p>This option is mainly for testing default processing without external tools.</p>" );
       this.no_sharpening_CheckBox = this.guitools.newCheckBox(this, "No sharpening", this.par.skip_sharpening, 
             "<p>Do not use sharpening or deconvolution on the image.</p>" +
             "<p>Sharpening and deconvolution tool is selected in the <i>Settings / Tools</i> section. Deconvolution tools like BlurXTerminator " +
@@ -5711,7 +5701,7 @@ AutoIntegrateDialog()
 
       this.imageParamsControlSubSizer = this.guitools.newVerticalSizer(0, true, [ this.imageParamsSet1Label, this.imageParamsSet1, this.imageParamsSet2Label, this.imageParamsSet2 ]);
 
-      this.stretchingSizer = this.guitools.createStrechingChoiceSizer(this,  this.updateParameterDependencies);
+      this.stretchingSizer = this.guitools.createStrechingChoiceSizer(this, null);
 
       // Image group this.par.
       this.imageParamsControl = new Control( this );
@@ -5811,6 +5801,7 @@ AutoIntegrateDialog()
       this.otherParamsSet12.add( this.force_file_name_filter_CheckBox );
       this.otherParamsSet12.add( this.autodetect_filter_CheckBox );
       this.otherParamsSet12.add( this.autodetect_imagetyp_CheckBox );
+      this.otherParamsSet12.add( this.auto_builtin_tools_only_CheckBox );
 
       this.otherParamsSet1 = new HorizontalSizer;
       this.otherParamsSet1.margin = 6;
@@ -8955,14 +8946,14 @@ getGettingStartedSteps = () => {
         {
             title: "Target type",
             description: "<p>If you are just starting out, here you can specify the type of your target object. This information is used to optimize some of the processing parameters.</p>" +
-                         "<p>Currently only the stretching setting is affected by this selection.</p>",
+                         "<p>Currently only the stretching method is affected by this selection, and only when <i>Image stretching</i> is <i>Auto</i>.</p>",
             target: this.target_type_label,
             tooltipPosition: "center"
         },
         {
             title: "Stretching",
-            description: "<p>Usually it is better to specify the stretching method instead of the target type. For the best results it is important to select stretching method that suits your data best.</p>" +
-                         "<p>For targets like galaxy and star cluster you should start with a masked stretch. For others the Auto STF is a good starting point.</p>",
+            description: "<p>The default <i>Auto</i> selects the stretching method automatically. For the best results it is important to select stretching method that suits your data best.</p>" +
+                         "<p>For targets like galaxy and star cluster you should start with MultiscaleAdaptiveStretch or a masked stretch. For others the Auto STF is a good starting point.</p>",
             target: this.guitools.stretchingLabel,
             tooltipPosition: "center"
         },
@@ -9139,20 +9130,23 @@ getProcessingSettingsSteps = () => {
         },
         {
             title: "Stretching",
-            description: "<p>Here you can specify stretching of your final image. It is important to select stretching method that suits your data best.</p>" +
-                         "<p>For targets like galaxy and star cluster you should start with a masked stretch. For others the Auto STF is a good starting point.</p>",
+            description: "<p>Here you can specify stretching of your final image. The default <i>Auto</i> selects the stretching method automatically " +
+                         "based on the target type and available stretching methods.</p>" +
+                         "<p>For the best results it is important to select stretching method that suits your data best. " +
+                         "For targets like galaxy and star cluster you should start with MultiscaleAdaptiveStretch or a masked stretch. For others the Auto STF is a good starting point.</p>",
             target: this.guitools.stretchingLabel,
             tooltipPosition: "center"
         },
         {
             title: "Tools",
-            description: "<p>Here you can specify various tools for your image processing tasks.</p>" +
-                         "<p>It is recommended that you install the necessary external tools for your workflow.</p>" +
-                         "<p>External tools that are supported are: RC Astro tools, GraXpert tools, StarNet and DeepSNR.</p>" +
-                         "<p>Note that external tools need to be installed separately.</p>",
+            description: "<p>Here you can select which tool is used for gradient correction, noise removal, star removal and deconvolution/sharpening.</p>" +
+                         "<p>The default <i>Auto</i> selects the best available tool automatically, preferring AI based tools. " +
+                         "Selecting a tool does not turn the processing step on or off, that is done in the settings of each step.</p>" +
+                         "<p>External tools that are supported are: RC Astro tools, GraXpert tools, StarNet and DeepSNR. " +
+                         "Note that external tools need to be installed separately. Paths and model files are set in the <i>Tools</i> tab.</p>",
             target: this.imageToolsControl,
             tooltipPosition: "center",
-            sectionBars: ["ImageTools"]               // Show Image processing parameters
+            sectionBars: ["ImageTools"]               // Show Tools section
         },
         {
             title: "Narrowband processing",
@@ -9218,7 +9212,8 @@ getCometProcessingSteps = () => {
             title: "Select star removal tool",
             description: "<p>Select desired star removal tool (Auto, StarXTerminator or StarNet2) in <i>Settings / Tools</i> section.</p>",
             target: this.guitools.starRemovalToolsControl,
-            tooltipPosition: "center"
+            tooltipPosition: "center",
+            sectionBars: ["ImageTools"]               // Show Tools section
         },
         {
             title: "Remove stars",

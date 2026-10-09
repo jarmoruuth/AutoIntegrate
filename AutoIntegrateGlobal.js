@@ -134,6 +134,14 @@ try {
       // No changes
 }
 
+#ifndef AUTOINTEGRATE_STANDALONE
+// Image stretching choices in the main script have Auto as the first and default option.
+// Auto is resolved to a stretching method when processing starts.
+this.image_stretching_choice_values = [ 'Auto' ].concat(this.image_stretching_values);
+#else
+this.image_stretching_choice_values = this.image_stretching_values;
+#endif
+
 this.enhancements_gradient_correction_values = [ 'Auto', 'ABE', 'DBE', 'GradientCorrection', 'GraXpert' ];
 
 #ifdef AUTOINTEGRATE_STANDALONE
@@ -356,6 +364,7 @@ this.par = {
       use_deepsnr: { val: false, def: false, name : "Use DeepSNR", type : 'B' },
       use_mlt_noise_reduction: { val: false, def: false, name : "Use MultiscaleLinearTransform noise reduction", type : 'B' },
       use_mlt_sharpening: { val: false, def: false, name : "Use MultiscaleLinearTransform sharpening", type : 'B' },
+      auto_builtin_tools_only: { val: false, def: false, name : "Auto built-in tools only", type : 'B' },
       win_prefix_to_log_files: { val: false, def: false, name : "Add window prefix to log files", type : 'B', applies : "interface" },
       start_from_imageintegration: { val: false, def: false, name : "Start from ImageIntegration", type : 'B' },
       generate_xdrz: { val: false, def: false, name : "Generate .xdrz files", type : 'B', applies : "interface" },
@@ -506,7 +515,7 @@ this.par = {
       crop_use_rejection_low: { val: true, def: true, name : "Crop use rejection low", type : 'B' },
       crop_rejection_low_limit: { val: 0.2, def: 0.2, name : "Crop rejection low limit", type : 'R' },
       crop_check_limit: { val: 5, def: 5, name : "Crop check limit", type : 'R' },
-      image_stretching: { val: this.image_stretching_values[0], def: this.image_stretching_values[0], name : "Image stretching", type : 'S' },
+      image_stretching: { val: this.image_stretching_choice_values[0], def: this.image_stretching_choice_values[0], name : "Image stretching", type : 'S' },
       stars_stretching: { val: 'Arcsinh Stretch', def: 'Arcsinh Stretch', name : "Stars stretching", type : 'S' },
       stars_combine: { val: 'Screen', def: 'Screen', name : "Stars combine", type : 'S' },
       STF_linking: { val: 'Auto', def: 'Auto', name : "RGB channel linking", type : 'S', applies : "color" },

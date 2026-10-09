@@ -552,6 +552,11 @@ targetTypeToStretching(targetType)
       if (targetType == 'Galaxy' ||
           targetType == 'Star cluster'
       ) {
+            // MultiscaleAdaptiveStretch gives better results than Masked Stretch.
+            // In test mode Masked Stretch is used so test results stay the same.
+            if (!this.global.testmode && this.global.image_stretching_values.indexOf('MultiscaleAdaptiveStretch') != -1) {
+                  return 'MultiscaleAdaptiveStretch';
+            }
             return 'Masked Stretch';
       } else if (targetType == 'Nebula') {
             return 'Auto STF';
@@ -560,13 +565,30 @@ targetTypeToStretching(targetType)
       }
 }
 
-targetTypeSetup()
+// Resolve image stretching method. Auto is resolved to a stretching method,
+// other values are explicit user choices and they are used as is.
+// With Auto the target type selects the method if it is given. Otherwise
+// MultiscaleAdaptiveStretch is used if available. In test mode Auto STF is
+// used instead of MultiscaleAdaptiveStretch so test results stay the same.
+resolveImageStretching()
 {
-      let stretching = this.targetTypeToStretching(this.par.target_type.val);
-      if (stretching != null) {
-            this.local_image_stretching = stretching;
-            console.writeln(this.par.target_type.val + " target using " + this.local_image_stretching);
+      var stretching = this.par.image_stretching.val;
+      if (stretching != 'Auto') {
+            return stretching;
       }
+      var target_stretching = this.targetTypeToStretching(this.par.target_type.val);
+      if (target_stretching != null) {
+            stretching = target_stretching;
+            console.writeln("Auto image stretching: " + this.par.target_type.val + " target using " + stretching);
+      } else {
+            if (!this.global.testmode && this.global.image_stretching_values.indexOf('MultiscaleAdaptiveStretch') != -1) {
+                  stretching = 'MultiscaleAdaptiveStretch';
+            } else {
+                  stretching = 'Auto STF';
+            }
+            console.writeln("Auto image stretching: " + stretching);
+      }
+      return stretching;
 }
 
 printImageInfo(images, name)
@@ -8513,20 +8535,9 @@ runHistogramTransformAutoSTF(GC_win, iscolor, targetBackground)
                   true);      // save_process
 }
 
-runHistogramTransformMultiscaleAdaptiveStretch(GC_win, image_stretching)
+runHistogramTransformMultiscaleAdaptiveStretch(GC_win, image_stretching, roi)
 {
       console.writeln("Execute MultiscaleAdaptiveStretch on " + GC_win.mainView.id);
-
-      if (this.par.MAS_backgroundReference.val) {
-            var roi = this.findTrueBackground(GC_win, false);
-            if (roi != null) {
-                  console.writeln("  Found background reference at ROI: (" + roi.x0 + ", " + roi.y0 + ") - (" + roi.x1 + ", " + roi.y1 + ")");
-            } else {
-                  console.writeln("  No valid background reference found, proceeding without background ROI");
-            }
-      } else {
-            var roi = null;
-      }
 
       try {
             var P = new MultiscaleAdaptiveStretch;
@@ -9383,6 +9394,8 @@ stretchHistogramTransformIterationStep(res, image_stretching, channel)
 
 runHistogramTransform(GC_win, iscolor, type)
 {
+      var roi = null;
+
       // Check for valid type values
       switch (type) {
             case 'stars':
@@ -9438,6 +9451,16 @@ runHistogramTransform(GC_win, iscolor, type)
                   var flowchart_name = "";
                   break;
       }
+
+      if (image_stretching == 'MultiscaleAdaptiveStretch' && this.par.MAS_backgroundReference.val) {
+            var roi = this.findTrueBackground(GC_win, false);
+            if (roi != null) {
+                  console.writeln("  Found background reference at ROI: (" + roi.x0 + ", " + roi.y0 + ") - (" + roi.x1 + ", " + roi.y1 + ")");
+            } else {
+                  console.writeln("  No valid background reference found, proceeding without background ROI");
+            }
+      }
+
       var node = this.flowchart.flowchartOperation(image_stretching + flowchart_name);
       if (this.global.get_flowchart_data) {
             return GC_win;
@@ -9471,7 +9494,7 @@ runHistogramTransform(GC_win, iscolor, type)
             this.runHistogramTransformAutoSTF(GC_win, iscolor, targetBackground);
 
       } else if (image_stretching == 'MultiscaleAdaptiveStretch') {
-            GC_win = this.runHistogramTransformMultiscaleAdaptiveStretch(GC_win, image_stretching);
+            GC_win = this.runHistogramTransformMultiscaleAdaptiveStretch(GC_win, image_stretching, roi);
 
       } else if (image_stretching == 'VeraLuxHMS') {
             GC_win = this.runHistogramTransformVeraLuxHMS(GC_win, image_stretching);
@@ -18160,7 +18183,7 @@ get_local_copies_of_parameters()
       this.local_R_mapping = this.par.custom_R_mapping.val;
       this.local_G_mapping = this.par.custom_G_mapping.val;
       this.local_B_mapping = this.par.custom_B_mapping.val;
-      this.local_image_stretching = this.par.image_stretching.val;
+      this.local_image_stretching = this.resolveImageStretching();
       this.local_debayer_pattern = this.par.debayer_pattern.val;
       this.local_RGBHa_prepare_method = this.par.RGBHa_prepare_method.val;
       this.local_RGBHa_combine_method = this.par.RGBHa_combine_method.val;
@@ -18226,6 +18249,10 @@ resolveAutoTool(category, candidates)
                   // depend on installed tools. Tools can still be selected explicitly.
                   continue;
             }
+            if (candidates[i].external && this.par.auto_builtin_tools_only.val) {
+                  // Auto uses only tools included in PixInsight
+                  continue;
+            }
             if (candidates[i].available()) {
                   candidates[i].param.val = true;
                   candidates[i].param.auto_selected = true;
@@ -18239,13 +18266,15 @@ resolveAutoTool(category, candidates)
 // Resolve Auto selections in Settings / Tools to the best available tools.
 // Candidate order must match the order of options in Settings / Tools.
 // Candidates with ai: true are AI based tools, they are skipped in test mode.
+// Candidates with external: true are not included in PixInsight, they are skipped
+// with the Auto built-in tools only option.
 resolveAutoTools()
 {
       // Other gradient correction tools are selected only by the user
       this.resolveAutoTool("gradient correction", [
             { name: "GradientCorrection", param: this.par.use_gradientcorrection, available: () => this.global.is_gc_process },
             { name: "MultiscaleGradientCorrection", param: this.par.use_multiscalegradientcorrection, available: () => false },
-            { name: "GraXpert", ai: true, param: this.par.use_graxpert, available: () => false },
+            { name: "GraXpert", ai: true, external: true, param: this.par.use_graxpert, available: () => false },
             { name: "ABE", param: this.par.use_abe, available: () => false },
             { name: "DBE", param: this.par.use_dbe, available: () => false }
       ]);
@@ -18253,18 +18282,18 @@ resolveAutoTools()
             { name: "MLDenoise", ai: true, param: this.par.use_mldenoise,
               available: () => this.par.mldenoise_model_path.val != "" && File.exists(this.par.mldenoise_model_path.val) &&
                                this.isProcessAvailable(() => new MLDenoise) },
-            { name: "NoiseXTerminator", ai: true, param: this.par.use_noisexterminator, available: () => this.isProcessAvailable(() => new NoiseXTerminator) },
-            { name: "DeepSNR", ai: true, param: this.par.use_deepsnr, available: () => this.isProcessAvailable(() => new DeepSNR) },
-            { name: "GraXpert denoise", ai: true, param: this.par.use_graxpert_denoise, available: () => this.isGraXpertAvailable() },
+            { name: "NoiseXTerminator", ai: true, external: true, param: this.par.use_noisexterminator, available: () => this.isProcessAvailable(() => new NoiseXTerminator) },
+            { name: "DeepSNR", ai: true, external: true, param: this.par.use_deepsnr, available: () => this.isProcessAvailable(() => new DeepSNR) },
+            { name: "GraXpert denoise", ai: true, external: true, param: this.par.use_graxpert_denoise, available: () => this.isGraXpertAvailable() },
             { name: "MultiscaleLinearTransform", param: this.par.use_mlt_noise_reduction, available: () => true }
       ]);
       this.resolveAutoTool("star removal", [
-            { name: "StarXTerminator", ai: true, param: this.par.use_starxterminator, available: () => this.isProcessAvailable(() => new StarXTerminator) },
-            { name: "StarNet2", ai: true, param: this.par.use_starnet2, available: () => this.isProcessAvailable(() => new StarNet2) }
+            { name: "StarXTerminator", ai: true, external: true, param: this.par.use_starxterminator, available: () => this.isProcessAvailable(() => new StarXTerminator) },
+            { name: "StarNet2", ai: true, external: true, param: this.par.use_starnet2, available: () => this.isProcessAvailable(() => new StarNet2) }
       ]);
       this.resolveAutoTool("deconvolution", [
-            { name: "BlurXTerminator", ai: true, param: this.par.use_blurxterminator, available: () => this.isProcessAvailable(() => new BlurXTerminator) },
-            { name: "GraXpert deconvolution", ai: true, param: this.par.use_graxpert_deconvolution, available: () => this.isGraXpertAvailable() },
+            { name: "BlurXTerminator", ai: true, external: true, param: this.par.use_blurxterminator, available: () => this.isProcessAvailable(() => new BlurXTerminator) },
+            { name: "GraXpert deconvolution", ai: true, external: true, param: this.par.use_graxpert_deconvolution, available: () => this.isGraXpertAvailable() },
             { name: "MultiscaleLinearTransform", param: this.par.use_mlt_sharpening, available: () => true }
       ]);
 }
@@ -18514,7 +18543,6 @@ autointegrateProcessingEngine(parent, auto_continue, autocontinue_narrowband, tx
             this.gui.close_undo_images();
        }
  
-       this.targetTypeSetup();
        this.checkOptions();
  
       /********************************************************************
