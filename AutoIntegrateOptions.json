@@ -1,6 +1,6 @@
 {
  "version": "AutoIntegrate v1.87.5",
- "generated": "Sat Oct 10 2026 01:33:56 GMT+0300 (FLE Daylight Time)",
+ "generated": "Sat Oct 10 2026 22:02:02 GMT+0300 (FLE Daylight Time)",
  "options": [
   {
    "key": "local_normalization",
@@ -4393,7 +4393,7 @@
     {
      "kind": "checkbox",
      "label": "Auto: built-in tools only",
-     "tooltip": "<p>When <i>Auto</i> is selected in the <i>Settings / Tools</i> section, use only tools that are included in PixInsight, like GradientCorrection, MLDenoise and MultiscaleLinearTransform. Installed external tools like RC Astro tools, StarNet2, DeepSNR and GraXpert are not selected automatically.</p><p>Tools that are selected explicitly are still used.</p><p>This option is mainly for testing default processing without external tools.</p>",
+     "tooltip": "<p>When <i>Auto</i> is selected in the <i>Settings / Tools</i> section, use only tools that are included in PixInsight, like GradientCorrection, MLDenoise and MultiscaleLinearTransform. Installed external tools like RC Astro tools, StarNet2, DeepSNR and GraXpert are not selected automatically.</p><p>Tools that are selected explicitly are still used.</p><p>This option is mainly for testing default processing without external tools. In test mode Auto normally skips all AI tools, with this option built-in AI tools like MLDenoise are used.</p>",
      "values": null,
      "min": null,
      "max": null,
@@ -4413,7 +4413,7 @@
    "in_gui": true,
    "kind": "checkbox",
    "label": "Auto: built-in tools only",
-   "tooltip": "<p>When <i>Auto</i> is selected in the <i>Settings / Tools</i> section, use only tools that are included in PixInsight, like GradientCorrection, MLDenoise and MultiscaleLinearTransform. Installed external tools like RC Astro tools, StarNet2, DeepSNR and GraXpert are not selected automatically.</p><p>Tools that are selected explicitly are still used.</p><p>This option is mainly for testing default processing without external tools.</p>",
+   "tooltip": "<p>When <i>Auto</i> is selected in the <i>Settings / Tools</i> section, use only tools that are included in PixInsight, like GradientCorrection, MLDenoise and MultiscaleLinearTransform. Installed external tools like RC Astro tools, StarNet2, DeepSNR and GraXpert are not selected automatically.</p><p>Tools that are selected explicitly are still used.</p><p>This option is mainly for testing default processing without external tools. In test mode Auto normally skips all AI tools, with this option built-in AI tools like MLDenoise are used.</p>",
    "values": null,
    "min": null,
    "max": null
@@ -9604,6 +9604,42 @@
     "Highlight stretch",
     "None"
    ],
+   "min": null,
+   "max": null
+  },
+  {
+   "key": "stretching_sky_analysis",
+   "name": "Auto stretching uses sky analysis",
+   "type": "B",
+   "def": false,
+   "tip": "",
+   "applies": "",
+   "controls": [
+    {
+     "kind": "checkbox",
+     "label": "Use in Auto",
+     "tooltip": "<p>Experimental. When <i>Image stretching</i> is <i>Auto</i> and target type is Default or Nebula, select the stretching method using sky analysis.</p><p>MultiscaleAdaptiveStretch is used when the image has a small and bright target like a galaxy, star cluster or bright nebula. Auto STF is used when the image looks flat like a frame filling or dark nebula.</p><p>The decision is made once per run on the first stretched image, which is the luminance image in LRGB processing, so all images use the same stretching method. The analysis is printed to the console.</p>",
+     "values": null,
+     "min": null,
+     "max": null,
+     "tab": "Postprocessing",
+     "section": "Generic settings",
+     "expert": true,
+     "located": true
+    }
+   ],
+   "expert": true,
+   "tabs": [
+    "Postprocessing"
+   ],
+   "sections": [
+    "Generic settings"
+   ],
+   "in_gui": true,
+   "kind": "checkbox",
+   "label": "Use in Auto",
+   "tooltip": "<p>Experimental. When <i>Image stretching</i> is <i>Auto</i> and target type is Default or Nebula, select the stretching method using sky analysis.</p><p>MultiscaleAdaptiveStretch is used when the image has a small and bright target like a galaxy, star cluster or bright nebula. Auto STF is used when the image looks flat like a frame filling or dark nebula.</p><p>The decision is made once per run on the first stretched image, which is the luminance image in LRGB processing, so all images use the same stretching method. The analysis is printed to the console.</p>",
+   "values": null,
    "min": null,
    "max": null
   },

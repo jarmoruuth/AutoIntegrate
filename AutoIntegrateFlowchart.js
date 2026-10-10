@@ -524,6 +524,26 @@ flowchartOperation(txt)
       return node;
 }
 
+// Rename operations that are not yet run in the previously generated flowchart.
+// Used when an operation is selected during processing, like stretching method
+// selected by sky analysis, so the flowchart shown during processing matches
+// what is actually run.
+flowchartRenameOperations(oldtxt, newtxt)
+{
+      var list = this.global.flowchartOperationList;
+      var count = 0;
+      for (var i = 0; i < list.length; i++) {
+            if (list[i].id > this.global.flowchartActiveId && list[i].txt == oldtxt) {
+                  list[i].txt = newtxt;
+                  count++;
+            }
+      }
+      if (count > 0) {
+            console.writeln("Flowchart: renamed " + count + " operations from " + oldtxt + " to " + newtxt);
+            this.gui.flowchartUpdated();
+      }
+}
+
 flowchartOperationEnd(node)
 {
         if (this.par.flowchart_debug.val) console.writeln("engine_end_process " + node.txt + ", flowchart.flowchart_operation_level: " + this.flowchart_operation_level);

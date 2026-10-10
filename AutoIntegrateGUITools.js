@@ -1049,10 +1049,11 @@ createSkyAnalysisButton(parent, engine)
 {
       var button = new PushButton( parent );
       button.text = "Sky analysis";
-      button.toolTip = "<p>Analyze how much of the current preview image is dark sky background.</p>" +
+      button.toolTip = "<p>Analyze the current preview image for automatic stretching method selection.</p>" +
                        "<p>The result is printed to the console. It tells which stretching method <i>Auto</i> " +
-                       "would select based on the sky fraction: MultiscaleAdaptiveStretch when there is enough " +
-                       "dark sky, Auto STF when the target fills most of the image.</p>" +
+                       "would select based on image contrast: MultiscaleAdaptiveStretch when there is a small and bright " +
+                       "target like a galaxy, star cluster or bright nebula, Auto STF when the image looks flat like " +
+                       "a frame filling or dark nebula.</p>" +
                        "<p>The image is analyzed as shown in the preview. It is usually stretched with AutoSTF " +
                        "and it may be resampled.</p>" +
                        "<p>This is a test feature, Auto does not use the result yet.</p>";
@@ -1133,6 +1134,13 @@ createStretchingSettingsSizer(parent, engine, level, preview_control = null)
 #ifndef AUTOINTEGRATE_STANDALONE
       StretchGenericSizer.addSpacing(10);
       StretchGenericSizer.add( this.createSkyAnalysisButton(parent, engine) );
+      StretchGenericSizer.add( this.newCheckBox(parent, "Use in Auto", this.par.stretching_sky_analysis,
+            "<p>Experimental. When <i>Image stretching</i> is <i>Auto</i> and target type is Default or Nebula, " +
+            "select the stretching method using sky analysis.</p>" +
+            "<p>MultiscaleAdaptiveStretch is used when the image has a small and bright target like a galaxy, star cluster or bright nebula. " +
+            "Auto STF is used when the image looks flat like a frame filling or dark nebula.</p>" +
+            "<p>The decision is made once per run on the first stretched image, which is the luminance image in LRGB processing, " +
+            "so all images use the same stretching method. The analysis is printed to the console.</p>") );
 #endif
       StretchGenericSizer.addStretch();
                                     

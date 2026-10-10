@@ -516,6 +516,7 @@ this.par = {
       crop_rejection_low_limit: { val: 0.2, def: 0.2, name : "Crop rejection low limit", type : 'R' },
       crop_check_limit: { val: 5, def: 5, name : "Crop check limit", type : 'R' },
       image_stretching: { val: this.image_stretching_choice_values[0], def: this.image_stretching_choice_values[0], name : "Image stretching", type : 'S' },
+      stretching_sky_analysis: { val: false, def: false, name : "Auto stretching uses sky analysis", type : 'B' },
       stars_stretching: { val: 'Arcsinh Stretch', def: 'Arcsinh Stretch', name : "Stars stretching", type : 'S' },
       stars_combine: { val: 'Screen', def: 'Screen', name : "Stars combine", type : 'S' },
       STF_linking: { val: 'Auto', def: 'Auto', name : "RGB channel linking", type : 'S', applies : "color" },

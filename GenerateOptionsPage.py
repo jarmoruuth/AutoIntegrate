@@ -236,7 +236,7 @@ RULES = [
      r'|use_blurxterminator|bxt_|skip_sharpening|use_mlt_sharpening)', 'sharpen'),
     (r'^(skip_color_calibration|skip_auto_background|use_spcc|spcc_|use_background_neutralization'
      r'|color_calibration_|solve_image|target_)', 'colorcal'),
-    (r'^(image_stretching|STF_targetBackground|MaskedStretch_|Arcsinh_|MAS_|veralux_'
+    (r'^(image_stretching|stretching_sky_analysis|STF_targetBackground|MaskedStretch_|Arcsinh_|MAS_|veralux_'
      r'|histogram_stretch_|other_stretch_target|stretch_adjust_shadows)', 'stretch'),
     (r'^(auto_noise_reduction|channel_noise_reduction|non_linear_noise_reduction'
      r'|noise_reduction_strength|luminance_noise_reduction_strength|combined_image_noise_reduction'

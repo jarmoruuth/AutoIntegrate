@@ -238,6 +238,7 @@ constructor(global, util, flowchart) {
       this.local_B_mapping = "";
       this.local_image_stretching = "";
       this.image_stretching_auto = false;
+      this.sky_analysis_decided = false;
       this.local_debayer_pattern = "";
       this.local_RGBHa_prepare_method = "";
       this.local_RGBHa_combine_method = "";
@@ -610,7 +611,10 @@ analyzeSkyFraction(win)
                         // MAD( [center[, rect[, firstChannel[, lastChannel]]]] ), center is the tile median
                         mad += image.MAD(channel_median, rect, c, c);
                   }
-                  tiles.push({ median: median / nchannels, mad: mad / nchannels });
+                  // u and v are tile center coordinates scaled to range -1..1
+                  tiles.push({ median: median / nchannels, mad: mad / nchannels,
+                               u: 2 * (x + tileWidth / 2) / image.width - 1,
+                               v: 2 * (y + tileHeight / 2) / image.height - 1 });
             }
             if (ty % 10 == 0) {
                   this.checkCancel();
@@ -647,17 +651,156 @@ analyzeSkyFraction(win)
             median: image_median,
             // Distance of the median tile from the background in noise units
             median_snr: noise > 0 ? (image_median - background) / noise : 0,
-            fractions: fractions
+            fractions: fractions,
+            model: this.analyzeSkyModel(tiles)
       };
 }
 
-// Measure sky fraction and log which stretching method Auto would select based
-// on it. This is only for testing the analysis, the result is not used yet.
+// Fit plane z = a + b*u + c*v to points { u, v, median } using least squares.
+// Returns { a, b, c } or null if the fit fails.
+fitPlane(points)
+{
+      var n = points.length;
+      var su = 0, sv = 0, suu = 0, svv = 0, suv = 0, sz = 0, suz = 0, svz = 0;
+      for (var i = 0; i < n; i++) {
+            var p = points[i];
+            su += p.u;
+            sv += p.v;
+            suu += p.u * p.u;
+            svv += p.v * p.v;
+            suv += p.u * p.v;
+            sz += p.median;
+            suz += p.u * p.median;
+            svz += p.v * p.median;
+      }
+      // Solve normal equations using Cramer's rule
+      var det3 = (m) => m[0][0] * (m[1][1] * m[2][2] - m[1][2] * m[2][1])
+                      - m[0][1] * (m[1][0] * m[2][2] - m[1][2] * m[2][0])
+                      + m[0][2] * (m[1][0] * m[2][1] - m[1][1] * m[2][0]);
+      var m = [ [ n, su, sv ], [ su, suu, suv ], [ sv, suv, svv ] ];
+      var rhs = [ sz, suz, svz ];
+      var det = det3(m);
+      if (Math.abs(det) < 1e-12) {
+            return null;
+      }
+      var coef = [];
+      for (var col = 0; col < 3; col++) {
+            var mc = m.map((row, r) => row.map((val, c) => c == col ? rhs[r] : val));
+            coef.push(det3(mc) / det);
+      }
+      return { a: coef[0], b: coef[1], c: coef[2] };
+}
+
+// Gradient tolerant sky analysis. Sky background is modeled as a plane fitted
+// to tile medians. The fit starts from the darkest tiles and iteratively takes
+// in all tiles that are close to the plane, tiles above the plane are signal.
+// Scatter of the sky tiles around the plane is used as the noise scale instead
+// of the pixel noise, so gradients and integrated images with very low pixel
+// noise do not make sky tiles look like signal.
+// Returns null if the model cannot be fitted.
+analyzeSkyModel(tiles)
+{
+      const start_fraction = 0.25;        // fit starts from the darkest tiles
+      const fit_limit = 2;                // tiles within this many scatter units are used in the fit
+      const low_limit = 5;                // tiles far below the plane are defects, not sky
+      const max_iterations = 10;
+      const sky_limits = [ 1, 2, 3 ];     // sky tile limits in scatter units, logged for comparison
+
+      var sorted = tiles.slice().sort((a, b) => a.median - b.median);
+      var sky = sorted.slice(0, Math.max(3, Math.floor(start_fraction * sorted.length)));
+      var plane = null;
+      var center = 0;
+      var scatter = 0;
+      var iterations = 0;
+      // First fit on the darkest tiles, used to detect if the fit creeps up into the target
+      var initial_level = null;
+      var initial_scatter = null;
+      var contrast = null;
+      for (iterations = 1; iterations <= max_iterations; iterations++) {
+            plane = this.fitPlane(sky);
+            if (plane == null) {
+                  return null;
+            }
+            for (var i = 0; i < tiles.length; i++) {
+                  tiles[i].residual = tiles[i].median - (plane.a + plane.b * tiles[i].u + plane.c * tiles[i].v);
+            }
+            var sky_residuals = sky.map((t) => t.residual);
+            center = this.calculateMedian(sky_residuals);
+            scatter = 1.4826 * this.calculateMedian(sky_residuals.map((r) => Math.abs(r - center)));
+            if (scatter <= 0) {
+                  return null;
+            }
+            if (initial_level == null) {
+                  initial_level = plane.a + center;
+                  initial_scatter = scatter;
+                  // Contrast is calculated against the first fit, it is on the darkest
+                  // tiles so it removes gradients but does not creep up into the target
+                  contrast = this.skyModelContrast(tiles.map((t) => t.residual));
+            }
+            var new_sky = tiles.filter((t) => t.residual - center <= fit_limit * scatter && t.residual - center >= -low_limit * scatter);
+            var changed = new_sky.length != sky.length || new_sky.some((t, i) => t !== sky[i]);
+            sky = new_sky;
+            if (!changed || sky.length < 3) {
+                  break;
+            }
+      }
+
+      var fractions = [];
+      for (var i = 0; i < sky_limits.length; i++) {
+            var nsky = tiles.filter((t) => t.residual - center <= sky_limits[i] * scatter).length;
+            fractions.push({ limit: sky_limits[i], fraction: nsky / tiles.length });
+      }
+      var residuals = tiles.map((t) => (t.residual - center) / scatter);
+      return {
+            fractions: fractions,
+            scatter: scatter,
+            level: plane.a,
+            // Change of the sky level from image center to edge, relative to sky level
+            gradient: plane.a != 0 ? Math.sqrt(plane.b * plane.b + plane.c * plane.c) / Math.abs(plane.a) : 0,
+            // Distance of the median tile from the sky model in scatter units
+            median_tile: this.calculateMedian(residuals),
+            iterations: Math.min(iterations, max_iterations),
+            // How much the sky level rose from the first fit, in units of the first fit scatter
+            plane_rise: (plane.a + center - initial_level) / initial_scatter,
+            // Final scatter compared to the first fit scatter
+            scatter_growth: scatter / initial_scatter,
+            contrast: contrast
+      };
+}
+
+// Contrast of tile values, used to find out if the image has a small and bright
+// target like a galaxy, star cluster or bright nebula, or if it looks flat like
+// a frame filling or dark nebula.
+// contrast is (p99 - p50) / (p50 - p10) of tile values, high values mean
+// a bright target on a flat background.
+// bright_area is the fraction of tiles above the middle point between p50 and p99,
+// small values mean the bright part is compact.
+skyModelContrast(values)
+{
+      var sorted = values.slice().sort((a, b) => a - b);
+      var percentile = (p) => sorted[Math.floor(p * (sorted.length - 1))];
+      var p10 = percentile(0.10);
+      var p50 = percentile(0.50);
+      var p99 = percentile(0.99);
+      var bright_limit = p50 + 0.5 * (p99 - p50);
+      return {
+            contrast: p50 > p10 ? (p99 - p50) / (p50 - p10) : 0,
+            bright_area: sorted.filter((v) => v > bright_limit).length / sorted.length
+      };
+}
+
+// Analyze the image and log which stretching method Auto would select.
+// Decision is based on contrast: an image with a small and bright target like
+// a galaxy, star cluster or bright nebula has a high contrast and uses
+// MultiscaleAdaptiveStretch. An image that looks flat like a frame filling or
+// dark nebula has a low contrast and uses Auto STF.
+// Other measures are logged for comparison while testing.
 // Returns the analysis result with the suggested method, or null.
 autoStretchingAnalysis(win, selected_stretching)
 {
-      const sky_limit = 1;                // sky tile limit in noise units used for the suggestion
-      const min_sky_fraction = 0.25;      // MultiscaleAdaptiveStretch needs at least this much sky
+      const min_contrast = 10;            // MultiscaleAdaptiveStretch needs at least this contrast
+      const sky_limit = 1;                // sky tile limit in noise units, logged for comparison
+      const min_sky_fraction = 0.25;      // sky fraction limit, logged for comparison
 
       var start_time = Date.now();
       var res = this.analyzeSkyFraction(win);
@@ -665,18 +808,84 @@ autoStretchingAnalysis(win, selected_stretching)
             return null;
       }
       var sky_fraction = res.fractions.find((f) => f.limit == sky_limit).fraction;
-      res.suggestion = sky_fraction >= min_sky_fraction ? 'MultiscaleAdaptiveStretch' : 'Auto STF';
       res.sky_fraction = sky_fraction;
+      var m = res.model;
+      if (m != null && m.contrast != null) {
+            res.suggestion = m.contrast.contrast >= min_contrast ? 'MultiscaleAdaptiveStretch' : 'Auto STF';
+      } else {
+            // Sky model fit failed, use the default
+            res.suggestion = 'Auto STF';
+      }
+
+      console.noteln("Auto stretching analysis on " + win.mainView.id + ": " +
+                     (m != null && m.contrast != null ? "contrast " + m.contrast.contrast.toFixed(1) : "contrast not available") +
+                     ", limit " + min_contrast + ", would select " + res.suggestion +
+                     (selected_stretching != null ? ", Auto selected " + selected_stretching : ""));
+      if (m != null && m.contrast != null) {
+            console.noteln("  bright area " + (m.contrast.bright_area * 100).toFixed(1) + "%");
+      }
 
       var fraction_txt = res.fractions.map((f) => f.limit + " noise " + Math.round(f.fraction * 100) + "%").join(", ");
-      console.noteln("Auto stretching analysis on " + win.mainView.id + ": sky fraction " + Math.round(sky_fraction * 100) + "%" +
-                     " (" + fraction_txt + "), limit " + Math.round(min_sky_fraction * 100) + "%");
+      console.noteln("  sky fraction " + Math.round(sky_fraction * 100) + "% (" + fraction_txt + "), limit " + Math.round(min_sky_fraction * 100) + "%" +
+                     ", would select " + (sky_fraction >= min_sky_fraction ? 'MultiscaleAdaptiveStretch' : 'Auto STF'));
       console.noteln("  background " + res.background.toExponential(3) + ", noise " + res.noise.toExponential(3) +
                      ", median tile " + res.median_snr.toFixed(1) + " noise above background, " + res.tiles + " tiles" +
                      ", linear " + this.imageIsLinear(win) + ", " + (Date.now() - start_time) / 1000 + " sec");
-      console.noteln("  would select " + res.suggestion +
-                     (selected_stretching != null ? ", Auto selected " + selected_stretching : ""));
+      if (m != null) {
+            var model_fraction = m.fractions.find((f) => f.limit == 2).fraction;
+            var model_txt = m.fractions.map((f) => f.limit + " scatter " + Math.round(f.fraction * 100) + "%").join(", ");
+            console.noteln("  sky model: sky fraction " + Math.round(model_fraction * 100) + "% (" + model_txt + ")" +
+                           ", would select " + (model_fraction >= min_sky_fraction ? 'MultiscaleAdaptiveStretch' : 'Auto STF'));
+            console.noteln("  sky model: scatter " + m.scatter.toExponential(3) + " (" + (res.noise > 0 ? (m.scatter / res.noise).toFixed(2) : "-") + " noise)" +
+                           ", gradient " + (m.gradient * 100).toFixed(1) + "%, median tile " + m.median_tile.toFixed(1) + " scatter above sky model" +
+                           ", " + m.iterations + " iterations");
+            console.noteln("  sky model: plane rise " + m.plane_rise.toFixed(1) + " initial scatter" +
+                           ", scatter growth " + m.scatter_growth.toFixed(2) + "x");
+      } else {
+            console.noteln("  sky model: fit failed");
+      }
       return res;
+}
+
+// Select image stretching method using sky analysis. Used when image stretching
+// is Auto and Auto stretching uses sky analysis option is set. Analysis is used only
+// with target types Default and Nebula, with other target types the target type
+// selects the method.
+// Decision is made only once per run so all images use the same stretching method.
+// The first main image that is stretched makes the decision. In LRGB processing the
+// luminance image is stretched first so it is used. Later calls only log the analysis.
+// Returns the stretching method to use.
+skyAnalysisStretching(win, image_stretching)
+{
+      if (win == null) {
+            return image_stretching;
+      }
+      var target_type = this.par.target_type.val;
+      var use_analysis = this.par.stretching_sky_analysis.val && (target_type == 'Default' || target_type == 'Nebula');
+      var res = this.autoStretchingAnalysis(win, image_stretching);
+      if (!use_analysis) {
+            return image_stretching;
+      }
+      if (this.sky_analysis_decided) {
+            console.writeln("  keeping " + image_stretching + " selected earlier by sky analysis");
+            return image_stretching;
+      }
+      this.sky_analysis_decided = true;
+      if (res == null) {
+            console.writeln("  sky analysis failed, using " + image_stretching);
+            return image_stretching;
+      }
+      var stretching = res.suggestion;
+      if (stretching == 'MultiscaleAdaptiveStretch' && this.global.image_stretching_values.indexOf('MultiscaleAdaptiveStretch') == -1) {
+            stretching = 'Auto STF';
+      }
+      console.noteln("Auto image stretching selected by sky analysis on " + win.mainView.id + ": " + stretching);
+      if (stretching != image_stretching) {
+            // Flowchart generated before processing does not run sky analysis, update it
+            this.flowchart.flowchartRenameOperations(image_stretching, stretching);
+      }
+      this.local_image_stretching = stretching;
+      return stretching;
 }
 
 // Resolve image stretching method. Auto is resolved to a stretching method,
@@ -687,8 +896,9 @@ autoStretchingAnalysis(win, selected_stretching)
 resolveImageStretching()
 {
       var stretching = this.par.image_stretching.val;
-      // Remember if stretching method was selected automatically, used for sky analysis logging
+      // Remember if stretching method was selected automatically, used for sky analysis
       this.image_stretching_auto = (stretching == 'Auto');
+      this.sky_analysis_decided = false;
       if (stretching != 'Auto') {
             return stretching;
       }
@@ -6189,6 +6399,20 @@ customMapping(RGBmapping, filtered_lights)
             if (this.par.debug.val) console.writeln('customMapping: flowchartParentEnd("Channels")');
             this.flowchart.flowchartParentEnd("Channels");
 
+            if (this.image_stretching_auto && images.length > 0 && !this.global.get_flowchart_data) {
+                  // Sky analysis must select the stretching method before linear fit
+                  // checks it below. Use H channel image if available as it usually
+                  // has the best signal, otherwise the first linear channel image.
+                  var sky_analysis_image = images[0];
+                  for (var sky_i = 0; sky_i < images.length; sky_i++) {
+                        if (this.findChannelFromName(images[sky_i]) == 'H') {
+                              sky_analysis_image = images[sky_i];
+                              break;
+                        }
+                  }
+                  this.skyAnalysisStretching(this.util.findWindow(sky_analysis_image), this.local_image_stretching);
+            }
+
             var narrowband_linear_fit = this.par.narrowband_linear_fit.val;
             if (narrowband_linear_fit == "Auto") {
                   /* By default we do not do linear fit
@@ -9569,8 +9793,8 @@ runHistogramTransform(GC_win, iscolor, type)
       }
 
       if (this.image_stretching_auto && type != 'stars' && type != 'mask' && !this.global.get_flowchart_data) {
-            // Log what sky analysis would select, does not change the stretching method yet
-            this.autoStretchingAnalysis(GC_win, image_stretching);
+            // Log sky analysis, and select stretching method if sky analysis option is set
+            image_stretching = this.skyAnalysisStretching(GC_win, image_stretching);
       }
 
       if (image_stretching == 'MultiscaleAdaptiveStretch' && this.par.MAS_backgroundReference.val) {
