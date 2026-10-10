@@ -545,6 +545,18 @@ test_nopreview()
       this.global.use_preview = false;
 }
 
+// Use at most max_lights light files per filter, 0 means all files
+test_set_max_lights(max_lights)
+{
+      this.global.max_lights_per_filter = max_lights;
+}
+
+// Use Auto image stretching even if stretching is explicitly selected
+test_set_force_auto_stretching()
+{
+      this.global.force_auto_stretching = true;
+}
+
 test_get_run_results()
 {
       return this.global.run_results;
@@ -581,6 +593,8 @@ autointegrate_main(runsetuppath = null)
              * - do_not_read_settings
              * - do_not_write_settings
              * - use_default_settings
+             * - max_lights=<number>, use at most this many light files per filter
+             * - force_auto_stretching, use Auto image stretching even if stretching is explicitly selected
              * 
              * In the operating system command prompt the arguments can be given when the
              * script is started with a run option.
@@ -617,6 +631,18 @@ autointegrate_main(runsetuppath = null)
                   } else if (Runtime.jsArguments[i] == "use_default_settings") {
                         console.writeln("Found use_default_settings argument, default settings will be used.");
                         this.global.use_default_settings = true;
+                  } else if (Runtime.jsArguments[i].startsWith("max_lights=")) {
+                        var max_lights = parseInt(Runtime.jsArguments[i].substring("max_lights=".length));
+                        if (isNaN(max_lights) || max_lights < 0) {
+                              console.criticalln("Error: invalid max_lights argument " + Runtime.jsArguments[i]);
+                              errors = true;
+                        } else {
+                              console.writeln("Found max_lights argument, use at most " + max_lights + " light files per filter.");
+                              this.global.max_lights_per_filter = max_lights;
+                        }
+                  } else if (Runtime.jsArguments[i] == "force_auto_stretching") {
+                        console.writeln("Found force_auto_stretching argument, use Auto image stretching.");
+                        this.global.force_auto_stretching = true;
                   } else {
                         console.criticalln("Unknown argument " + Runtime.jsArguments[i]);
                         errors = true;

@@ -402,8 +402,36 @@ filterFilesForFastMode(fileNames, auto_continue, filetype)
       }
 }
 
+// Limit the number of light files to this.global.max_lights_per_filter
+// for each filter. Files are picked evenly from the whole list so they
+// cover the whole session. Used to make test runs faster without changing
+// image size like fast mode does.
+limitLightFiles(fileNames, auto_continue)
+{
+      if (fileNames == null || fileNames.length == 0 || auto_continue || this.global.max_lights_per_filter <= 0) {
+            return fileNames;
+      }
+      var max_files = this.global.max_lights_per_filter;
+      var original_len = fileNames.length;
+      var filtered_files = this.getFilterFiles(fileNames, this.global.pages.LIGHTS, '');
+      var allfilesarr = filtered_files.allfilesarr;
+      var limited_files = [];
+      for (var i = 0; i < allfilesarr.length; i++) {
+            var files = allfilesarr[i].files;
+            if (files.length == 0) {
+                  continue;
+            }
+            var cnt = Math.min(max_files, files.length);
+            for (var j = 0; j < cnt; j++) {
+                  limited_files.push(files[Math.floor(j * files.length / cnt)].name);
+            }
+            this.util.addProcessingStep("Limit lights for filter " + allfilesarr[i].filter + " to " + cnt + " of " + files.length + " files");
+      }
+      console.writeln("limitLightFiles, max " + max_files + " per filter, original files " + original_len + ", limited files " + limited_files.length);
+      return limited_files;
+}
+
 // Filter files for this.global.get_flowchart_data.
-// Pick just one or two files for each channel
 // (Binning skipped for now: and use IntegerResample to make files really small.)
 flowchartFilterFiles(fileNames, filetype)
 {
@@ -775,6 +803,8 @@ analyzeSkyModel(tiles)
 // a bright target on a flat background.
 // bright_area is the fraction of tiles above the middle point between p50 and p99,
 // small values mean the bright part is compact.
+// faint_area is the fraction of tiles above 10% of the way from p50 to p99,
+// large values may mean a large faint target like a low surface brightness galaxy.
 skyModelContrast(values)
 {
       var sorted = values.slice().sort((a, b) => a - b);
@@ -783,9 +813,11 @@ skyModelContrast(values)
       var p50 = percentile(0.50);
       var p99 = percentile(0.99);
       var bright_limit = p50 + 0.5 * (p99 - p50);
+      var faint_limit = p50 + 0.1 * (p99 - p50);
       return {
             contrast: p50 > p10 ? (p99 - p50) / (p50 - p10) : 0,
-            bright_area: sorted.filter((v) => v > bright_limit).length / sorted.length
+            bright_area: sorted.filter((v) => v > bright_limit).length / sorted.length,
+            faint_area: sorted.filter((v) => v > faint_limit).length / sorted.length
       };
 }
 
@@ -794,11 +826,16 @@ skyModelContrast(values)
 // a galaxy, star cluster or bright nebula has a high contrast and uses
 // MultiscaleAdaptiveStretch. An image that looks flat like a frame filling or
 // dark nebula has a low contrast and uses Auto STF.
+// MultiscaleAdaptiveStretch also needs a minimum bright area, a few bright
+// stars in a star field can give a high contrast with a very small bright area.
+// If image statistics are degenerate, for example noise is zero in a clipped
+// image, the analysis is not reliable and Auto STF is used.
 // Other measures are logged for comparison while testing.
 // Returns the analysis result with the suggested method, or null.
 autoStretchingAnalysis(win, selected_stretching)
 {
       const min_contrast = 10;            // MultiscaleAdaptiveStretch needs at least this contrast
+      const min_bright_area = 0.018;      // MultiscaleAdaptiveStretch needs at least this bright area
       const sky_limit = 1;                // sky tile limit in noise units, logged for comparison
       const min_sky_fraction = 0.25;      // sky fraction limit, logged for comparison
 
@@ -810,19 +847,27 @@ autoStretchingAnalysis(win, selected_stretching)
       var sky_fraction = res.fractions.find((f) => f.limit == sky_limit).fraction;
       res.sky_fraction = sky_fraction;
       var m = res.model;
-      if (m != null && m.contrast != null) {
-            res.suggestion = m.contrast.contrast >= min_contrast ? 'MultiscaleAdaptiveStretch' : 'Auto STF';
+      // Degenerate statistics, for example many identical pixel values in a clipped image
+      // give zero or almost zero noise
+      var unreliable = res.noise <= res.background * 1e-5 || m == null || m.scatter <= res.noise * 1e-3;
+      if (m != null && m.contrast != null && !unreliable) {
+            res.suggestion = m.contrast.contrast >= min_contrast && m.contrast.bright_area >= min_bright_area ? 'MultiscaleAdaptiveStretch' : 'Auto STF';
       } else {
-            // Sky model fit failed, use the default
+            // Sky model fit failed or statistics are not reliable, use the default
             res.suggestion = 'Auto STF';
       }
 
       console.noteln("Auto stretching analysis on " + win.mainView.id + ": " +
                      (m != null && m.contrast != null ? "contrast " + m.contrast.contrast.toFixed(1) : "contrast not available") +
                      ", limit " + min_contrast + ", would select " + res.suggestion +
-                     (selected_stretching != null ? ", Auto selected " + selected_stretching : ""));
+                     (selected_stretching != null ? (this.image_stretching_auto ? ", Auto selected " : ", explicitly selected ") + selected_stretching : ""));
       if (m != null && m.contrast != null) {
-            console.noteln("  bright area " + (m.contrast.bright_area * 100).toFixed(1) + "%");
+            console.noteln("  bright area " + (m.contrast.bright_area * 100).toFixed(1) + "%, limit " + (min_bright_area * 100).toFixed(1) + "%" +
+                           ", faint area " + (m.contrast.faint_area * 100).toFixed(1) + "%");
+      }
+      if (unreliable) {
+            console.warningln("  image statistics are not reliable (noise " + res.noise.toExponential(3) +
+                              (m != null ? ", scatter " + m.scatter.toExponential(3) : "") + "), using Auto STF");
       }
 
       var fraction_txt = res.fractions.map((f) => f.limit + " noise " + Math.round(f.fraction * 100) + "%").join(", ");
@@ -850,18 +895,22 @@ autoStretchingAnalysis(win, selected_stretching)
 // Select image stretching method using sky analysis. Used when image stretching
 // is Auto and Auto stretching uses sky analysis option is set. Analysis is used only
 // with target types Default and Nebula, with other target types the target type
-// selects the method.
+// selects the method. Analysis is always logged, also when stretching method
+// is explicitly selected, to get test data for the analysis.
 // Decision is made only once per run so all images use the same stretching method.
 // The first main image that is stretched makes the decision. In LRGB processing the
 // luminance image is stretched first so it is used. Later calls only log the analysis.
 // Returns the stretching method to use.
 skyAnalysisStretching(win, image_stretching)
 {
+#ifdef AUTOINTEGRATE_STANDALONE
+      return image_stretching;
+#endif
       if (win == null) {
             return image_stretching;
       }
       var target_type = this.par.target_type.val;
-      var use_analysis = this.par.stretching_sky_analysis.val && (target_type == 'Default' || target_type == 'Nebula');
+      var use_analysis = this.image_stretching_auto && this.par.stretching_sky_analysis.val && (target_type == 'Default' || target_type == 'Nebula');
       var res = this.autoStretchingAnalysis(win, image_stretching);
       if (!use_analysis) {
             return image_stretching;
@@ -896,6 +945,10 @@ skyAnalysisStretching(win, image_stretching)
 resolveImageStretching()
 {
       var stretching = this.par.image_stretching.val;
+      if (this.global.force_auto_stretching && stretching != 'Auto') {
+            console.writeln("Force Auto image stretching, ignore explicitly selected " + stretching);
+            stretching = 'Auto';
+      }
       // Remember if stretching method was selected automatically, used for sky analysis
       this.image_stretching_auto = (stretching == 'Auto');
       this.sky_analysis_decided = false;
@@ -1117,7 +1170,12 @@ getChangedProcessingOptions()
                         // Do not save parameters we want to skip resetting in test mode with default settings
                         continue;
                   }
-                  options[options.length] = [ param.name, param.val ];
+                  if (param === this.par.image_stretching && this.global.force_auto_stretching) {
+                        // Show the value that is actually used, not the explicitly selected value
+                        options[options.length] = [ param.name, "Auto (forced)" ];
+                  } else {
+                        options[options.length] = [ param.name, param.val ];
+                  }
             }
       }
       if (this.global.debug) console.writeln("getChangedProcessingOptions:return options " + options.length);
@@ -6399,7 +6457,7 @@ customMapping(RGBmapping, filtered_lights)
             if (this.par.debug.val) console.writeln('customMapping: flowchartParentEnd("Channels")');
             this.flowchart.flowchartParentEnd("Channels");
 
-            if (this.image_stretching_auto && images.length > 0 && !this.global.get_flowchart_data) {
+            if (images.length > 0 && !this.global.get_flowchart_data) {
                   // Sky analysis must select the stretching method before linear fit
                   // checks it below. Use H channel image if available as it usually
                   // has the best signal, otherwise the first linear channel image.
@@ -9792,8 +9850,8 @@ runHistogramTransform(GC_win, iscolor, type)
                   break;
       }
 
-      if (this.image_stretching_auto && type != 'stars' && type != 'mask' && !this.global.get_flowchart_data) {
-            // Log sky analysis, and select stretching method if sky analysis option is set
+      if (type != 'stars' && type != 'mask' && !this.global.get_flowchart_data) {
+            // Log sky analysis, and select stretching method if Auto and sky analysis option is set
             image_stretching = this.skyAnalysisStretching(GC_win, image_stretching);
       }
 
@@ -13009,6 +13067,7 @@ createChannelImages(parent, auto_continue)
             if (this.lightFileNames == null) {
                   this.global.lightFileNames = this.openImageFiles("Lights", true, false, false);
                   this.lightFileNames = this.filterFilesForFastMode(this.global.lightFileNames, false, this.global.pages.LIGHTS);
+                  this.lightFileNames = this.limitLightFiles(this.lightFileNames, false);
                   this.util.addProcessingStep("Get files from dialog");
             }
             if (this.lightFileNames == null) {
@@ -18790,6 +18849,7 @@ autointegrateProcessingEngine(parent, auto_continue, autocontinue_narrowband, tx
 
       // Save file list locally. In case of this.par.fast_mode we make a new copy of the list
       this.lightFileNames = this.filterFilesForFastMode(this.global.lightFileNames, auto_continue, this.global.pages.LIGHTS);
+      this.lightFileNames = this.limitLightFiles(this.lightFileNames, auto_continue);
       this.darkFileNames = this.filterFilesForFastMode(this.global.darkFileNames, auto_continue, this.global.pages.DARKS);
       this.biasFileNames = this.filterFilesForFastMode(this.global.biasFileNames, auto_continue, this.global.pages.BIAS);
       this.flatdarkFileNames = this.filterFilesForFastMode(this.global.flatdarkFileNames, auto_continue, this.global.pages.FLAT_DARKS);

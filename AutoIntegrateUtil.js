@@ -2259,6 +2259,12 @@ addCriticalStatus(txt)
       } else {
             this.global.processing_errors = this.global.processing_errors + "\n" + "Error: " + txt;
       }
+      // Processing errors are cleared after printing, keep a copy for test code
+      if (this.global.run_results.processing_errors == "") {
+            this.global.run_results.processing_errors = "Error: " + txt;
+      } else {
+            this.global.run_results.processing_errors = this.global.run_results.processing_errors + "\n" + "Error: " + txt;
+      }
 }
 
 addWarningStatus(txt)

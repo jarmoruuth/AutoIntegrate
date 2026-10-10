@@ -107,6 +107,8 @@ this.veraluxAutoCalcDLabel = null;
 this.do_not_read_settings = false;      // do not read Settings from persistent module settings
 this.do_not_write_settings = false;     // do not write Settings to persistent module settings
 this.use_default_settings = false;      // true if default settings should be used, read only non-resetable parameters
+this.max_lights_per_filter = 0;         // if > 0, use at most this many light files per filter, set from command line or test code
+this.force_auto_stretching = false;     // use Auto image stretching even if stretching is explicitly selected, set from command line or test code
 this.use_preview = true;
 this.is_processing = this.processing_state.none;
 this.creating_mask = false;          // flag for creating mask
@@ -824,6 +826,7 @@ this.run_results = {
       processing_steps_file: '',    // file where processing steps were written
       final_image_file: '',         // final image file
       fatal_error: '',              // if non-empty, fatal error during processing
+      processing_errors: '',        // processing errors reported during processing
       testmode_log_name: ''         // test mode log file name
 };
 
