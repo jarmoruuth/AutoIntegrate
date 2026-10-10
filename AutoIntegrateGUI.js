@@ -5566,7 +5566,8 @@ AutoIntegrateDialog()
             "like GradientCorrection, MLDenoise and MultiscaleLinearTransform. Installed external tools like RC Astro tools, " +
             "StarNet2, DeepSNR and GraXpert are not selected automatically.</p>" +
             "<p>Tools that are selected explicitly are still used.</p>" +
-            "<p>This option is mainly for testing default processing without external tools.</p>" );
+            "<p>This option is mainly for testing default processing without external tools. In test mode Auto normally " +
+            "skips all AI tools, with this option built-in AI tools like MLDenoise are used.</p>" );
       this.no_sharpening_CheckBox = this.guitools.newCheckBox(this, "No sharpening", this.par.skip_sharpening, 
             "<p>Do not use sharpening or deconvolution on the image.</p>" +
             "<p>Sharpening and deconvolution tool is selected in the <i>Settings / Tools</i> section. Deconvolution tools like BlurXTerminator " +

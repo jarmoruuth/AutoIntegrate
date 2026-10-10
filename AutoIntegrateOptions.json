@@ -1,6 +1,6 @@
 {
  "version": "AutoIntegrate v1.87.5",
- "generated": "Thu Oct 08 2026 22:03:42 GMT+0300 (FLE Daylight Time)",
+ "generated": "Sat Oct 10 2026 01:33:56 GMT+0300 (FLE Daylight Time)",
  "options": [
   {
    "key": "local_normalization",
@@ -4378,6 +4378,42 @@
    "kind": "radiobutton",
    "label": "Deconvolution/sharpening / MultiscaleLinearTransform",
    "tooltip": "<p>Use MultiscaleLinearTransform for sharpening. It is a non-AI process included in PixInsight.</p><p>Sharpening is done on the non-linear image using a luminance and star mask to target light parts of the image. No deconvolution is done on the linear image.</p>",
+   "values": null,
+   "min": null,
+   "max": null
+  },
+  {
+   "key": "auto_builtin_tools_only",
+   "name": "Auto built-in tools only",
+   "type": "B",
+   "def": false,
+   "tip": "",
+   "applies": "",
+   "controls": [
+    {
+     "kind": "checkbox",
+     "label": "Auto: built-in tools only",
+     "tooltip": "<p>When <i>Auto</i> is selected in the <i>Settings / Tools</i> section, use only tools that are included in PixInsight, like GradientCorrection, MLDenoise and MultiscaleLinearTransform. Installed external tools like RC Astro tools, StarNet2, DeepSNR and GraXpert are not selected automatically.</p><p>Tools that are selected explicitly are still used.</p><p>This option is mainly for testing default processing without external tools.</p>",
+     "values": null,
+     "min": null,
+     "max": null,
+     "tab": "Other",
+     "section": "Other parameters",
+     "expert": true,
+     "located": true
+    }
+   ],
+   "expert": true,
+   "tabs": [
+    "Other"
+   ],
+   "sections": [
+    "Other parameters"
+   ],
+   "in_gui": true,
+   "kind": "checkbox",
+   "label": "Auto: built-in tools only",
+   "tooltip": "<p>When <i>Auto</i> is selected in the <i>Settings / Tools</i> section, use only tools that are included in PixInsight, like GradientCorrection, MLDenoise and MultiscaleLinearTransform. Installed external tools like RC Astro tools, StarNet2, DeepSNR and GraXpert are not selected automatically.</p><p>Tools that are selected explicitly are still used.</p><p>This option is mainly for testing default processing without external tools.</p>",
    "values": null,
    "min": null,
    "max": null
@@ -9507,15 +9543,16 @@
    "key": "image_stretching",
    "name": "Image stretching",
    "type": "S",
-   "def": "Auto STF",
+   "def": "Auto",
    "tip": "",
    "applies": "",
    "controls": [
     {
      "kind": "list",
      "label": "",
-     "tooltip": "<p>Select how image is stretched from linear to non-linear.</p><ul><li><p>Auto STF - Use Auto Screen Transfer Function to stretch image to non-linear.<br>For galaxies and other small but bright objects you should adjust <i>targetBackground</i> in <i>Postprocessing / AutoSTF settings</i> section to a smaller value, like 0.10</i><br>Parameters are set in <i>Postprocessing / AutoSTF settings</i> section.</p></li><li><p>MultiscaleAdaptiveStretch - Use MultiscaleAdaptiveStretch to stretch image to non-linear.<br>You can adjust settings in <i>Postprocessing / MultiscaleAdaptiveStretch</i> section.</p></li><li><p>Masked Stretch - Use MaskedStretch to stretch image to non-linear.<br>Useful when AutoSTF generates too bright images, like on some galaxies.<br>Parameters are set in <i>Postprocessing / Masked stretch settings</i> section</p></li><li><p>VeraLuxHMS - Use VeraLux Hypermetric Stretch to stretch image to non-linear.<br>VeraLuxHMS can work well on many targets and can create saturated results.<br>Parameters are set in <i>Postprocessing / VeraLux HMS Stretch</i> section</p></li><li><p>Masked+Histogram Stretch - Use MaskedStretch with a Histogram Stretch prestretch to stretch image to non-linear.<br>Prestretch help with stars that can be too pointlike with Masked Stretch.<br>Parameters are set in <i>Postprocessing / Masked stretch settings</i> and <i>Postprocessing / Histogram stretching settings</i> sections</p></li><li><p>Histogram stretch - Using a simple histogram transformation to get histogram median or peak to the target value. Works best with images that are processed with the Crop to common area option.<br>Parameters are set in <i>Postprocessing / Histogram stretching settings</i> section</p></li><li><p>Arcsinh Stretch - Use ArcsinhStretch to stretch image to non-linear.<br>Can be useful when stretching stars to keep good star color.<br>Parameters are set in <i>Postprocessing / Arcsinh stretch settings</i> section</p></li></ul><p>There are also some experimental stretches.</p><ul><li><p>Logarithmic stretch - Parameters are set in <i>Postprocessing / Other stretching settings</i> section</p></li><li><p>Asinh+Histogram stretch - Parameters are set in <i>Postprocessing / Arcsinh stretch settings</i> and <i>Postprocessing / Histogram stretching settings</i> sections</p></li><li><p>Square root stretch - Parameters are set in <i>Postprocessing / Other stretching settings</i> section</p></li><li><p>Shadow stretch - Parameters are set in <i>Postprocessing / Other stretching settings</i> section</p></li><li><p>Highlight stretch - Parameters are set in <i>Postprocessing / Other stretching settings</i> section</p></li><li><p>None - No stretching, mainly for generating _HT files to be used with AutoContinue.</p></li></ul><p>See <i>Postprocessing / Stretching settings</i> section for stretching specific parameters.</p><p>Note that when non-default <i>Target</i> type is selected then this option is disabled.</p>",
+     "tooltip": "<p>Select how image is stretched from linear to non-linear.</p><ul><li><p>Auto - Select the stretching method automatically when processing starts. Available only for <i>Image stretching</i>.<br>If <i>Target type</i> is given, it selects the method: MultiscaleAdaptiveStretch for Galaxy and Star cluster, or Masked Stretch if MultiscaleAdaptiveStretch is not available, and Auto STF for Nebula.<br>Otherwise MultiscaleAdaptiveStretch is used if it is available in PixInsight, and Auto STF if it is not.</p></li><li><p>Auto STF - Use Auto Screen Transfer Function to stretch image to non-linear.<br>For galaxies and other small but bright objects you should adjust <i>targetBackground</i> in <i>Postprocessing / AutoSTF settings</i> section to a smaller value, like 0.10</i><br>Parameters are set in <i>Postprocessing / AutoSTF settings</i> section.</p></li><li><p>MultiscaleAdaptiveStretch - Use MultiscaleAdaptiveStretch to stretch image to non-linear.<br>You can adjust settings in <i>Postprocessing / MultiscaleAdaptiveStretch</i> section.</p></li><li><p>Masked Stretch - Use MaskedStretch to stretch image to non-linear.<br>Useful when AutoSTF generates too bright images, like on some galaxies.<br>Parameters are set in <i>Postprocessing / Masked stretch settings</i> section</p></li><li><p>VeraLuxHMS - Use VeraLux Hypermetric Stretch to stretch image to non-linear.<br>VeraLuxHMS can work well on many targets and can create saturated results.<br>Parameters are set in <i>Postprocessing / VeraLux HMS Stretch</i> section</p></li><li><p>Masked+Histogram Stretch - Use MaskedStretch with a Histogram Stretch prestretch to stretch image to non-linear.<br>Prestretch help with stars that can be too pointlike with Masked Stretch.<br>Parameters are set in <i>Postprocessing / Masked stretch settings</i> and <i>Postprocessing / Histogram stretching settings</i> sections</p></li><li><p>Histogram stretch - Using a simple histogram transformation to get histogram median or peak to the target value. Works best with images that are processed with the Crop to common area option.<br>Parameters are set in <i>Postprocessing / Histogram stretching settings</i> section</p></li><li><p>Arcsinh Stretch - Use ArcsinhStretch to stretch image to non-linear.<br>Can be useful when stretching stars to keep good star color.<br>Parameters are set in <i>Postprocessing / Arcsinh stretch settings</i> section</p></li></ul><p>There are also some experimental stretches.</p><ul><li><p>Logarithmic stretch - Parameters are set in <i>Postprocessing / Other stretching settings</i> section</p></li><li><p>Asinh+Histogram stretch - Parameters are set in <i>Postprocessing / Arcsinh stretch settings</i> and <i>Postprocessing / Histogram stretching settings</i> sections</p></li><li><p>Square root stretch - Parameters are set in <i>Postprocessing / Other stretching settings</i> section</p></li><li><p>Shadow stretch - Parameters are set in <i>Postprocessing / Other stretching settings</i> section</p></li><li><p>Highlight stretch - Parameters are set in <i>Postprocessing / Other stretching settings</i> section</p></li><li><p>None - No stretching, mainly for generating _HT files to be used with AutoContinue.</p></li></ul><p>See <i>Postprocessing / Stretching settings</i> section for stretching specific parameters.</p>",
      "values": [
+      "Auto",
       "Auto STF",
       "MultiscaleAdaptiveStretch",
       "Masked Stretch",
@@ -9549,8 +9586,9 @@
    "in_gui": true,
    "kind": "list",
    "label": "",
-   "tooltip": "<p>Select how image is stretched from linear to non-linear.</p><ul><li><p>Auto STF - Use Auto Screen Transfer Function to stretch image to non-linear.<br>For galaxies and other small but bright objects you should adjust <i>targetBackground</i> in <i>Postprocessing / AutoSTF settings</i> section to a smaller value, like 0.10</i><br>Parameters are set in <i>Postprocessing / AutoSTF settings</i> section.</p></li><li><p>MultiscaleAdaptiveStretch - Use MultiscaleAdaptiveStretch to stretch image to non-linear.<br>You can adjust settings in <i>Postprocessing / MultiscaleAdaptiveStretch</i> section.</p></li><li><p>Masked Stretch - Use MaskedStretch to stretch image to non-linear.<br>Useful when AutoSTF generates too bright images, like on some galaxies.<br>Parameters are set in <i>Postprocessing / Masked stretch settings</i> section</p></li><li><p>VeraLuxHMS - Use VeraLux Hypermetric Stretch to stretch image to non-linear.<br>VeraLuxHMS can work well on many targets and can create saturated results.<br>Parameters are set in <i>Postprocessing / VeraLux HMS Stretch</i> section</p></li><li><p>Masked+Histogram Stretch - Use MaskedStretch with a Histogram Stretch prestretch to stretch image to non-linear.<br>Prestretch help with stars that can be too pointlike with Masked Stretch.<br>Parameters are set in <i>Postprocessing / Masked stretch settings</i> and <i>Postprocessing / Histogram stretching settings</i> sections</p></li><li><p>Histogram stretch - Using a simple histogram transformation to get histogram median or peak to the target value. Works best with images that are processed with the Crop to common area option.<br>Parameters are set in <i>Postprocessing / Histogram stretching settings</i> section</p></li><li><p>Arcsinh Stretch - Use ArcsinhStretch to stretch image to non-linear.<br>Can be useful when stretching stars to keep good star color.<br>Parameters are set in <i>Postprocessing / Arcsinh stretch settings</i> section</p></li></ul><p>There are also some experimental stretches.</p><ul><li><p>Logarithmic stretch - Parameters are set in <i>Postprocessing / Other stretching settings</i> section</p></li><li><p>Asinh+Histogram stretch - Parameters are set in <i>Postprocessing / Arcsinh stretch settings</i> and <i>Postprocessing / Histogram stretching settings</i> sections</p></li><li><p>Square root stretch - Parameters are set in <i>Postprocessing / Other stretching settings</i> section</p></li><li><p>Shadow stretch - Parameters are set in <i>Postprocessing / Other stretching settings</i> section</p></li><li><p>Highlight stretch - Parameters are set in <i>Postprocessing / Other stretching settings</i> section</p></li><li><p>None - No stretching, mainly for generating _HT files to be used with AutoContinue.</p></li></ul><p>See <i>Postprocessing / Stretching settings</i> section for stretching specific parameters.</p><p>Note that when non-default <i>Target</i> type is selected then this option is disabled.</p>",
+   "tooltip": "<p>Select how image is stretched from linear to non-linear.</p><ul><li><p>Auto - Select the stretching method automatically when processing starts. Available only for <i>Image stretching</i>.<br>If <i>Target type</i> is given, it selects the method: MultiscaleAdaptiveStretch for Galaxy and Star cluster, or Masked Stretch if MultiscaleAdaptiveStretch is not available, and Auto STF for Nebula.<br>Otherwise MultiscaleAdaptiveStretch is used if it is available in PixInsight, and Auto STF if it is not.</p></li><li><p>Auto STF - Use Auto Screen Transfer Function to stretch image to non-linear.<br>For galaxies and other small but bright objects you should adjust <i>targetBackground</i> in <i>Postprocessing / AutoSTF settings</i> section to a smaller value, like 0.10</i><br>Parameters are set in <i>Postprocessing / AutoSTF settings</i> section.</p></li><li><p>MultiscaleAdaptiveStretch - Use MultiscaleAdaptiveStretch to stretch image to non-linear.<br>You can adjust settings in <i>Postprocessing / MultiscaleAdaptiveStretch</i> section.</p></li><li><p>Masked Stretch - Use MaskedStretch to stretch image to non-linear.<br>Useful when AutoSTF generates too bright images, like on some galaxies.<br>Parameters are set in <i>Postprocessing / Masked stretch settings</i> section</p></li><li><p>VeraLuxHMS - Use VeraLux Hypermetric Stretch to stretch image to non-linear.<br>VeraLuxHMS can work well on many targets and can create saturated results.<br>Parameters are set in <i>Postprocessing / VeraLux HMS Stretch</i> section</p></li><li><p>Masked+Histogram Stretch - Use MaskedStretch with a Histogram Stretch prestretch to stretch image to non-linear.<br>Prestretch help with stars that can be too pointlike with Masked Stretch.<br>Parameters are set in <i>Postprocessing / Masked stretch settings</i> and <i>Postprocessing / Histogram stretching settings</i> sections</p></li><li><p>Histogram stretch - Using a simple histogram transformation to get histogram median or peak to the target value. Works best with images that are processed with the Crop to common area option.<br>Parameters are set in <i>Postprocessing / Histogram stretching settings</i> section</p></li><li><p>Arcsinh Stretch - Use ArcsinhStretch to stretch image to non-linear.<br>Can be useful when stretching stars to keep good star color.<br>Parameters are set in <i>Postprocessing / Arcsinh stretch settings</i> section</p></li></ul><p>There are also some experimental stretches.</p><ul><li><p>Logarithmic stretch - Parameters are set in <i>Postprocessing / Other stretching settings</i> section</p></li><li><p>Asinh+Histogram stretch - Parameters are set in <i>Postprocessing / Arcsinh stretch settings</i> and <i>Postprocessing / Histogram stretching settings</i> sections</p></li><li><p>Square root stretch - Parameters are set in <i>Postprocessing / Other stretching settings</i> section</p></li><li><p>Shadow stretch - Parameters are set in <i>Postprocessing / Other stretching settings</i> section</p></li><li><p>Highlight stretch - Parameters are set in <i>Postprocessing / Other stretching settings</i> section</p></li><li><p>None - No stretching, mainly for generating _HT files to be used with AutoContinue.</p></li></ul><p>See <i>Postprocessing / Stretching settings</i> section for stretching specific parameters.</p>",
    "values": [
+    "Auto",
     "Auto STF",
     "MultiscaleAdaptiveStretch",
     "Masked Stretch",
@@ -9580,7 +9618,7 @@
     {
      "kind": "list",
      "label": "",
-     "tooltip": "<p>Select how image is stretched from linear to non-linear.</p><ul><li><p>Auto STF - Use Auto Screen Transfer Function to stretch image to non-linear.<br>For galaxies and other small but bright objects you should adjust <i>targetBackground</i> in <i>Postprocessing / AutoSTF settings</i> section to a smaller value, like 0.10</i><br>Parameters are set in <i>Postprocessing / AutoSTF settings</i> section.</p></li><li><p>MultiscaleAdaptiveStretch - Use MultiscaleAdaptiveStretch to stretch image to non-linear.<br>You can adjust settings in <i>Postprocessing / MultiscaleAdaptiveStretch</i> section.</p></li><li><p>Masked Stretch - Use MaskedStretch to stretch image to non-linear.<br>Useful when AutoSTF generates too bright images, like on some galaxies.<br>Parameters are set in <i>Postprocessing / Masked stretch settings</i> section</p></li><li><p>VeraLuxHMS - Use VeraLux Hypermetric Stretch to stretch image to non-linear.<br>VeraLuxHMS can work well on many targets and can create saturated results.<br>Parameters are set in <i>Postprocessing / VeraLux HMS Stretch</i> section</p></li><li><p>Masked+Histogram Stretch - Use MaskedStretch with a Histogram Stretch prestretch to stretch image to non-linear.<br>Prestretch help with stars that can be too pointlike with Masked Stretch.<br>Parameters are set in <i>Postprocessing / Masked stretch settings</i> and <i>Postprocessing / Histogram stretching settings</i> sections</p></li><li><p>Histogram stretch - Using a simple histogram transformation to get histogram median or peak to the target value. Works best with images that are processed with the Crop to common area option.<br>Parameters are set in <i>Postprocessing / Histogram stretching settings</i> section</p></li><li><p>Arcsinh Stretch - Use ArcsinhStretch to stretch image to non-linear.<br>Can be useful when stretching stars to keep good star color.<br>Parameters are set in <i>Postprocessing / Arcsinh stretch settings</i> section</p></li></ul><p>There are also some experimental stretches.</p><ul><li><p>Logarithmic stretch - Parameters are set in <i>Postprocessing / Other stretching settings</i> section</p></li><li><p>Asinh+Histogram stretch - Parameters are set in <i>Postprocessing / Arcsinh stretch settings</i> and <i>Postprocessing / Histogram stretching settings</i> sections</p></li><li><p>Square root stretch - Parameters are set in <i>Postprocessing / Other stretching settings</i> section</p></li><li><p>Shadow stretch - Parameters are set in <i>Postprocessing / Other stretching settings</i> section</p></li><li><p>Highlight stretch - Parameters are set in <i>Postprocessing / Other stretching settings</i> section</p></li><li><p>None - No stretching, mainly for generating _HT files to be used with AutoContinue.</p></li></ul><p>See <i>Postprocessing / Stretching settings</i> section for stretching specific parameters.</p><p>Note that when non-default <i>Target</i> type is selected then this option is disabled.</p>",
+     "tooltip": "<p>Select how image is stretched from linear to non-linear.</p><ul><li><p>Auto - Select the stretching method automatically when processing starts. Available only for <i>Image stretching</i>.<br>If <i>Target type</i> is given, it selects the method: MultiscaleAdaptiveStretch for Galaxy and Star cluster, or Masked Stretch if MultiscaleAdaptiveStretch is not available, and Auto STF for Nebula.<br>Otherwise MultiscaleAdaptiveStretch is used if it is available in PixInsight, and Auto STF if it is not.</p></li><li><p>Auto STF - Use Auto Screen Transfer Function to stretch image to non-linear.<br>For galaxies and other small but bright objects you should adjust <i>targetBackground</i> in <i>Postprocessing / AutoSTF settings</i> section to a smaller value, like 0.10</i><br>Parameters are set in <i>Postprocessing / AutoSTF settings</i> section.</p></li><li><p>MultiscaleAdaptiveStretch - Use MultiscaleAdaptiveStretch to stretch image to non-linear.<br>You can adjust settings in <i>Postprocessing / MultiscaleAdaptiveStretch</i> section.</p></li><li><p>Masked Stretch - Use MaskedStretch to stretch image to non-linear.<br>Useful when AutoSTF generates too bright images, like on some galaxies.<br>Parameters are set in <i>Postprocessing / Masked stretch settings</i> section</p></li><li><p>VeraLuxHMS - Use VeraLux Hypermetric Stretch to stretch image to non-linear.<br>VeraLuxHMS can work well on many targets and can create saturated results.<br>Parameters are set in <i>Postprocessing / VeraLux HMS Stretch</i> section</p></li><li><p>Masked+Histogram Stretch - Use MaskedStretch with a Histogram Stretch prestretch to stretch image to non-linear.<br>Prestretch help with stars that can be too pointlike with Masked Stretch.<br>Parameters are set in <i>Postprocessing / Masked stretch settings</i> and <i>Postprocessing / Histogram stretching settings</i> sections</p></li><li><p>Histogram stretch - Using a simple histogram transformation to get histogram median or peak to the target value. Works best with images that are processed with the Crop to common area option.<br>Parameters are set in <i>Postprocessing / Histogram stretching settings</i> section</p></li><li><p>Arcsinh Stretch - Use ArcsinhStretch to stretch image to non-linear.<br>Can be useful when stretching stars to keep good star color.<br>Parameters are set in <i>Postprocessing / Arcsinh stretch settings</i> section</p></li></ul><p>There are also some experimental stretches.</p><ul><li><p>Logarithmic stretch - Parameters are set in <i>Postprocessing / Other stretching settings</i> section</p></li><li><p>Asinh+Histogram stretch - Parameters are set in <i>Postprocessing / Arcsinh stretch settings</i> and <i>Postprocessing / Histogram stretching settings</i> sections</p></li><li><p>Square root stretch - Parameters are set in <i>Postprocessing / Other stretching settings</i> section</p></li><li><p>Shadow stretch - Parameters are set in <i>Postprocessing / Other stretching settings</i> section</p></li><li><p>Highlight stretch - Parameters are set in <i>Postprocessing / Other stretching settings</i> section</p></li><li><p>None - No stretching, mainly for generating _HT files to be used with AutoContinue.</p></li></ul><p>See <i>Postprocessing / Stretching settings</i> section for stretching specific parameters.</p>",
      "values": [
       "Auto STF",
       "MultiscaleAdaptiveStretch",
@@ -9615,7 +9653,7 @@
    "in_gui": true,
    "kind": "list",
    "label": "",
-   "tooltip": "<p>Select how image is stretched from linear to non-linear.</p><ul><li><p>Auto STF - Use Auto Screen Transfer Function to stretch image to non-linear.<br>For galaxies and other small but bright objects you should adjust <i>targetBackground</i> in <i>Postprocessing / AutoSTF settings</i> section to a smaller value, like 0.10</i><br>Parameters are set in <i>Postprocessing / AutoSTF settings</i> section.</p></li><li><p>MultiscaleAdaptiveStretch - Use MultiscaleAdaptiveStretch to stretch image to non-linear.<br>You can adjust settings in <i>Postprocessing / MultiscaleAdaptiveStretch</i> section.</p></li><li><p>Masked Stretch - Use MaskedStretch to stretch image to non-linear.<br>Useful when AutoSTF generates too bright images, like on some galaxies.<br>Parameters are set in <i>Postprocessing / Masked stretch settings</i> section</p></li><li><p>VeraLuxHMS - Use VeraLux Hypermetric Stretch to stretch image to non-linear.<br>VeraLuxHMS can work well on many targets and can create saturated results.<br>Parameters are set in <i>Postprocessing / VeraLux HMS Stretch</i> section</p></li><li><p>Masked+Histogram Stretch - Use MaskedStretch with a Histogram Stretch prestretch to stretch image to non-linear.<br>Prestretch help with stars that can be too pointlike with Masked Stretch.<br>Parameters are set in <i>Postprocessing / Masked stretch settings</i> and <i>Postprocessing / Histogram stretching settings</i> sections</p></li><li><p>Histogram stretch - Using a simple histogram transformation to get histogram median or peak to the target value. Works best with images that are processed with the Crop to common area option.<br>Parameters are set in <i>Postprocessing / Histogram stretching settings</i> section</p></li><li><p>Arcsinh Stretch - Use ArcsinhStretch to stretch image to non-linear.<br>Can be useful when stretching stars to keep good star color.<br>Parameters are set in <i>Postprocessing / Arcsinh stretch settings</i> section</p></li></ul><p>There are also some experimental stretches.</p><ul><li><p>Logarithmic stretch - Parameters are set in <i>Postprocessing / Other stretching settings</i> section</p></li><li><p>Asinh+Histogram stretch - Parameters are set in <i>Postprocessing / Arcsinh stretch settings</i> and <i>Postprocessing / Histogram stretching settings</i> sections</p></li><li><p>Square root stretch - Parameters are set in <i>Postprocessing / Other stretching settings</i> section</p></li><li><p>Shadow stretch - Parameters are set in <i>Postprocessing / Other stretching settings</i> section</p></li><li><p>Highlight stretch - Parameters are set in <i>Postprocessing / Other stretching settings</i> section</p></li><li><p>None - No stretching, mainly for generating _HT files to be used with AutoContinue.</p></li></ul><p>See <i>Postprocessing / Stretching settings</i> section for stretching specific parameters.</p><p>Note that when non-default <i>Target</i> type is selected then this option is disabled.</p>",
+   "tooltip": "<p>Select how image is stretched from linear to non-linear.</p><ul><li><p>Auto - Select the stretching method automatically when processing starts. Available only for <i>Image stretching</i>.<br>If <i>Target type</i> is given, it selects the method: MultiscaleAdaptiveStretch for Galaxy and Star cluster, or Masked Stretch if MultiscaleAdaptiveStretch is not available, and Auto STF for Nebula.<br>Otherwise MultiscaleAdaptiveStretch is used if it is available in PixInsight, and Auto STF if it is not.</p></li><li><p>Auto STF - Use Auto Screen Transfer Function to stretch image to non-linear.<br>For galaxies and other small but bright objects you should adjust <i>targetBackground</i> in <i>Postprocessing / AutoSTF settings</i> section to a smaller value, like 0.10</i><br>Parameters are set in <i>Postprocessing / AutoSTF settings</i> section.</p></li><li><p>MultiscaleAdaptiveStretch - Use MultiscaleAdaptiveStretch to stretch image to non-linear.<br>You can adjust settings in <i>Postprocessing / MultiscaleAdaptiveStretch</i> section.</p></li><li><p>Masked Stretch - Use MaskedStretch to stretch image to non-linear.<br>Useful when AutoSTF generates too bright images, like on some galaxies.<br>Parameters are set in <i>Postprocessing / Masked stretch settings</i> section</p></li><li><p>VeraLuxHMS - Use VeraLux Hypermetric Stretch to stretch image to non-linear.<br>VeraLuxHMS can work well on many targets and can create saturated results.<br>Parameters are set in <i>Postprocessing / VeraLux HMS Stretch</i> section</p></li><li><p>Masked+Histogram Stretch - Use MaskedStretch with a Histogram Stretch prestretch to stretch image to non-linear.<br>Prestretch help with stars that can be too pointlike with Masked Stretch.<br>Parameters are set in <i>Postprocessing / Masked stretch settings</i> and <i>Postprocessing / Histogram stretching settings</i> sections</p></li><li><p>Histogram stretch - Using a simple histogram transformation to get histogram median or peak to the target value. Works best with images that are processed with the Crop to common area option.<br>Parameters are set in <i>Postprocessing / Histogram stretching settings</i> section</p></li><li><p>Arcsinh Stretch - Use ArcsinhStretch to stretch image to non-linear.<br>Can be useful when stretching stars to keep good star color.<br>Parameters are set in <i>Postprocessing / Arcsinh stretch settings</i> section</p></li></ul><p>There are also some experimental stretches.</p><ul><li><p>Logarithmic stretch - Parameters are set in <i>Postprocessing / Other stretching settings</i> section</p></li><li><p>Asinh+Histogram stretch - Parameters are set in <i>Postprocessing / Arcsinh stretch settings</i> and <i>Postprocessing / Histogram stretching settings</i> sections</p></li><li><p>Square root stretch - Parameters are set in <i>Postprocessing / Other stretching settings</i> section</p></li><li><p>Shadow stretch - Parameters are set in <i>Postprocessing / Other stretching settings</i> section</p></li><li><p>Highlight stretch - Parameters are set in <i>Postprocessing / Other stretching settings</i> section</p></li><li><p>None - No stretching, mainly for generating _HT files to be used with AutoContinue.</p></li></ul><p>See <i>Postprocessing / Stretching settings</i> section for stretching specific parameters.</p>",
    "values": [
     "Auto STF",
     "MultiscaleAdaptiveStretch",
@@ -9880,7 +9918,7 @@
     {
      "kind": "list",
      "label": "",
-     "tooltip": "<p>Give target type.</p><p>If target type is given then image stretching settings are selected automatically.</p><p>If no target type is given then current settings are used. They should work reasonably fine in many cases.</p><p>Galaxy works well when target is a lot brighter than the background.</p><p>Nebula works well when target fills the whole image or is not much brighter than the background.</p><p>When non-default target type is selected then stretching option is disabled.</p>",
+     "tooltip": "<p>Give target type.</p><p>If target type is given and <i>Image stretching</i> is <i>Auto</i>, then the stretching method is selected based on the target type. Galaxy and Star cluster use MultiscaleAdaptiveStretch, or Masked Stretch if MultiscaleAdaptiveStretch is not available. Nebula uses Auto STF. If a stretching method is selected explicitly, it is used regardless of the target type.</p><p>If no target type is given then current settings are used. They should work reasonably fine in many cases.</p><p>Galaxy works well when target is a lot brighter than the background.</p><p>Nebula works well when target fills the whole image or is not much brighter than the background.</p>",
      "values": [
       "Default",
       "Galaxy",
@@ -9903,7 +9941,7 @@
    "in_gui": true,
    "kind": "list",
    "label": "",
-   "tooltip": "<p>Give target type.</p><p>If target type is given then image stretching settings are selected automatically.</p><p>If no target type is given then current settings are used. They should work reasonably fine in many cases.</p><p>Galaxy works well when target is a lot brighter than the background.</p><p>Nebula works well when target fills the whole image or is not much brighter than the background.</p><p>When non-default target type is selected then stretching option is disabled.</p>",
+   "tooltip": "<p>Give target type.</p><p>If target type is given and <i>Image stretching</i> is <i>Auto</i>, then the stretching method is selected based on the target type. Galaxy and Star cluster use MultiscaleAdaptiveStretch, or Masked Stretch if MultiscaleAdaptiveStretch is not available. Nebula uses Auto STF. If a stretching method is selected explicitly, it is used regardless of the target type.</p><p>If no target type is given then current settings are used. They should work reasonably fine in many cases.</p><p>Galaxy works well when target is a lot brighter than the background.</p><p>Nebula works well when target fills the whole image or is not much brighter than the background.</p>",
    "values": [
     "Default",
     "Galaxy",
@@ -18410,8 +18448,8 @@
    "controls": [
     {
      "kind": "checkbox",
-     "label": "AutoSTF",
-     "tooltip": "<p>When checked, a preview image during the processing is always shown in a stretched (non-linear) format. Image name on top of the preview window has text AutoSTF when image is stretched for preview.</p><p>When unchecked preview image is shown in original format.</p><p>Stretched format can be useful for visualizing the current processed image.</p>",
+     "label": "AutoSTF during processing",
+     "tooltip": "<p>When checked, a preview image during the processing is always shown in a stretched (non-linear) format. Image name on top of the preview window has text AutoSTF when image is stretched for preview.</p><p>When unchecked preview image is shown in original format.</p><p>Stretched format can be useful for visualizing the current processed image.</p><p>Preview of files when browsing them in the <i>Files</i> tab is controlled by the <i>AutoSTF when browsing</i> option.</p>",
      "values": null,
      "min": null,
      "max": null,
@@ -18430,8 +18468,44 @@
    ],
    "in_gui": true,
    "kind": "checkbox",
-   "label": "AutoSTF",
-   "tooltip": "<p>When checked, a preview image during the processing is always shown in a stretched (non-linear) format. Image name on top of the preview window has text AutoSTF when image is stretched for preview.</p><p>When unchecked preview image is shown in original format.</p><p>Stretched format can be useful for visualizing the current processed image.</p>",
+   "label": "AutoSTF during processing",
+   "tooltip": "<p>When checked, a preview image during the processing is always shown in a stretched (non-linear) format. Image name on top of the preview window has text AutoSTF when image is stretched for preview.</p><p>When unchecked preview image is shown in original format.</p><p>Stretched format can be useful for visualizing the current processed image.</p><p>Preview of files when browsing them in the <i>Files</i> tab is controlled by the <i>AutoSTF when browsing</i> option.</p>",
+   "values": null,
+   "min": null,
+   "max": null
+  },
+  {
+   "key": "preview_browse_autostf",
+   "name": "Preview AutoSTF when browsing",
+   "type": "B",
+   "def": true,
+   "tip": "",
+   "applies": "interface",
+   "controls": [
+    {
+     "kind": "checkbox",
+     "label": "AutoSTF when browsing",
+     "tooltip": "<p>When checked, preview of a file when browsing files in the <i>Files</i> tab is shown in a stretched (non-linear) format.</p><p>When unchecked preview image is shown in original format. Linear images look very dark without stretching.</p><p>Blink window is always stretched.</p>",
+     "values": null,
+     "min": null,
+     "max": null,
+     "tab": "Interface",
+     "section": "Interface settings",
+     "expert": false,
+     "located": true
+    }
+   ],
+   "expert": false,
+   "tabs": [
+    "Interface"
+   ],
+   "sections": [
+    "Interface settings"
+   ],
+   "in_gui": true,
+   "kind": "checkbox",
+   "label": "AutoSTF when browsing",
+   "tooltip": "<p>When checked, preview of a file when browsing files in the <i>Files</i> tab is shown in a stretched (non-linear) format.</p><p>When unchecked preview image is shown in original format. Linear images look very dark without stretching.</p><p>Blink window is always stretched.</p>",
    "values": null,
    "min": null,
    "max": null

@@ -18365,9 +18365,11 @@ resolveAutoTool(category, candidates)
             }
       }
       for (var i = 0; i < candidates.length; i++) {
-            if (candidates[i].ai && this.global.testmode) {
+            if (candidates[i].ai && this.global.testmode && !this.par.auto_builtin_tools_only.val) {
                   // In test mode Auto uses only non-AI tools so test results do not
                   // depend on installed tools. Tools can still be selected explicitly.
+                  // Auto built-in tools only option overrides this so built-in AI tools
+                  // like MLDenoise can be tested.
                   continue;
             }
             if (candidates[i].external && this.par.auto_builtin_tools_only.val) {
@@ -18386,7 +18388,8 @@ resolveAutoTool(category, candidates)
 
 // Resolve Auto selections in Settings / Tools to the best available tools.
 // Candidate order must match the order of options in Settings / Tools.
-// Candidates with ai: true are AI based tools, they are skipped in test mode.
+// Candidates with ai: true are AI based tools, they are skipped in test mode
+// unless the Auto built-in tools only option is set.
 // Candidates with external: true are not included in PixInsight, they are skipped
 // with the Auto built-in tools only option.
 resolveAutoTools()
