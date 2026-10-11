@@ -827,7 +827,8 @@ this.run_results = {
       final_image_file: '',         // final image file
       fatal_error: '',              // if non-empty, fatal error during processing
       processing_errors: '',        // processing errors reported during processing
-      testmode_log_name: ''         // test mode log file name
+      testmode_log_name: '',        // test mode log file name
+      intermediate_dirs: []         // AutoOutput and AutoCalibrated directories used during processing
 };
 
 this.console_hidden = false;  // true if console is hidden

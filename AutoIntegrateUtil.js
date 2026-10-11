@@ -1425,6 +1425,19 @@ setOutputRootDir(path)
             console.noteln("setOutputRootDir, new outputRootDir " + path);
             this.global.outputRootDir = path;
       }
+      if (this.global.testmode && path != "") {
+            // Remember intermediate file directories so test runs can clean them up
+            var dirs = [ this.global.AutoOutputDir, this.global.AutoCalibratedDir ];
+            for (var i = 0; i < dirs.length; i++) {
+                  if (dirs[i] == null || dirs[i] == ".") {
+                        continue;
+                  }
+                  var dir = this.combinePath(path, dirs[i]);
+                  if (this.global.run_results.intermediate_dirs.indexOf(dir) < 0) {
+                        this.global.run_results.intermediate_dirs.push(dir);
+                  }
+            }
+      }
 }
 
 getOutputDir(filePath)
