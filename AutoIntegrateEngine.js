@@ -1742,8 +1742,27 @@ treeboxfilesToFilenames(treeboxfiles)
 Function to open image files, or Json file.      
 
 */
+// In test mode a file dialog would stop the test run. Log an error instead
+// and return true so the caller can stop processing.
+fileDialogDisabledInTestMode(filetype)
+{
+      if (!this.global.testmode) {
+            return false;
+      }
+      var txt = "No " + filetype + " files found, file dialog is disabled in test mode";
+      console.criticalln("Error: " + txt);
+      if (this.global.run_results.fatal_error == "") {
+            this.global.run_results.fatal_error = txt;
+      }
+      return true;
+}
+
 openImageFiles(filetype, lights_only, json_only, filetype_is_full_caption)
 {
+      if (this.fileDialogDisabledInTestMode(filetype)) {
+            return null;
+      }
+
       var ofd = new OpenFileDialog;
 
       ofd.multipleSelections = true;
@@ -1829,6 +1848,10 @@ openImageFiles(filetype, lights_only, json_only, filetype_is_full_caption)
 openDirectoryFiles(filetype, file_filter, lights_only, filetype_is_full_caption, pageIndex)
 {
       console.writeln("openDirectoryFiles: " + filetype + " " + file_filter);
+
+      if (this.fileDialogDisabledInTestMode(filetype)) {
+            return null;
+      }
 
       var gdd = new GetDirectoryDialog;
 
