@@ -875,7 +875,7 @@ skyModelContrast(values)
 autoStretchingAnalysis(win, selected_stretching)
 {
       const min_contrast = 10;            // MultiscaleAdaptiveStretch needs at least this contrast
-      const min_bright_area = 0.018;      // MultiscaleAdaptiveStretch needs at least this bright area
+      const min_bright_area = 0.015;      // MultiscaleAdaptiveStretch needs at least this bright area
       const sky_limit = 1;                // sky tile limit in noise units, logged for comparison
       const min_sky_fraction = 0.25;      // sky fraction limit, logged for comparison
 
