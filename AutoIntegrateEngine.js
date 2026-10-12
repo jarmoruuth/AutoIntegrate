@@ -429,6 +429,7 @@ limitLightFiles(fileNames, auto_continue)
 // Pick a subset of light files for each filter. Function count_func gets
 // the number of files for a filter and returns the number of files to use.
 // Files are picked evenly from the whole list so they cover the whole session.
+// User selected reference images are always included in the subset.
 pickLightFiles(fileNames, count_func, txt)
 {
       var original_len = fileNames.length;
@@ -441,8 +442,28 @@ pickLightFiles(fileNames, count_func, txt)
                   continue;
             }
             var cnt = Math.min(count_func(files.length), files.length);
+            var picked_indexes = [];
             for (var j = 0; j < cnt; j++) {
-                  picked_files.push(files[Math.floor(j * files.length / cnt)].name);
+                  picked_indexes.push(Math.floor(j * files.length / cnt));
+            }
+            // Replace the nearest picked file with the user selected reference image
+            for (var j = 0; j < this.global.user_selected_reference_image.length; j++) {
+                  var refImage = this.global.user_selected_reference_image[j][0];
+                  var ref_index = files.findIndex((f) => this.util.compareReferenceFileNames(refImage, f.name, ''));
+                  if (ref_index < 0 || picked_indexes.indexOf(ref_index) >= 0) {
+                        continue;
+                  }
+                  var nearest = 0;
+                  for (var k = 1; k < picked_indexes.length; k++) {
+                        if (Math.abs(picked_indexes[k] - ref_index) < Math.abs(picked_indexes[nearest] - ref_index)) {
+                              nearest = k;
+                        }
+                  }
+                  console.writeln("pickLightFiles, include user selected reference image " + refImage);
+                  picked_indexes[nearest] = ref_index;
+            }
+            for (var j = 0; j < picked_indexes.length; j++) {
+                  picked_files.push(files[picked_indexes[j]].name);
             }
             this.util.addProcessingStep(txt + ", filter " + allfilesarr[i].filter + ", using " + cnt + " of " + files.length + " files");
       }
@@ -4081,7 +4102,14 @@ updateFilesInfo(parent, files, filearr, filter, filename_postfix)
                   }
             }
             if (i == filearr.length) {
-                  this.util.throwFatalError("User selected reference image " + refImage + " for filter " + filter + " not found from image list, filename_postfix " + filename_postfix);
+                  if (this.par.fast_mode.val || this.global.max_lights_per_filter > 0) {
+                        // Reference image can be dropped from a subset of files, or have
+                        // a different name after fast mode binning
+                        this.util.addWarningStatus("User selected reference image " + refImage + " for filter " + filter + " not found from a subset of images, using automatic reference image");
+                        refImage = null;
+                  } else {
+                        this.util.throwFatalError("User selected reference image " + refImage + " for filter " + filter + " not found from image list, filename_postfix " + filename_postfix);
+                  }
             }
       }
 
