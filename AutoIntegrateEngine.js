@@ -319,14 +319,17 @@ imageIsLinear(window, median = null, stdDev = null)
 getFastModeBinning(imgWin)
 {
       switch (this.par.fast_mode_opt.val) {
+            case 'Subset':
+                  // Use full image size
+                  return 1;
             case 'S':
                   // Use smallest image size
-                  // Longest side of image should be less than 1024
+                  // Longest side of image should be at most 2048
                   var image_size = Math.max(imgWin.mainView.image.width, imgWin.mainView.image.height);
                   break;
             case 'M':
                   // Use medium image size
-                  // Shortest side of image should be less than 2048
+                  // Shortest side of image should be at most 2048
                   var image_size = Math.min(imgWin.mainView.image.width, imgWin.mainView.image.height);
                   break;
             default:
@@ -350,6 +353,14 @@ filterFilesForFastMode(fileNames, auto_continue, filetype)
       }
       if (auto_continue) {
             return fileNames;
+      } else if (this.par.fast_mode.val && this.par.fast_mode_opt.val == 'Subset') {
+            // Use a subset of light files with full image size. Calibration
+            // files are not changed so master files use all files.
+            if (filetype != this.global.pages.LIGHTS) {
+                  return fileNames;
+            }
+            // For each filter, get 10%, or at least 10 images
+            return this.pickLightFiles(fileNames, (len) => Math.max(10, Math.floor(len / 10)), "Fast mode subset");
       } else if (this.par.fast_mode.val) {
             // Get a subset of images for fast mode
             var original_len = fileNames.length;
@@ -394,7 +405,7 @@ filterFilesForFastMode(fileNames, auto_continue, filetype)
             console.writeln("filterFilesForFastMode, binning " + binning);
 
             if (binning > 1) {
-                  fileNames = this.runBinningOnFiles(fileNames, 2, 2, null, null, "_fb" + binning);
+                  fileNames = this.runBinningOnFiles(fileNames, 2, binning, null, null, "_fb" + binning);
             }
             return fileNames;
       } else {
@@ -412,23 +423,31 @@ limitLightFiles(fileNames, auto_continue)
             return fileNames;
       }
       var max_files = this.global.max_lights_per_filter;
+      return this.pickLightFiles(fileNames, (len) => max_files, "Limit lights");
+}
+
+// Pick a subset of light files for each filter. Function count_func gets
+// the number of files for a filter and returns the number of files to use.
+// Files are picked evenly from the whole list so they cover the whole session.
+pickLightFiles(fileNames, count_func, txt)
+{
       var original_len = fileNames.length;
       var filtered_files = this.getFilterFiles(fileNames, this.global.pages.LIGHTS, '');
       var allfilesarr = filtered_files.allfilesarr;
-      var limited_files = [];
+      var picked_files = [];
       for (var i = 0; i < allfilesarr.length; i++) {
             var files = allfilesarr[i].files;
             if (files.length == 0) {
                   continue;
             }
-            var cnt = Math.min(max_files, files.length);
+            var cnt = Math.min(count_func(files.length), files.length);
             for (var j = 0; j < cnt; j++) {
-                  limited_files.push(files[Math.floor(j * files.length / cnt)].name);
+                  picked_files.push(files[Math.floor(j * files.length / cnt)].name);
             }
-            this.util.addProcessingStep("Limit lights for filter " + allfilesarr[i].filter + " to " + cnt + " of " + files.length + " files");
+            this.util.addProcessingStep(txt + ", filter " + allfilesarr[i].filter + ", using " + cnt + " of " + files.length + " files");
       }
-      console.writeln("limitLightFiles, max " + max_files + " per filter, original files " + original_len + ", limited files " + limited_files.length);
-      return limited_files;
+      console.writeln("pickLightFiles, " + txt + ", original files " + original_len + ", picked files " + picked_files.length);
+      return picked_files;
 }
 
 // Filter files for this.global.get_flowchart_data.

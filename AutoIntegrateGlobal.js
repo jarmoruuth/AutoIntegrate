@@ -292,7 +292,7 @@ this.par = {
       RRGB_image: { val: false, def: false, name : "RRGB", type : 'B', applies : "color mono" },
       batch_mode: { val: false, def: false, name : "Batch mode", type : 'B' },
       fast_mode: { val: false, def: false, name : "Fast mode", type : 'B' },
-      fast_mode_opt: { val: 'S', def: 'S', name : "Fast mode opt", type : 'S' },
+      fast_mode_opt: { val: 'Subset', def: 'Subset', name : "Fast mode opt", type : 'S' },
       substack_mode: { val: false, def: false, name : "Substack mode", type : 'B' },
       substack_count: { val: 10, def: 10, name : "Substack count", type : 'I' },
       skip_autodetect_filter: { val: false, def: false, name : "Do not autodetect FILTER keyword", type : 'B' },

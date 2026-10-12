@@ -222,7 +222,7 @@ this.RGBHa_combine_time_values = [ 'Stretched', 'SPCC linear' ];
 this.RGBHa_combine_method_values = [ 'Bright structure add', 'Screen', 'Med subtract add', 'Max', 'Add', 'None' ];
 this.color_calibration_time_values = [ 'auto', 'linear', 'nonlinear', 'both' ];
 this.RGBHa_test_values = [ 'Mapping', 'Continuum', 'All mappings' ];
-this.fast_mode_values = [ 'S', 'M' ];
+this.fast_mode_values = [ 'Subset', 'S', 'M' ];
 this.windows_at_end_values = [ 'Keep all images', 'Close info windows', 'Keep integrated and final images', 'Keep only final images' ];
 this.drizzle_function_values = [ 'Square', 'Circular', 'Gaussian' ];
 
@@ -5489,12 +5489,24 @@ AutoIntegrateDialog()
             "<p>Final images are renamed using the subdirectory name. It is " + 
             "recommended that each part of the batch is stored in a separate directory (like for example P1, P2, etc.).</p>" +
             "<p>Batch mode works only with calibrated light images.</p>");
-      this.fast_mode_CheckBox = this.guitools.newCheckBox(this, "Fast mode", this.par.fast_mode, 
-            "<p>Run in fast mode where images are downsampled to a smaller size and only 10% or minimum of 3 images are used.</p>" +
-            "<p>With full processing, all light and possibly calibration images are downsampled.</p>" +
-            "<p>With AutoContinue, all integrated images (Integration_[LRGBHSO]) are downsampled. For other AutoContinue starting points the fast mode is ignored.</p>" +
-            "<p>Fast mode can be useful to do a quick overview of processing before committing to full processing.</p>" );
-      this.fast_mode_ComboBox = this.guitools.newComboBox(this, this.par.fast_mode_opt, this.fast_mode_values, "<p>S uses smaller images, M uses bigger images.</p>");
+      var fast_mode_tooltip = 
+            "<p>Run in fast mode where only a subset of images is used, and optionally images are downsampled to a smaller size. " + 
+            "Fast mode can be useful to do a quick overview of processing before committing to full processing, " + 
+            "for example to check if a data set is good or to try out options or narrowband palettes.</p>" +
+            "<p>Fast mode options:</p>" +
+            "<ul>" +
+            "<li>Subset uses 10%, or at least 10 light files for each filter with full image size. " + 
+                "Calibration files are not changed so master files are created using all files. " + 
+                "Only the selected light files are calibrated and processed.</li>" +
+            "<li>S uses 10%, or at least 3 light and calibration files, and downsamples images so that the longest side is at most 2048 pixels.</li>" +
+            "<li>M uses 10%, or at least 3 light and calibration files, and downsamples images so that the shortest side is at most 2048 pixels.</li>" +
+            "</ul>" +
+            "<p>Light files are picked evenly from the whole list. Fast mode works with both calibrated and uncalibrated light files.</p>" +
+            "<p>Image quality checks like SubframeSelector see only the selected files, so fast mode does not tell which individual files in the full data set are bad.</p>" +
+            "<p>With AutoContinue, options S and M downsample all integrated images (Integration_[LRGBHSO]). " + 
+            "Option Subset and other AutoContinue starting points ignore fast mode.</p>";
+      this.fast_mode_CheckBox = this.guitools.newCheckBox(this, "Fast mode", this.par.fast_mode, fast_mode_tooltip);
+      this.fast_mode_ComboBox = this.guitools.newComboBox(this, this.par.fast_mode_opt, this.fast_mode_values, fast_mode_tooltip);
       this.autodetect_imagetyp_CheckBox = this.guitools.newCheckBox(this, "Do not use IMAGETYP keyword", this.par.skip_autodetect_imagetyp, 
             "<p>If selected do not try to autodetect calibration files based on IMAGETYP keyword.</p>" );
       this.autodetect_filter_CheckBox = this.guitools.newCheckBoxEx(this, "Do not use FILTER keyword", this.par.skip_autodetect_filter, 
