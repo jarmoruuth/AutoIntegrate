@@ -528,6 +528,12 @@ load_setup(setup_path)
       console.writeln("load_setup " + setup_path);
 
       var pagearray = this.util.readJsonFile(setup_path, false);
+      if (pagearray == null) {
+            var txt = "No files found from setup file " + setup_path;
+            console.criticalln("Error: " + txt);
+            this.global.run_results.fatal_error = txt;
+            return false;
+      }
 
       for (var i = 0; i < pagearray.length; i++) {
             if (pagearray[i] != null) {
@@ -537,6 +543,7 @@ load_setup(setup_path)
       this.gui.updateInfoLabel(this.dialog);
 
       console.writeln("load_setup done");
+      return true;
 }
 
 test_nopreview()
@@ -745,7 +752,9 @@ autointegrate_main(runsetuppath = null)
       if (runsetuppath != null) {
             console.noteln("Using JSON file: " + runsetuppath);
             // Load Json file
-            this.load_setup(runsetuppath);
+            if (!this.load_setup(runsetuppath)) {
+                  return;
+            }
             // Run processing directly
             this.dialog.run_Button.onClick();
       } else {

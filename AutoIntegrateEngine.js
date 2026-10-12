@@ -1845,6 +1845,9 @@ openImageFiles(filetype, lights_only, json_only, filetype_is_full_caption)
              * If not lights_only, return treebox files for each page
              */
             var pagearray = this.util.readJsonFile(ofd.filePaths[0], lights_only);
+            if (pagearray == null) {
+                  return null;
+            }
             if (lights_only) {
                   if (pagearray[this.global.pages.LIGHTS] == null) {
                         return null;
