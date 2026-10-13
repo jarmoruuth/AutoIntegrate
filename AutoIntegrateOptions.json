@@ -1,6 +1,6 @@
 {
  "version": "AutoIntegrate v1.87.5",
- "generated": "Sat Oct 10 2026 22:02:02 GMT+0300 (FLE Daylight Time)",
+ "generated": "Tue Oct 13 2026 23:16:39 GMT+0300 (FLE Daylight Time)",
  "options": [
   {
    "key": "local_normalization",
@@ -1067,7 +1067,7 @@
     {
      "kind": "checkbox",
      "label": "Fast integration",
-     "tooltip": "<p>If checked, use FastIntegration process instead of ImageIntegration process when integrating light images.</p><p>In <i>Integration</i> tab there are some settings for FastIntegration.</p>",
+     "tooltip": "<p>If checked, use FastIntegration process instead of ImageIntegration process when integrating light images.</p><p>Reference image is the best image from the middle half of the files if its SSWEIGHT is at least 80% of the best image. With field rotation and drift, for example on alt-az mounts, a reference from the middle of the session gives less low coverage area. Files are assumed to be in time order.</p><p>In <i>Integration</i> tab there are some settings for FastIntegration.</p>",
      "values": null,
      "min": null,
      "max": null,
@@ -1087,7 +1087,7 @@
    "in_gui": true,
    "kind": "checkbox",
    "label": "Fast integration",
-   "tooltip": "<p>If checked, use FastIntegration process instead of ImageIntegration process when integrating light images.</p><p>In <i>Integration</i> tab there are some settings for FastIntegration.</p>",
+   "tooltip": "<p>If checked, use FastIntegration process instead of ImageIntegration process when integrating light images.</p><p>Reference image is the best image from the middle half of the files if its SSWEIGHT is at least 80% of the best image. With field rotation and drift, for example on alt-az mounts, a reference from the middle of the session gives less low coverage area. Files are assumed to be in time order.</p><p>In <i>Integration</i> tab there are some settings for FastIntegration.</p>",
    "values": null,
    "min": null,
    "max": null
@@ -1967,7 +1967,7 @@
     {
      "kind": "checkbox",
      "label": "Fast mode",
-     "tooltip": "<p>Run in fast mode where images are downsampled to a smaller size and only 10% or minimum of 3 images are used.</p><p>With full processing, all light and possibly calibration images are downsampled.</p><p>With AutoContinue, all integrated images (Integration_[LRGBHSO]) are downsampled. For other AutoContinue starting points the fast mode is ignored.</p><p>Fast mode can be useful to do a quick overview of processing before committing to full processing.</p>",
+     "tooltip": "<p>Run in fast mode where only a subset of images is used, and optionally images are downsampled to a smaller size. Fast mode can be useful to do a quick overview of processing before committing to full processing, for example to check if a data set is good or to try out options or narrowband palettes.</p><p>Fast mode options:</p><ul><li>Subset uses 10%, or at least 10 light files for each filter with full image size. Calibration files are not changed so master files are created using all files. Only the selected light files are calibrated and processed.</li><li>S uses 10%, or at least 3 light and calibration files, and downsamples images so that the longest side is at most 2048 pixels.</li><li>M uses 10%, or at least 3 light and calibration files, and downsamples images so that the shortest side is at most 2048 pixels.</li></ul><p>Light files are picked evenly from the whole list. Fast mode works with both calibrated and uncalibrated light files.</p><p>Image quality checks like SubframeSelector see only the selected files, so fast mode does not tell which individual files in the full data set are bad.</p><p>With AutoContinue, options S and M downsample all integrated images (Integration_[LRGBHSO]). Option Subset and other AutoContinue starting points ignore fast mode.</p>",
      "values": null,
      "min": null,
      "max": null,
@@ -1987,7 +1987,7 @@
    "in_gui": true,
    "kind": "checkbox",
    "label": "Fast mode",
-   "tooltip": "<p>Run in fast mode where images are downsampled to a smaller size and only 10% or minimum of 3 images are used.</p><p>With full processing, all light and possibly calibration images are downsampled.</p><p>With AutoContinue, all integrated images (Integration_[LRGBHSO]) are downsampled. For other AutoContinue starting points the fast mode is ignored.</p><p>Fast mode can be useful to do a quick overview of processing before committing to full processing.</p>",
+   "tooltip": "<p>Run in fast mode where only a subset of images is used, and optionally images are downsampled to a smaller size. Fast mode can be useful to do a quick overview of processing before committing to full processing, for example to check if a data set is good or to try out options or narrowband palettes.</p><p>Fast mode options:</p><ul><li>Subset uses 10%, or at least 10 light files for each filter with full image size. Calibration files are not changed so master files are created using all files. Only the selected light files are calibrated and processed.</li><li>S uses 10%, or at least 3 light and calibration files, and downsamples images so that the longest side is at most 2048 pixels.</li><li>M uses 10%, or at least 3 light and calibration files, and downsamples images so that the shortest side is at most 2048 pixels.</li></ul><p>Light files are picked evenly from the whole list. Fast mode works with both calibrated and uncalibrated light files.</p><p>Image quality checks like SubframeSelector see only the selected files, so fast mode does not tell which individual files in the full data set are bad.</p><p>With AutoContinue, options S and M downsample all integrated images (Integration_[LRGBHSO]). Option Subset and other AutoContinue starting points ignore fast mode.</p>",
    "values": null,
    "min": null,
    "max": null
@@ -1996,15 +1996,16 @@
    "key": "fast_mode_opt",
    "name": "Fast mode opt",
    "type": "S",
-   "def": "S",
+   "def": "Subset",
    "tip": "",
    "applies": "",
    "controls": [
     {
      "kind": "list",
      "label": "",
-     "tooltip": "<p>S uses smaller images, M uses bigger images.</p>",
+     "tooltip": "<p>Run in fast mode where only a subset of images is used, and optionally images are downsampled to a smaller size. Fast mode can be useful to do a quick overview of processing before committing to full processing, for example to check if a data set is good or to try out options or narrowband palettes.</p><p>Fast mode options:</p><ul><li>Subset uses 10%, or at least 10 light files for each filter with full image size. Calibration files are not changed so master files are created using all files. Only the selected light files are calibrated and processed.</li><li>S uses 10%, or at least 3 light and calibration files, and downsamples images so that the longest side is at most 2048 pixels.</li><li>M uses 10%, or at least 3 light and calibration files, and downsamples images so that the shortest side is at most 2048 pixels.</li></ul><p>Light files are picked evenly from the whole list. Fast mode works with both calibrated and uncalibrated light files.</p><p>Image quality checks like SubframeSelector see only the selected files, so fast mode does not tell which individual files in the full data set are bad.</p><p>With AutoContinue, options S and M downsample all integrated images (Integration_[LRGBHSO]). Option Subset and other AutoContinue starting points ignore fast mode.</p>",
      "values": [
+      "Subset",
       "S",
       "M"
      ],
@@ -2026,8 +2027,9 @@
    "in_gui": true,
    "kind": "list",
    "label": "",
-   "tooltip": "<p>S uses smaller images, M uses bigger images.</p>",
+   "tooltip": "<p>Run in fast mode where only a subset of images is used, and optionally images are downsampled to a smaller size. Fast mode can be useful to do a quick overview of processing before committing to full processing, for example to check if a data set is good or to try out options or narrowband palettes.</p><p>Fast mode options:</p><ul><li>Subset uses 10%, or at least 10 light files for each filter with full image size. Calibration files are not changed so master files are created using all files. Only the selected light files are calibrated and processed.</li><li>S uses 10%, or at least 3 light and calibration files, and downsamples images so that the longest side is at most 2048 pixels.</li><li>M uses 10%, or at least 3 light and calibration files, and downsamples images so that the shortest side is at most 2048 pixels.</li></ul><p>Light files are picked evenly from the whole list. Fast mode works with both calibrated and uncalibrated light files.</p><p>Image quality checks like SubframeSelector see only the selected files, so fast mode does not tell which individual files in the full data set are bad.</p><p>With AutoContinue, options S and M downsample all integrated images (Integration_[LRGBHSO]). Option Subset and other AutoContinue starting points ignore fast mode.</p>",
    "values": [
+    "Subset",
     "S",
     "M"
    ],
@@ -10538,7 +10540,7 @@
     {
      "kind": "checkbox",
      "label": "Fast SubframeSelector",
-     "tooltip": "<p>Run SubframeSelector only to a subset of images when using FastIntegration. SubframeSelector is used only to find the reference image.</p><p>When this option is used then the first 32 images in the list are used to find the reference image unless reference image is selected manually.</p>",
+     "tooltip": "<p>Run SubframeSelector only to a subset of images when using FastIntegration. SubframeSelector is used only to find the reference image.</p><p>When this option is used then 32 images picked evenly from the whole list are used to find the reference image unless reference image is selected manually. Outlier filtering is not done since only a subset of images is measured.</p>",
      "values": null,
      "min": null,
      "max": null,
@@ -10558,7 +10560,7 @@
    "in_gui": true,
    "kind": "checkbox",
    "label": "Fast SubframeSelector",
-   "tooltip": "<p>Run SubframeSelector only to a subset of images when using FastIntegration. SubframeSelector is used only to find the reference image.</p><p>When this option is used then the first 32 images in the list are used to find the reference image unless reference image is selected manually.</p>",
+   "tooltip": "<p>Run SubframeSelector only to a subset of images when using FastIntegration. SubframeSelector is used only to find the reference image.</p><p>When this option is used then 32 images picked evenly from the whole list are used to find the reference image unless reference image is selected manually. Outlier filtering is not done since only a subset of images is measured.</p>",
    "values": null,
    "min": null,
    "max": null
