@@ -8516,8 +8516,12 @@ runGCProcess(win, replaceTarget, postfix, from_lights)
       if (!succp) {
             // GradientCorrection can fail for example with "Insufficient data to sample gradient".
             // Image is unchanged, use ABE on it so we still get gradient correction.
+            // End the GradientCorrection node without an image so that only ABE is
+            // saved as a processing step to the image.
             this.util.addWarningStatus("GradientCorrection failed on image " + win.mainView.id + ", using ABE");
+            this.engine_end_process(node);
             this.runABEex(win, true, "", true);
+            return GC_id;
       }
 
       this.engine_end_process(node, this.util.findWindow(GC_id), "GradientCorrection");
