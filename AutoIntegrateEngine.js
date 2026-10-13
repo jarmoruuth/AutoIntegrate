@@ -3550,15 +3550,19 @@ subframeSelectorMeasure(fileNames, weight_filtering, treebox_filtering, measurem
 
       // We filter outliers here so they are not included in the
       // min/max calculations below
+      // In fast mode only a subset of files is measured, so we do not filter
+      // outliers, otherwise only measured files could be filtered
       var filtered_files = [];
-      measurements = this.filterOutliers(measurements, "FWHM", indexFWHM, this.par.outliers_fwhm.val, indexPath, filtered_files);
-      measurements = this.filterOutliers(measurements, "Eccentricity", indexEccentricity, this.par.outliers_ecc.val, indexPath, filtered_files);
-      measurements = this.filterOutliers(measurements, "SNR", indexSNRWeight, this.par.outliers_snr.val, indexPath, filtered_files);
-      if (this.global.pixinsight_version_num >= 1080810) {
-            measurements = this.filterOutliers(measurements, "PSF Signal", indexPSFSignal, this.par.outliers_psfsignal.val, indexPath, filtered_files);
-            measurements = this.filterOutliers(measurements, "PSF Power", indexPSFPower, this.par.outliers_psfpower.val, indexPath, filtered_files);
+      if (!fast_mode) {
+            measurements = this.filterOutliers(measurements, "FWHM", indexFWHM, this.par.outliers_fwhm.val, indexPath, filtered_files);
+            measurements = this.filterOutliers(measurements, "Eccentricity", indexEccentricity, this.par.outliers_ecc.val, indexPath, filtered_files);
+            measurements = this.filterOutliers(measurements, "SNR", indexSNRWeight, this.par.outliers_snr.val, indexPath, filtered_files);
+            if (this.global.pixinsight_version_num >= 1080810) {
+                  measurements = this.filterOutliers(measurements, "PSF Signal", indexPSFSignal, this.par.outliers_psfsignal.val, indexPath, filtered_files);
+                  measurements = this.filterOutliers(measurements, "PSF Power", indexPSFPower, this.par.outliers_psfpower.val, indexPath, filtered_files);
+            }
+            measurements = this.filterOutliers(measurements, "Stars", indexStars, this.par.outliers_stars.val, indexPath, filtered_files);
       }
-      measurements = this.filterOutliers(measurements, "Stars", indexStars, this.par.outliers_stars.val, indexPath, filtered_files);
 
       console.writeln("subframeSelectorMeasure:calculate weight");
 
@@ -3786,10 +3790,14 @@ runSubframeSelector(fileNames)
       if (this.par.use_fastintegration.val && this.par.fastintegration_fast_subframeselector.val) {
             this.util.addProcessingStepAndStatusInfo("Run SubframeSelector on subset of files");
             var fast_measure = true;
-            // Measure only 32 first images
-            var measured_files = fileNames.slice(0, 32);
-            // save rest of files
-            var rest_files = fileNames.slice(32);
+            // Measure only 32 images, picked evenly from the whole list so that
+            // the reference image can come from any part of the session
+            var cnt = Math.min(32, fileNames.length);
+            var measured_files = [];
+            for (var i = 0; i < cnt; i++) {
+                  measured_files.push(fileNames[Math.floor(i * fileNames.length / cnt)]);
+            }
+            this.util.addProcessingStep("Fast SubframeSelector, measure " + cnt + " of " + fileNames.length + " files");
       } else {
             this.util.addProcessingStepAndStatusInfo("Run SubframeSelector");
             var fast_measure = false;
@@ -3818,17 +3826,17 @@ runSubframeSelector(fileNames)
             }
       } else if (fast_measure) {
             // Do not generate output files
+            // Keep all files in original order, files that were not measured get weight 0
             var postfix = "";
+            var measured_weights = {};
             for (var i = 0; i < ssWeights.length; i++) {
-                  var filePath = ssWeights[i][0];
-                  if (filePath != null && filePath != "") {
-                        newFileNames[newFileNames.length] = filePath;
-                  }
+                  measured_weights[ssWeights[i][0]] = ssWeights[i][1];
             }
-            // Add rest of files to newFileNames and add empty weights to ssWeights
-            for (var i = 0; i < rest_files.length; i++) {
-                  newFileNames[newFileNames.length] = rest_files[i];
-                  ssWeights[ssWeights.length] = [ rest_files[i], 0 ];
+            ssWeights = [];
+            for (var i = 0; i < fileNames.length; i++) {
+                  var weight = measured_weights[fileNames[i]];
+                  newFileNames[newFileNames.length] = fileNames[i];
+                  ssWeights[ssWeights.length] = [ fileNames[i], weight == undefined ? 0 : weight ];
             }
       } else {
             /* Basically we could skip writing SSWEIGHT to output files as we have that
@@ -3891,6 +3899,17 @@ findBestSSWEIGHT(parent, names_and_weights, filename_postfix)
       } else {
             var ssweight_limit = this.par.ssweight_limit.val;
       }
+
+      // With FastIntegration prefer a reference image from the middle half of the files.
+      // With field rotation and drift a reference from the middle is closest to all other
+      // images, so less of the integrated image has low coverage. Files are assumed to be
+      // in time order.
+      var prefer_middle = this.par.use_fastintegration.val;
+      var middle_start = Math.floor(fileNames.length / 4);
+      var middle_end = fileNames.length - middle_start;
+      var middle_best_image = null;
+      var middle_best_ssweight = 0;
+      var middle_best_naxis = 0;
 
       this.global.best_ssweight = 0;
       this.global.best_image = null;
@@ -3987,6 +4006,14 @@ findBestSSWEIGHT(parent, names_and_weights, filename_postfix)
                               best_ssweight_naxis = naxis1;
                               first_image = false;
                         }
+                        if (prefer_middle && i >= middle_start && i < middle_end
+                            && ssweight > 0
+                            && (naxis1 > middle_best_naxis || (ssweight > middle_best_ssweight && naxis1 == middle_best_naxis)))
+                        {
+                              middle_best_image = filePath;
+                              middle_best_ssweight = ssweight;
+                              middle_best_naxis = naxis1;
+                        }
                   } else {
                         console.writeln("below ssweight limit " + this.par.ssweight_limit.val + ", skip image");
                         accept_file = false;
@@ -4001,6 +4028,18 @@ findBestSSWEIGHT(parent, names_and_weights, filename_postfix)
       }
       if (newFileNames.length == 0) {
             this.util.throwFatalError("No files found for processing.");
+      }
+      if (middle_best_image != null && middle_best_image != this.global.best_image) {
+            // SSWEIGHT values have no fixed scale, so compare to the best image
+            if (middle_best_naxis == best_ssweight_naxis && middle_best_ssweight >= 0.8 * this.global.best_ssweight) {
+                  this.util.addProcessingStep("Using best image from the middle of the files " + middle_best_image +
+                                              ", ssweight " + middle_best_ssweight + " (best " + this.global.best_ssweight + ")");
+                  this.global.best_image = middle_best_image;
+                  this.global.best_ssweight = middle_best_ssweight;
+            } else {
+                  console.writeln("Best image from the middle of the files " + middle_best_image +
+                                  " has too low ssweight " + middle_best_ssweight + ", using best image");
+            }
       }
       if (found_user_selected_best_image != null || file_name_text_best_image != null) {
             if (found_user_selected_best_image != null) {
@@ -7500,6 +7539,9 @@ runFastIntegration(integration_images, name, refImage)
 
       this.util.copyKeywordsFromFile(new_name, refImage);
 
+      // FastIntegration keeps IMAGETYP of the reference image
+      this.setImagetypKeyword(ImageWindow.windowById(new_name), "Master light");
+
       return new_name;
 }
 
@@ -8464,16 +8506,19 @@ runGCProcess(win, replaceTarget, postfix, from_lights)
       }
 
       var succp = P.executeOn(win.mainView, false);
-      if (!succp) {
-            this.util.addCriticalStatus("GradientCorrection failed");
-      } else {
-            if (this.par.debug.val) {
-                  this.util.closeOneWindowById(win.mainView.id + "_GC_after");
-                  this.util.copyWindowEx(win, win.mainView.id + "_GC_after", true);
-            }
+      if (succp && this.par.debug.val) {
+            this.util.closeOneWindowById(win.mainView.id + "_GC_after");
+            this.util.copyWindowEx(win, win.mainView.id + "_GC_after", true);
       }
 
       this.printAndSaveProcessValues(P, this.findChannelFromNameIf(win.mainView.id), win.mainView.id);
+
+      if (!succp) {
+            // GradientCorrection can fail for example with "Insufficient data to sample gradient".
+            // Image is unchanged, use ABE on it so we still get gradient correction.
+            this.util.addWarningStatus("GradientCorrection failed on image " + win.mainView.id + ", using ABE");
+            this.runABEex(win, true, "", true);
+      }
 
       this.engine_end_process(node, this.util.findWindow(GC_id), "GradientCorrection");
 
@@ -13071,9 +13116,20 @@ createChannelImages(parent, auto_continue)
                   this.util.addProcessingStep("There are already preprocessed images, processing not started!");
                   this.util.addProcessingStep("Close or rename old images before continuing.");
                   return this.retval.ERROR;
+            } else if (this.preprocessed_images != this.global.start_images.FINAL
+                       && this.util.findWindowFromArray(this.global.final_windows))
+            {
+                  // Final image would get the same name, fail now instead of at the end of processing
+                  var final_id = this.global.final_windows.find((id) => this.util.findWindow(id) != null);
+                  this.util.addProcessingStep("There is already a final image " + final_id + ", processing not started!");
+                  this.util.addProcessingStep("Close or rename old images before continuing.");
+                  return this.retval.ERROR;
             }
       } else {
-            if (this.preprocessed_images != this.global.start_images.NONE || this.util.findWindowFromArray(this.global.fixed_windows)) {
+            if (this.preprocessed_images != this.global.start_images.NONE
+                || this.util.findWindowFromArray(this.global.fixed_windows)
+                || this.util.findWindowFromArray(this.global.final_windows))
+            {
                   this.util.addProcessingStep("There are already preprocessed images, processing not started!");
                   this.util.addProcessingStep("Close or rename old images before continuing.");
                   return this.retval.ERROR;

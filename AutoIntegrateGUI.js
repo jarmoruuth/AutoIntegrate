@@ -5337,6 +5337,9 @@ AutoIntegrateDialog()
             "<p>For more details see the help icon in <i>CometAlignment settings</i> section.</p>");
       this.fastIntegrationCheckBox = this.guitools.newCheckBox(this, "Fast integration", this.par.use_fastintegration, 
             "<p>If checked, use FastIntegration process instead of ImageIntegration process when integrating light images.</p>" +
+            "<p>Reference image is the best image from the middle half of the files if its SSWEIGHT is at least 80% of the best image. " +
+            "With field rotation and drift, for example on alt-az mounts, a reference from the middle of the session gives less low coverage area. " +
+            "Files are assumed to be in time order.</p>" +
             "<p>In <i>Integration</i> tab there are some settings for FastIntegration.</p>");
       this.CalibrateOnlyCheckBox = this.guitools.newCheckBox(this, "Calibrate only", this.par.calibrate_only,
             "<p>Stop after image calibration step.</p>" +
@@ -7100,7 +7103,8 @@ AutoIntegrateDialog()
                   "<p>Alignment error tolerance. You can try increasing the value if alignment fails.</p>");
       this.fastIntegrationSubframeSelectorCheckBox = this.guitools.newCheckBox(this, "Fast SubframeSelector", this.par.fastintegration_fast_subframeselector, 
             "<p>Run SubframeSelector only to a subset of images when using FastIntegration. SubframeSelector is used only to find the reference image.</p>" +
-            "<p>When this option is used then the first 32 images in the list are used to find the reference image unless reference image is selected manually.</p>");
+            "<p>When this option is used then 32 images picked evenly from the whole list are used to find the reference image unless reference image is selected manually. " +
+            "Outlier filtering is not done since only a subset of images is measured.</p>");
       this.fastIntegrationCosmeticCorrectionCheckBox = this.guitools.newCheckBox(this, "Skip CosmeticCorrection", this.par.fastintegration_skip_cosmeticcorrection, 
             "<p>Do not run CosmeticCorrection when using FastIntegration.</p>" +
             "<p>With a very large number of files it usually should not be necessary.</p>" );
