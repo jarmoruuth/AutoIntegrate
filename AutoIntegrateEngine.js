@@ -1210,7 +1210,7 @@ getChangedProcessingOptions()
                         // Do not save parameters we want to skip resetting in test mode with default settings
                         continue;
                   }
-                  if (param === this.par.image_stretching && this.global.force_auto_stretching) {
+                  if (x == "image_stretching" && this.global.force_auto_stretching) {
                         // Show the value that is actually used, not the explicitly selected value
                         options[options.length] = [ param.name, "Auto (forced)" ];
                   } else {
