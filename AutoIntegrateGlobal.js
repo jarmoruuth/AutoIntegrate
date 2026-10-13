@@ -28,17 +28,21 @@ super();
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-this.autointegrate_version = "AutoIntegrate v1.87.5"; // Version, also updated into updates.xri
-this.autointegrate_info = "MLDenoise";                // For updates.xri
+this.autointegrate_version = "AutoIntegrate v1.88.0 test1"; // Version, also updated into updates.xri
+this.autointegrate_info = "Auto stretching, Auto tools";                // For updates.xri
 
 this.autointegrate_version_info = [
-      "Changes since the previous version:",
-      "- By default only integrated images and the final images",
-      "  are left on the desktop at the end of processing.",
-      "- Support for MLDenoise",
-      "- Small improvements",
-      "- Bug fixes",
-];
+        "Changes since the previous version:",
+        "- Auto image stretching selects the stretching",
+        "  method by analyzing the image",
+        "- Auto tool selection in Settings / Tools",
+        "- New fast mode option Subset, now the default",
+        "- FastIntegration picks a better reference image",
+        "- By default only integrated images and the final images",
+        "  are left on the desktop at the end of processing.",
+        "- Small improvements",
+        "- Bug fixes",
+  ];
 
 /* Interface version changes:
  *    0: Initial version.

@@ -1,6 +1,6 @@
 {
- "version": "AutoIntegrate v1.87.5",
- "generated": "Tue Oct 13 2026 23:44:36 GMT+0300 (FLE Daylight Time)",
+ "version": "AutoIntegrate v1.88.0 test1",
+ "generated": "Wed Oct 14 2026 00:17:53 GMT+0300 (FLE Daylight Time)",
  "options": [
   {
    "key": "local_normalization",
