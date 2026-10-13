@@ -137,8 +137,10 @@ constructor(parent, global, util, engine) {
             "<ul>" +
 #ifndef AUTOINTEGRATE_STANDALONE
             "<li><p>Auto - Select the stretching method automatically when processing starts. Available only for <i>Image stretching</i>.<br>" +
-                 "If <i>Target type</i> is given, it selects the method: MultiscaleAdaptiveStretch for Galaxy and Star cluster, or Masked Stretch if MultiscaleAdaptiveStretch is not available, and Auto STF for Nebula.<br>" +
-                 "Otherwise MultiscaleAdaptiveStretch is used if it is available in PixInsight, and Auto STF if it is not.</p></li>" +
+                 "For <i>Target type</i> Galaxy and Star cluster it selects MultiscaleAdaptiveStretch, or Masked Stretch if MultiscaleAdaptiveStretch is not available.<br>" +
+                 "For other target types the method is selected using sky analysis when <i>Use in Auto</i> is checked in <i>Generic settings</i> section, which is the default. " +
+                 "MultiscaleAdaptiveStretch is used for a small and bright target and Auto STF for a flat image.<br>" +
+                 "Without sky analysis Nebula uses Auto STF, otherwise MultiscaleAdaptiveStretch is used if it is available in PixInsight, and Auto STF if it is not.</p></li>" +
 #endif
             "<li><p>Auto STF - Use Auto Screen Transfer Function to stretch image to non-linear.<br>" + 
                  "For galaxies and other small but bright objects you should adjust <i>targetBackground</i> in <i>" + this.postprocessing_section + "AutoSTF settings</i> section to a smaller value, like 0.10</i><br>" +
@@ -1135,7 +1137,7 @@ createStretchingSettingsSizer(parent, engine, level, preview_control = null)
       StretchGenericSizer.addSpacing(10);
       StretchGenericSizer.add( this.createSkyAnalysisButton(parent, engine) );
       StretchGenericSizer.add( this.newCheckBox(parent, "Use in Auto", this.par.stretching_sky_analysis,
-            "<p>Experimental. When <i>Image stretching</i> is <i>Auto</i> and target type is Default or Nebula, " +
+            "<p>When <i>Image stretching</i> is <i>Auto</i> and target type is Default or Nebula, " +
             "select the stretching method using sky analysis.</p>" +
             "<p>MultiscaleAdaptiveStretch is used when the image has a small and bright target like a galaxy, star cluster or bright nebula. " +
             "Auto STF is used when the image looks flat like a frame filling or dark nebula.</p>" +

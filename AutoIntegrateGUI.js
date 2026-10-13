@@ -3312,7 +3312,9 @@ addTargetType(parent)
       lbl.textAlignment = TextAlignment.Left|TextAlignment.VertCenter;
       lbl.toolTip = "<p>Give target type.</p>" +
                     "<p>If target type is given and <i>Image stretching</i> is <i>Auto</i>, then the stretching method is selected based on the target type. " +
-                    "Galaxy and Star cluster use MultiscaleAdaptiveStretch, or Masked Stretch if MultiscaleAdaptiveStretch is not available. Nebula uses Auto STF. " +
+                    "Galaxy and Star cluster use MultiscaleAdaptiveStretch, or Masked Stretch if MultiscaleAdaptiveStretch is not available. " +
+                    "With Nebula or no target type the method is selected using sky analysis if <i>Use in Auto</i> is checked in stretching settings, " +
+                    "otherwise Nebula uses Auto STF. " +
                     "If a stretching method is selected explicitly, it is used regardless of the target type.</p>" +
                     "<p>If no target type is given then current settings are used. They should work reasonably fine in many cases.</p>" +
                     "<p>Galaxy works well when target is a lot brighter than the background.</p>" +
