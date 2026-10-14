@@ -60,6 +60,7 @@ runImageIntegrationBiasDarks(images, name, type, exptime)
             P.evaluateSNR = false;
       }
       P.subtractPedestals = false;
+      this.engine.setImageIntegrationMemorySizes(P);
 
       P.executeGlobal();
 
@@ -387,6 +388,7 @@ runImageIntegrationFlats(images, name, filterName)
       }
       P.rangeClipLow = false;
       P.subtractPedestals = false;
+      this.engine.setImageIntegrationMemorySizes(P);
 
       P.executeGlobal();
 

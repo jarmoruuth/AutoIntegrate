@@ -7558,6 +7558,26 @@ runFastIntegrationEx(integration_images, name, refImage)
       return id;
 }
 
+// Optionally set ImageIntegration buffer and stack sizes. Value 0 uses the
+// default. ImageIntegration ignores buffer and stack sizes when autoMemorySize
+// is true, so it is disabled when a size is given.
+setImageIntegrationMemorySizes(P)
+{
+      var bufferSize = this.par.imageintegration_buffer_size.val;
+      var stackSize = this.par.imageintegration_stack_size.val;
+      if (bufferSize <= 0 && stackSize <= 0) {
+            return;
+      }
+      P.autoMemorySize = false;
+      if (bufferSize > 0) {
+            P.bufferSizeMB = bufferSize;
+      }
+      if (stackSize > 0) {
+            P.stackSizeMB = stackSize;
+      }
+      console.writeln("ImageIntegration memory sizes, bufferSizeMB " + P.bufferSizeMB + ", stackSizeMB " + P.stackSizeMB + ", autoMemorySize false");
+}
+
 runBasicIntegration(images, name, local_normalization)
 {
       var node = this.flowchart.flowchartOperation("ImageIntegration");
@@ -7657,6 +7677,8 @@ runBasicIntegration(images, name, local_normalization)
       } else {
             P.subtractPedestals = true;
       }
+
+      this.setImageIntegrationMemorySizes(P);
 
       try {
             var succ = P.executeGlobal();
@@ -8079,9 +8101,7 @@ runImageIntegrationForCrop(images)
       } else {
             P.closePreviousImages = false; // Could be set to true to automatically suppress previuos result, but they are removed by the script
       }
-      // P.bufferSizeMB = 16; // Performance, left defaults, could be a parameter from an icon
-      // P.stackSizeMB = 1024; // Performance, left defaults, could be a parameter from an icon
-      // P.autoMemorySize = true; // Performance, left defaults, could be a parameter from an icon
+      this.setImageIntegrationMemorySizes(P); // bufferSizeMB, stackSizeMB, autoMemorySize
       // P.autoMemoryLimit = 0.75; // Performance, left defaults, could be a parameter from an icon
       // P.useROI = false;
       // P.roiX0 = 0;

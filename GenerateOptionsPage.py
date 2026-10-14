@@ -226,6 +226,7 @@ RULES = [
      r'|use_imageintegration_ssweight)', 'quality'),
     (r'^(staralignment_|comet_|binning|use_drizzle|drizzle_|crop_)', 'registration'),
     (r'^(local_normalization|use_localnormalization_multiscale|imageintegration_normalization'
+     r'|imageintegration_buffer_size|imageintegration_stack_size'
      r'|integration_combination|use_clipping|skip_imageintegration_clipping|percentile_|sigma_'
      r'|winsorised_cutoff|linearfit_|ESD_|large_scale_pixel_rejection|use_fastintegration'
      r'|fastintegration_)', 'integration'),

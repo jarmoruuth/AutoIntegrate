@@ -7069,6 +7069,26 @@ AutoIntegrateDialog()
       this.ImageIntegrationRejectionSettingsSizer4.add( this.ImageIntegrationLargeScaleRejectionLowCheckBox );
       this.ImageIntegrationRejectionSettingsSizer4.addStretch();
 
+      var ImageIntegrationMemoryToolTip =
+            "<p>Setting a non-zero buffer size or stack size disables automatic memory size in ImageIntegration and uses the given values. " +
+            "Value 0 uses the ImageIntegration default. If only one value is set, the other one uses the ImageIntegration default " +
+            "since automatic memory size is disabled.</p>" +
+            "<p>Very large data sets may work better with a bigger stack size, for example 4096 MB with 300 or more images.</p>";
+      this.ImageIntegrationBufferSizeLabel = this.guitools.newLabel(this, 'Buffer size MB',
+            "<p>ImageIntegration buffer size in megabytes. ImageIntegration default is 16 MB.</p>" + ImageIntegrationMemoryToolTip);
+      this.ImageIntegrationBufferSizeSpinbox = this.guitools.newSpinBox(this, this.par.imageintegration_buffer_size, 0, 65536, this.ImageIntegrationBufferSizeLabel.toolTip);
+      this.ImageIntegrationStackSizeLabel = this.guitools.newLabel(this, 'Stack size MB',
+            "<p>ImageIntegration stack size in megabytes. ImageIntegration default is 1024 MB.</p>" + ImageIntegrationMemoryToolTip);
+      this.ImageIntegrationStackSizeSpinbox = this.guitools.newSpinBox(this, this.par.imageintegration_stack_size, 0, 262144, this.ImageIntegrationStackSizeLabel.toolTip);
+
+      this.ImageIntegrationMemorySizer = new HorizontalSizer;
+      this.ImageIntegrationMemorySizer.spacing = 4;
+      this.ImageIntegrationMemorySizer.add( this.ImageIntegrationBufferSizeLabel );
+      this.ImageIntegrationMemorySizer.add( this.ImageIntegrationBufferSizeSpinbox );
+      this.ImageIntegrationMemorySizer.add( this.ImageIntegrationStackSizeLabel );
+      this.ImageIntegrationMemorySizer.add( this.ImageIntegrationStackSizeSpinbox );
+      this.ImageIntegrationMemorySizer.addStretch();
+
       this.ImageIntegrationSubstackCheckBox = this.guitools.newCheckBox(this, "Substack,", this.par.substack_mode, 
             "<p>Divide light files into <i>Number of substacks</i> substacks and stack them separately. Stacked files are named as Stack_<i>num</i>_Integration_RGB.</p>" +
             "<p>When this option is enabled only image integration is done and final images are not generated. The idea is to use substacks to generate the final image.</p>" +
@@ -7092,6 +7112,7 @@ AutoIntegrateDialog()
       this.clippingGroupBoxSizer.add( this.ImageIntegrationRejectionSettingsSizer2 );
       this.clippingGroupBoxSizer.add( this.ImageIntegrationRejectionSettingsSizer3 );
       this.clippingGroupBoxSizer.add( this.ImageIntegrationRejectionSettingsSizer4 );
+      this.clippingGroupBoxSizer.add( this.ImageIntegrationMemorySizer );
       this.clippingGroupBoxSizer.addSpacing( 8 );
       this.clippingGroupBoxSizer.add( this.ImageIntegrationSubstackSettingsSizer );
       //this.clippingGroupBoxSizer.addStretch();

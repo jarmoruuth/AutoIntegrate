@@ -1,6 +1,6 @@
 {
  "version": "AutoIntegrate v1.88.0 test1",
- "generated": "Wed Oct 14 2026 18:04:07 GMT+0300 (FLE Daylight Time)",
+ "generated": "Wed Oct 14 2026 20:10:10 GMT+0300 (FLE Daylight Time)",
  "options": [
   {
    "key": "local_normalization",
@@ -10420,6 +10420,78 @@
    "values": null,
    "min": null,
    "max": null
+  },
+  {
+   "key": "imageintegration_buffer_size",
+   "name": "ImageIntegration buffer size",
+   "type": "I",
+   "def": 0,
+   "tip": "",
+   "applies": "",
+   "controls": [
+    {
+     "kind": "integer",
+     "label": "",
+     "tooltip": "<p>ImageIntegration buffer size in megabytes. ImageIntegration default is 16 MB.</p><p>Setting a non-zero buffer size or stack size disables automatic memory size in ImageIntegration and uses the given values. Value 0 uses the ImageIntegration default. If only one value is set, the other one uses the ImageIntegration default since automatic memory size is disabled.</p><p>Very large data sets may work better with a bigger stack size, for example 4096 MB with 300 or more images.</p>",
+     "values": null,
+     "min": 0,
+     "max": 65536,
+     "tab": "Integration",
+     "section": "Image integration",
+     "expert": true,
+     "located": true
+    }
+   ],
+   "expert": true,
+   "tabs": [
+    "Integration"
+   ],
+   "sections": [
+    "Image integration"
+   ],
+   "in_gui": true,
+   "kind": "integer",
+   "label": "",
+   "tooltip": "<p>ImageIntegration buffer size in megabytes. ImageIntegration default is 16 MB.</p><p>Setting a non-zero buffer size or stack size disables automatic memory size in ImageIntegration and uses the given values. Value 0 uses the ImageIntegration default. If only one value is set, the other one uses the ImageIntegration default since automatic memory size is disabled.</p><p>Very large data sets may work better with a bigger stack size, for example 4096 MB with 300 or more images.</p>",
+   "values": null,
+   "min": 0,
+   "max": 65536
+  },
+  {
+   "key": "imageintegration_stack_size",
+   "name": "ImageIntegration stack size",
+   "type": "I",
+   "def": 0,
+   "tip": "",
+   "applies": "",
+   "controls": [
+    {
+     "kind": "integer",
+     "label": "",
+     "tooltip": "<p>ImageIntegration stack size in megabytes. ImageIntegration default is 1024 MB.</p><p>Setting a non-zero buffer size or stack size disables automatic memory size in ImageIntegration and uses the given values. Value 0 uses the ImageIntegration default. If only one value is set, the other one uses the ImageIntegration default since automatic memory size is disabled.</p><p>Very large data sets may work better with a bigger stack size, for example 4096 MB with 300 or more images.</p>",
+     "values": null,
+     "min": 0,
+     "max": 262144,
+     "tab": "Integration",
+     "section": "Image integration",
+     "expert": true,
+     "located": true
+    }
+   ],
+   "expert": true,
+   "tabs": [
+    "Integration"
+   ],
+   "sections": [
+    "Image integration"
+   ],
+   "in_gui": true,
+   "kind": "integer",
+   "label": "",
+   "tooltip": "<p>ImageIntegration stack size in megabytes. ImageIntegration default is 1024 MB.</p><p>Setting a non-zero buffer size or stack size disables automatic memory size in ImageIntegration and uses the given values. Value 0 uses the ImageIntegration default. If only one value is set, the other one uses the ImageIntegration default since automatic memory size is disabled.</p><p>Very large data sets may work better with a bigger stack size, for example 4096 MB with 300 or more images.</p>",
+   "values": null,
+   "min": 0,
+   "max": 262144
   },
   {
    "key": "use_localnormalization_multiscale",
