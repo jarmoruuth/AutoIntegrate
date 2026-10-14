@@ -555,7 +555,8 @@ this.par = {
 
       cosmetic_correction_hot_sigma: { val: 3, def: 3, name : "CosmeticCorrection hot sigma", type : 'I' },
       cosmetic_correction_cold_sigma: { val: 3, def: 3, name : "CosmeticCorrection cold sigma", type : 'I' },
-      STF_targetBackground: { val: 0.25, def: 0.25, name : "STF targetBackground", type : 'R' },    
+      STF_targetBackground: { val: 0.25, def: 0.25, name : "STF targetBackground", type : 'R' },
+      STF_shadowsClipping: { val: -2.80, def: -2.80, name : "STF shadows clipping", type : 'R' },
       MaskedStretch_targetBackground: { val: 0.125, def: 0.125, name : "Masked Stretch targetBackground", type : 'R' },    
       MaskedStretch_prestretch_target: { val: 0.1, def: 0.1, name : "Masked Stretch prestretch target", type : 'R' },    
       Arcsinh_stretch_factor: { val: 50, def: 50, name : "Arcsinh Stretch Factor", type : 'R' },    

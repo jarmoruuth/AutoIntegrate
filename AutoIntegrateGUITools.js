@@ -1246,12 +1246,16 @@ createStretchingSettingsSizer(parent, engine, level, preview_control = null)
       var STFTargetBackgroundControl = this.newNumericControl(parent, "Target Background", this.par.STF_targetBackground, 0, 1,
             "<p>STF targetBackground value. If you get too bright image lowering this value can help.</p>" +
             "<p>Usually values between 0.1 and 0.250 work best. Possible values are between 0 and 1.</p>");
+      var STFShadowsClippingControl = this.newNumericControl(parent, "Shadows clipping", this.par.STF_shadowsClipping, -10, 0,
+            "<p>STF shadows clipping point in normalized MAD units from the median. The black point is set to median + shadows clipping * MAD.</p>" +
+            "<p>The default value -2.80 is the same as in PixInsight STF auto stretch. More negative values like -5 clip less of the " +
+            "background, giving a brighter and less contrasty background. Values closer to zero clip more and give a darker background.</p>");
 
       var STFSizer = new HorizontalSizer;
       STFSizer.spacing = 4;
       STFSizer.margin = 6;
-      STFSizer.toolTip = STFTargetBackgroundControl.toolTip;
       STFSizer.add( STFTargetBackgroundControl );
+      STFSizer.add( STFShadowsClippingControl );
       STFSizer.addStretch();
 
       var autoSTFSection = this.newSectionBarAddArray(parent, null, "Auto STF settings", "Stretching_Auto_STF_Section",

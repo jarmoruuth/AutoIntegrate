@@ -8995,10 +8995,14 @@ getRgbLinked(win, iscolor)
       }
 }
 
-runAutoSTFex(GC_win, iscolor, targetBackground, silent, rgbLinked, save_process = false)
+runAutoSTFex(GC_win, iscolor, targetBackground, silent, rgbLinked, save_process = false, shadowsClipping = null)
 {
+      if (shadowsClipping == null) {
+            shadowsClipping = this.global.DEFAULT_AUTOSTRETCH_SCLIP;
+      }
       if (!silent) {
-            this.util.addProcessingStep("Run histogram transform on " + GC_win.mainView.id + " based on autostretch, targetBackground " + targetBackground);
+            this.util.addProcessingStep("Run histogram transform on " + GC_win.mainView.id + " based on autostretch, targetBackground " + targetBackground +
+                                        ", shadowsClipping " + shadowsClipping);
       }
 
       /* Apply autostretch on image */
@@ -9007,7 +9011,7 @@ runAutoSTFex(GC_win, iscolor, targetBackground, silent, rgbLinked, save_process 
             rgbLinked = this.getRgbLinked(GC_win, iscolor);
       }
       this.applyAutoSTF(GC_win.mainView,
-                  this.global.DEFAULT_AUTOSTRETCH_SCLIP,
+                  shadowsClipping,
                   targetBackground,
                   rgbLinked,
                   silent);
@@ -9044,15 +9048,16 @@ autoStretch(imgWin, silent = true)
             null);     // rgbLinked, null = use default
 }
 
-runHistogramTransformAutoSTF(GC_win, iscolor, targetBackground)
+runHistogramTransformAutoSTF(GC_win, iscolor, targetBackground, shadowsClipping)
 {
       return this.runAutoSTFex(
-                  GC_win, 
-                  iscolor, 
-                  targetBackground, 
+                  GC_win,
+                  iscolor,
+                  targetBackground,
                   false,      // silent
                   null,       // rgbLinked, null = use default
-                  true);      // save_process
+                  true,       // save_process
+                  shadowsClipping);
 }
 
 runHistogramTransformMultiscaleAdaptiveStretch(GC_win, image_stretching, roi)
@@ -10011,12 +10016,15 @@ runHistogramTransform(GC_win, iscolor, type)
       }
       //if (image_stretching == 'Auto STF' || type == 'mask') {
       if (image_stretching == 'Auto STF') {
+            var shadowsClipping; // to be compatible with 'use strict';
             if (type == 'mask') {
                   targetBackground = this.global.DEFAULT_AUTOSTRETCH_TBGND;
+                  shadowsClipping = this.global.DEFAULT_AUTOSTRETCH_SCLIP;
             } else {
                   targetBackground = this.par.STF_targetBackground.val;
+                  shadowsClipping = this.par.STF_shadowsClipping.val;
             }
-            this.runHistogramTransformAutoSTF(GC_win, iscolor, targetBackground);
+            this.runHistogramTransformAutoSTF(GC_win, iscolor, targetBackground, shadowsClipping);
 
       } else if (image_stretching == 'MultiscaleAdaptiveStretch') {
             GC_win = this.runHistogramTransformMultiscaleAdaptiveStretch(GC_win, image_stretching, roi);
@@ -14755,7 +14763,8 @@ HRR_stretch(imgWin, targetBackground)
             targetBackground, 
             false,                  // silent
             true,                   // rgbLinked
-            false                   // save_process
+            false,                  // save_process
+            this.par.STF_shadowsClipping.val
       );
 }
 
