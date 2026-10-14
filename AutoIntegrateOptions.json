@@ -1,6 +1,6 @@
 {
  "version": "AutoIntegrate v1.88.0 test1",
- "generated": "Wed Oct 14 2026 09:44:38 GMT+0300 (FLE Daylight Time)",
+ "generated": "Wed Oct 14 2026 18:04:07 GMT+0300 (FLE Daylight Time)",
  "options": [
   {
    "key": "local_normalization",
@@ -5838,6 +5838,42 @@
    "values": null,
    "min": 0,
    "max": 6
+  },
+  {
+   "key": "RGBHa_continuum_amount",
+   "name": "Ha RGB continuum amount",
+   "type": "R",
+   "def": 1,
+   "tip": "",
+   "applies": "narrowband",
+   "controls": [
+    {
+     "kind": "number",
+     "label": "Continuum amount",
+     "tooltip": "<p>Amount of continuum, or R channel, subtracted from the Ha image.</p><p>The value 1.0 subtracts the R channel as scaled by color calibration. Use a smaller value like 0.9 if real Ha signal is over-subtracted and the image shows black areas. Use a bigger value if stars and continuum are not fully removed.</p>",
+     "values": null,
+     "min": 0,
+     "max": 2,
+     "tab": "Postprocessing",
+     "section": "Ha to RGB mapping",
+     "expert": true,
+     "located": true
+    }
+   ],
+   "expert": true,
+   "tabs": [
+    "Postprocessing"
+   ],
+   "sections": [
+    "Ha to RGB mapping"
+   ],
+   "in_gui": true,
+   "kind": "number",
+   "label": "Continuum amount",
+   "tooltip": "<p>Amount of continuum, or R channel, subtracted from the Ha image.</p><p>The value 1.0 subtracts the R channel as scaled by color calibration. Use a smaller value like 0.9 if real Ha signal is over-subtracted and the image shows black areas. Use a bigger value if stars and continuum are not fully removed.</p>",
+   "values": null,
+   "min": 0,
+   "max": 2
   },
   {
    "key": "RGBHa_gradient_correction",

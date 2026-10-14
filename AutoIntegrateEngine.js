@@ -11675,7 +11675,7 @@ runDBE(imgWin, replaceTarget, postfix, skip_flowchart)
       return GC_id;
 }
 
-runColorCalibrationProcess(imgWin, roi)
+runColorCalibrationProcess(imgWin, roi, structureDetection = false)
 {
       var node = this.flowchart.flowchartOperation("ColorCalibration" + (this.util.findKeywordName(imgWin, "AutoIntegrateStars") ? ":stars" : ""));
       if (this.global.get_flowchart_data) {
@@ -11693,6 +11693,10 @@ runColorCalibrationProcess(imgWin, roi)
                   P.backgroundROIY0 = roi.y0;
                   P.backgroundROIX1 = roi.x1;
                   P.backgroundROIY1 = roi.y1;
+            }
+            if (structureDetection) {
+                  console.writeln("Color calibration using structure detection for white reference");
+                  P.structureDetection = true;
             }
 
             imgWin.mainView.beginProcess(UndoFlag.NoSwapFile);
@@ -14657,10 +14661,11 @@ create_continuum_subtracted_image(hrr_win)
       image.selectedChannel = 1;
       var median = image.median();
       image.resetSelections();
-      console.writeln("create_continuum_subtracted_image, continuum channel median " + median);
+      var amount = this.par.RGBHa_continuum_amount.val;
+      console.writeln("create_continuum_subtracted_image, continuum channel median " + median + ", amount " + amount);
 
       var P = new PixelMath;
-      P.expression = "$T[0] - ($T[1] - " + median.toFixed(10) + ")";
+      P.expression = "$T[0] - " + amount + " * ($T[1] - " + median.toFixed(10) + ")";
       P.expression1 = "";
       P.expression2 = "";
       P.expression3 = "";
@@ -14839,10 +14844,11 @@ RGBHa_ContinuumSubtract(nb_channel_id, rgb_channel_id, rgb_is_linear, testmode)
       var roi = this.runBackgroundNeutralization(hrr_win);
       this.util.add_test_image(hrr_id, "Integration_HRR_bn", testmode);
 
-      /* Do color calibration.
+      /* Do color calibration. Structure detection uses stars as the white reference.
+       * Stars are continuum sources, so Ha emission does not bias the R channel scaling.
        */
       console.writeln("RGBHa_ContinuumSubtract, HRR, color calibration on " + hrr_id);
-      this.runColorCalibrationProcess(hrr_win, roi);
+      this.runColorCalibrationProcess(hrr_win, roi, true);
       this.util.add_test_image(hrr_id, "Integration_HRR_cc", testmode);
 
       /* Now we have calibrated HRR image.

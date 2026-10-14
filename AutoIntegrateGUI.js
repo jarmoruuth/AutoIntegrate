@@ -7627,6 +7627,11 @@ AutoIntegrateDialog()
             "<p>Do noise reduction on Ha image after mapping.</p>" );
       this.RGBHa_boost_edit = this.guitools.newNumericEdit(this, 'Continuum boost', this.par.RGBHa_boost, 0, 6, 
             "<b>Boost value for continuum subtracted image using ExponentialTransformation.</b>");
+      this.RGBHa_continuum_amount_edit = this.guitools.newNumericEdit(this, 'Continuum amount', this.par.RGBHa_continuum_amount, 0, 2,
+            "<p>Amount of continuum, or R channel, subtracted from the Ha image.</p>" +
+            "<p>The value 1.0 subtracts the R channel as scaled by color calibration. " +
+            "Use a smaller value like 0.9 if real Ha signal is over-subtracted and the image shows black areas. " +
+            "Use a bigger value if stars and continuum are not fully removed.</p>");
       this.RGBHa_gradient_correction_CheckBox = this.guitools.newCheckBox(this, "Gradient correction", this.par.RGBHa_gradient_correction, 
             "<p>Do gradient correction on Ha image before mapping.</p>" );
       this.RGBHa_smoothen_background_CheckBox = this.guitools.newCheckBox(this, "Smoothen", this.par.RGBHa_smoothen_background, 
@@ -7650,6 +7655,7 @@ AutoIntegrateDialog()
       // this.RGBHa_Sizer2.margin = 6;
       this.RGBHa_Sizer3.spacing = 4;
       this.RGBHa_Sizer3.add( this.RGBHa_noise_reduction_CheckBox );
+      this.RGBHa_Sizer3.add( this.RGBHa_continuum_amount_edit );
       this.RGBHa_Sizer3.add( this.RGBHa_boost_edit );
       this.RGBHa_Sizer3.addStretch();
       this.RGBHa_Sizer3.add( this.testRGBHaMappingButton );

@@ -416,6 +416,7 @@ this.par = {
       RGBHa_combine_method: { val: 'Bright structure add', def: 'Bright structure add', name : "Ha RGB mapping combine method", type : 'S', applies : "narrowband" },
       RGBHa_noise_reduction: { val: true, def: true, name : "Ha RGB mapping noise reduction", type : 'B', applies : "narrowband" },
       RGBHa_boost: { val: 1.0, def: 1.0, name : "Ha RGB boost", type : 'R', applies : "narrowband" },
+      RGBHa_continuum_amount: { val: 1.0, def: 1.0, name : "Ha RGB continuum amount", type : 'R', applies : "narrowband" },
       RGBHa_gradient_correction: { val: false, def: false, name : "Ha RGB mapping gradient correction", type : 'B', applies : "narrowband" },
       RGBHa_smoothen_background: { val: false, def: false, name : "Ha RGB mapping smoothen background", type : 'B', applies : "narrowband" },
       RGBHa_smoothen_background_value: { val: 25, def: 25, name : "Ha RGB mapping smoothen background value", type : 'R', applies : "narrowband" },
