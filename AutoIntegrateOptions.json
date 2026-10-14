@@ -1,6 +1,6 @@
 {
  "version": "AutoIntegrate v1.88.0 test1",
- "generated": "Wed Oct 14 2026 00:17:53 GMT+0300 (FLE Daylight Time)",
+ "generated": "Wed Oct 14 2026 09:44:38 GMT+0300 (FLE Daylight Time)",
  "options": [
   {
    "key": "local_normalization",
@@ -10788,6 +10788,42 @@
    "values": null,
    "min": 0,
    "max": 1
+  },
+  {
+   "key": "STF_shadowsClipping",
+   "name": "STF shadows clipping",
+   "type": "R",
+   "def": -2.8,
+   "tip": "",
+   "applies": "",
+   "controls": [
+    {
+     "kind": "number",
+     "label": "Shadows clipping",
+     "tooltip": "<p>STF shadows clipping point in normalized MAD units from the median. The black point is set to median + shadows clipping * MAD.</p><p>The default value -2.80 is the same as in PixInsight STF auto stretch. More negative values like -5 clip less of the background, giving a brighter and less contrasty background. Values closer to zero clip more and give a darker background.</p>",
+     "values": null,
+     "min": -10,
+     "max": 0,
+     "tab": "Postprocessing",
+     "section": "Auto STF settings",
+     "expert": true,
+     "located": true
+    }
+   ],
+   "expert": true,
+   "tabs": [
+    "Postprocessing"
+   ],
+   "sections": [
+    "Auto STF settings"
+   ],
+   "in_gui": true,
+   "kind": "number",
+   "label": "Shadows clipping",
+   "tooltip": "<p>STF shadows clipping point in normalized MAD units from the median. The black point is set to median + shadows clipping * MAD.</p><p>The default value -2.80 is the same as in PixInsight STF auto stretch. More negative values like -5 clip less of the background, giving a brighter and less contrasty background. Values closer to zero clip more and give a darker background.</p>",
+   "values": null,
+   "min": -10,
+   "max": 0
   },
   {
    "key": "MaskedStretch_targetBackground",
