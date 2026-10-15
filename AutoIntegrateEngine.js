@@ -1589,7 +1589,18 @@ adjustShadows(win, perc)
       }
 
       this.printImageStatistics(win);
-      
+
+      var P = this.runAdjustShadowsTransformation(win, perc);
+
+      this.printAndSaveProcessValues(P, "shadows");
+      this.engine_end_process(node, win, "HistogramTransformation:adjust shadows");
+
+      this.printImageStatistics(win);
+}
+
+// Clip perc percentage of shadows using HistogramTransformation, returns the process
+runAdjustShadowsTransformation(win, perc)
+{
       var view = win.mainView;
 
       var adjust = this.getAdjustPoint(win, perc, -1);
@@ -1619,10 +1630,7 @@ adjustShadows(win, perc)
 
       view.endProcess();
 
-      this.printAndSaveProcessValues(P, "shadows");
-      this.engine_end_process(node, win, "HistogramTransformation:adjust shadows");
-
-      this.printImageStatistics(win);
+      return P;
 }
 
 channelText(channel)
@@ -15956,15 +15964,36 @@ enhancementsAdjustChannels(imgWin)
       }
       var node = this.flowchart.flowchartOperation("PixelMath:adjust channels");
 
+      var P = this.runPixelMathExpressions(imgWin, this.enhancementsAdjustChannelsExpressions());
+
+      this.printAndSaveProcessValues(P, "", imgWin.mainView.id);
+      this.engine_end_process(node);
+}
+
+// PixelMath expressions for adjust channels, one expression for all channels or one per RGB channel
+enhancementsAdjustChannelsExpressions()
+{
+      if (this.par.enhancements_adjust_channels_only_k.val || (this.par.enhancements_adjust_G.val == 0 && this.par.enhancements_adjust_B.val == 0)) {
+            return [ "$T * " + this.par.enhancements_adjust_R.val ];
+      } else {
+            return [ "$T[0] * " + this.par.enhancements_adjust_R.val,
+                     "$T[1] * " + this.par.enhancements_adjust_G.val,
+                     "$T[2] * " + this.par.enhancements_adjust_B.val ];
+      }
+}
+
+// Run PixelMath in place with one expression or with separate R, G and B expressions.
+// No logging or flowchart, returns the process.
+runPixelMathExpressions(imgWin, expressions)
+{
       var P = new PixelMath;
 
-      if (this.par.enhancements_adjust_channels_only_k.val || (this.par.enhancements_adjust_G.val == 0 && this.par.enhancements_adjust_B.val == 0)) {
-            P.expression = "$T * " + this.par.enhancements_adjust_R.val;
+      P.expression = expressions[0];
+      if (expressions.length == 1) {
             P.useSingleExpression = true;
       } else {
-            P.expression = "$T[0] * " + this.par.enhancements_adjust_R.val;
-            P.expression1 = "$T[1] * " + this.par.enhancements_adjust_G.val;
-            P.expression2 = "$T[2] * " + this.par.enhancements_adjust_B.val;
+            P.expression1 = expressions[1];
+            P.expression2 = expressions[2];
             P.useSingleExpression = false;
       }
       P.showNewImage = false;
@@ -15976,8 +16005,7 @@ enhancementsAdjustChannels(imgWin)
       P.executeOn(imgWin.mainView);
       imgWin.mainView.endProcess();
 
-      this.printAndSaveProcessValues(P, "", imgWin.mainView.id);
-      this.engine_end_process(node);
+      return P;
 }
 
 enhancementsHDRMultiscaleTransform(imgWin, maskWin)
@@ -16514,9 +16542,12 @@ enhancementsGamma(win)
 {
       this.addEnhancementsStep("Gamma correction with value " + this.par.enhancements_gamma_value.val);
 
-      var mapping = "$T ^ " + this.par.enhancements_gamma_value.val;
+      this.runPixelMathSingleMappingEx(win.mainView.id, "gamma correction", this.enhancementsGammaExpression(), false, null, false);
+}
 
-      this.runPixelMathSingleMappingEx(win.mainView.id, "gamma correction", mapping, false, null, false);
+enhancementsGammaExpression()
+{
+      return "$T ^ " + this.par.enhancements_gamma_value.val;
 }
 
 autoContrast(win, contrast_limit_low, contrast_limit_high)

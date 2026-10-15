@@ -1,6 +1,6 @@
 {
  "version": "AutoIntegrate v1.88.0 test1",
- "generated": "Thu Oct 15 2026 10:09:29 GMT+0300 (FLE Daylight Time)",
+ "generated": "Thu Oct 15 2026 17:50:43 GMT+0300 (FLE Daylight Time)",
  "options": [
   {
    "key": "local_normalization",
@@ -14084,8 +14084,8 @@
    "max": 1
   },
   {
-   "key": "enhancements_curves_live_preview",
-   "name": "Enh curves live preview",
+   "key": "enhancements_live_preview",
+   "name": "Enh live preview",
    "type": "B",
    "def": true,
    "tip": "",
@@ -14094,12 +14094,12 @@
     {
      "kind": "checkbox",
      "label": "Live preview",
-     "tooltip": "<p>Update the preview while curve sliders are changed. The curve is applied to a copy of the target image and the target image is not changed. Use Apply to change the target image.</p>",
+     "tooltip": "<p>Update the preview while slider values are changed. Live preview is available for options that have a slider, like curves, gamma, adjust channels and adjust shadows.</p><p>Live preview shows only the option that is being changed, applied to a copy of the target image. The target image is not changed. Use Apply to change the target image.</p>",
      "values": null,
      "min": null,
      "max": null,
      "tab": "Enhancements",
-     "section": "Curves",
+     "section": "Misc options",
      "expert": false,
      "located": true
     }
@@ -14109,12 +14109,12 @@
     "Enhancements"
    ],
    "sections": [
-    "Curves"
+    "Misc options"
    ],
    "in_gui": true,
    "kind": "checkbox",
    "label": "Live preview",
-   "tooltip": "<p>Update the preview while curve sliders are changed. The curve is applied to a copy of the target image and the target image is not changed. Use Apply to change the target image.</p>",
+   "tooltip": "<p>Update the preview while slider values are changed. Live preview is available for options that have a slider, like curves, gamma, adjust channels and adjust shadows.</p><p>Live preview shows only the option that is being changed, applied to a copy of the target image. The target image is not changed. Use Apply to change the target image.</p>",
    "values": null,
    "min": null,
    "max": null
@@ -15893,7 +15893,7 @@
      "tooltip": "<p>Adjust shadows in the image. Adjust percentage tells how much shadow pixels are clipped.</p><p>With a value of 0, no shadow pixels are clipped but histogram, is moved to the left.</p><p>You can use the Enhnacements / Misc options clipped tool to see clipped pixels.</p>",
      "values": null,
      "min": 0,
-     "max": 100,
+     "max": 10,
      "tab": "Enhancements",
      "section": "Generic enhancements",
      "expert": false,
@@ -15913,7 +15913,7 @@
    "tooltip": "<p>Adjust shadows in the image. Adjust percentage tells how much shadow pixels are clipped.</p><p>With a value of 0, no shadow pixels are clipped but histogram, is moved to the left.</p><p>You can use the Enhnacements / Misc options clipped tool to see clipped pixels.</p>",
    "values": null,
    "min": 0,
-   "max": 100
+   "max": 10
   },
   {
    "key": "enhancements_smoothbackground",
@@ -16261,7 +16261,7 @@
      "tooltip": "<p>Adjust channels in PixelMath by multiplying them with a given value.</p><p>If option Only K is checked then value R/K is used to adjust the whole image.</p>",
      "values": null,
      "min": 0,
-     "max": 100,
+     "max": 4,
      "tab": "Enhancements",
      "section": "Generic enhancements",
      "expert": false,
@@ -16281,7 +16281,7 @@
    "tooltip": "<p>Adjust channels in PixelMath by multiplying them with a given value.</p><p>If option Only K is checked then value R/K is used to adjust the whole image.</p>",
    "values": null,
    "min": 0,
-   "max": 100
+   "max": 4
   },
   {
    "key": "enhancements_adjust_G",
@@ -16297,7 +16297,7 @@
      "tooltip": "<p>Adjust channels in PixelMath by multiplying them with a given value.</p><p>If option Only K is checked then value R/K is used to adjust the whole image.</p>",
      "values": null,
      "min": 0,
-     "max": 100,
+     "max": 4,
      "tab": "Enhancements",
      "section": "Generic enhancements",
      "expert": false,
@@ -16317,7 +16317,7 @@
    "tooltip": "<p>Adjust channels in PixelMath by multiplying them with a given value.</p><p>If option Only K is checked then value R/K is used to adjust the whole image.</p>",
    "values": null,
    "min": 0,
-   "max": 100
+   "max": 4
   },
   {
    "key": "enhancements_adjust_B",
@@ -16333,7 +16333,7 @@
      "tooltip": "<p>Adjust channels in PixelMath by multiplying them with a given value.</p><p>If option Only K is checked then value R/K is used to adjust the whole image.</p>",
      "values": null,
      "min": 0,
-     "max": 100,
+     "max": 4,
      "tab": "Enhancements",
      "section": "Generic enhancements",
      "expert": false,
@@ -16353,7 +16353,7 @@
    "tooltip": "<p>Adjust channels in PixelMath by multiplying them with a given value.</p><p>If option Only K is checked then value R/K is used to adjust the whole image.</p>",
    "values": null,
    "min": 0,
-   "max": 100
+   "max": 4
   },
   {
    "key": "enhancements_force_new_mask",

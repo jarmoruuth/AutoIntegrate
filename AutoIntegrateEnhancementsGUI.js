@@ -122,7 +122,8 @@ constructor(parent, guitools, util, global, engine, preview) {
 
       this.enhancements_target_image_window_list = [];
       this.preview_control = null;
-      this.curves_live_preview_timer = null;
+      this.live_preview_timer = null;
+      this.live_preview_last = null;              // latest live preview operation { name, operation }
       this.live_preview_cache = { key: null, image: null };
       this.live_preview_downsample_size = 2000;     // longest side of downsampled live preview image
 
@@ -525,29 +526,42 @@ newCurvesGraphControl(parent)
       return control;
 }
 
-// Start or restart curves live preview timer. Preview is updated after slider
-// changes have stopped for a short while.
-curvesLivePreviewSchedule()
+// Start or restart live preview timer for operation(previewWin). Preview is updated
+// after slider changes have stopped for a short while. The latest operation is
+// remembered so the preview can be updated again for example when downsampling
+// is changed.
+livePreviewSchedule(name, operation)
 {
-      if (!this.par.enhancements_curves_live_preview.val) {
+      this.live_preview_last = { name: name, operation: operation };
+      if (!this.par.enhancements_live_preview.val) {
             return;
       }
-      if (this.curves_live_preview_timer == null) {
-            this.curves_live_preview_timer = new Timer();
-            this.curves_live_preview_timer.singleShot = true;
-            this.curves_live_preview_timer.interval = 0.3;
-            this.curves_live_preview_timer.onTimeout = () => {
-                  this.curvesLivePreviewUpdate();
+      if (this.live_preview_timer == null) {
+            this.live_preview_timer = new Timer();
+            this.live_preview_timer.singleShot = true;
+            this.live_preview_timer.interval = 0.3;
+            this.live_preview_timer.onTimeout = () => {
+                  if (this.live_preview_last != null) {
+                        this.livePreviewRun(this.live_preview_last.name, this.live_preview_last.operation);
+                  }
             };
       }
-      this.curves_live_preview_timer.stop();
-      this.curves_live_preview_timer.start();
+      this.live_preview_timer.stop();
+      this.live_preview_timer.start();
 }
 
-curvesLivePreviewStop()
+// Update live preview again using the latest operation, if any
+livePreviewScheduleLast()
 {
-      if (this.curves_live_preview_timer != null) {
-            this.curves_live_preview_timer.stop();
+      if (this.live_preview_last != null) {
+            this.livePreviewSchedule(this.live_preview_last.name, this.live_preview_last.operation);
+      }
+}
+
+livePreviewStop()
+{
+      if (this.live_preview_timer != null) {
+            this.live_preview_timer.stop();
       }
 }
 
@@ -644,20 +658,43 @@ livePreviewRun(name, operation)
       console.writeln(name + " live preview " + (Date.now() - start_time) / 1000 + " sec");
 }
 
-curvesLivePreviewUpdate()
+// Live preview operations, each one schedules a preview update for its enhancement
+
+curvesLivePreviewSchedule()
 {
-      this.livePreviewRun("Curves", (previewWin) => {
+      this.livePreviewSchedule("Curves", (previewWin) => {
             this.engine.runCurvesTransformationPoints(previewWin, this.engine.enhancementsCurvesPoints());
       });
 }
 
-curvesLivePreviewToggled()
+gammaLivePreviewSchedule()
 {
-      if (this.par.enhancements_curves_live_preview.val) {
-            this.curvesLivePreviewSchedule();
+      this.livePreviewSchedule("Gamma", (previewWin) => {
+            this.engine.runPixelMathExpressions(previewWin, [ this.engine.enhancementsGammaExpression() ]);
+      });
+}
+
+adjustChannelsLivePreviewSchedule()
+{
+      this.livePreviewSchedule("Adjust channels", (previewWin) => {
+            this.engine.runPixelMathExpressions(previewWin, this.engine.enhancementsAdjustChannelsExpressions());
+      });
+}
+
+shadowClippingLivePreviewSchedule()
+{
+      this.livePreviewSchedule("Adjust shadows", (previewWin) => {
+            this.engine.runAdjustShadowsTransformation(previewWin, this.par.enhancements_shadowclippingperc.val);
+      });
+}
+
+livePreviewToggled()
+{
+      if (this.par.enhancements_live_preview.val) {
+            this.livePreviewScheduleLast();
       } else {
             // Show target image without live preview changes
-            this.curvesLivePreviewStop();
+            this.livePreviewStop();
             var targetWin = this.getEnhancementsTargetWin();
             if (targetWin != null) {
                   this.preview.updatePreviewIdReset(targetWin.mainView.id, true);
@@ -668,7 +705,7 @@ curvesLivePreviewToggled()
 close_undo_images(at_exit = false)
 {
       if (at_exit) {
-            this.curvesLivePreviewStop();
+            this.livePreviewStop();
       }
       this.livePreviewClearCache();
       if (this.enhancements_gui_info.undo_images.length > 0) {
@@ -756,10 +793,6 @@ createEnhancementsControls(parent)
       this.enhancements_curves_shadows_Control = this.guitools.newNumericControl2(parent, "Shadows", this.par.enhancements_curves_shadows, -1, 1,
             curvesTooltip + "<p>Adjusts dark tones (around 25% luminosity).</p>", curvesUpdated);
       this.curvesGraphControl = this.newCurvesGraphControl(parent);
-      this.enhancements_curves_live_preview_CheckBox = this.guitools.newCheckBox(parent, "Live preview", this.par.enhancements_curves_live_preview,
-            "<p>Update the preview while curve sliders are changed. The curve is applied to a copy of the target image " +
-            "and the target image is not changed. Use Apply to change the target image.</p>",
-            () => { this.curvesLivePreviewToggled(); });
 
       let labelWidth = this.enhancements_curves_highlights_Control.label.font.width("Method:M");
       this.enhancements_curves_highlights_Control.label.setFixedWidth(labelWidth);
@@ -790,7 +823,6 @@ createEnhancementsControls(parent)
       this.enhancementsCurvesCheckSizer.spacing = 4;
       this.enhancementsCurvesCheckSizer.add(this.enhancements_curves_CheckBox);
       this.enhancementsCurvesCheckSizer.add(enhancementsCurvesResetButton);
-      this.enhancementsCurvesCheckSizer.add(this.enhancements_curves_live_preview_CheckBox);
       this.enhancementsCurvesCheckSizer.addStretch();
 
       this.enhancementsCurvesSlidersSizer = new VerticalSizer;
@@ -1182,13 +1214,13 @@ createEnhancementsControls(parent)
                               "<p>With a value of 0, no shadow pixels are clipped but histogram, is moved to the left.</p>" +
                               "<p>You can use the Enhnacements / Misc options clipped tool to see clipped pixels.</p>";
       this.enhancements_shadowclip_CheckBox = this.guitools.newCheckBox(parent, "Adjust shadows,", this.par.enhancements_shadowclipping, shadowclipTooltip);
-      this.enhancements_shadowclipperc_edit = this.guitools.newNumericEditPrecision(parent, '%', this.par.enhancements_shadowclippingperc, 0, 100, shadowclipTooltip, 4);
+      this.enhancements_shadowclipperc_edit = this.guitools.newNumericControlPrecision(parent, '%', this.par.enhancements_shadowclippingperc, 0, 10, shadowclipTooltip, 4,
+                                                () => { this.shadowClippingLivePreviewSchedule(); });
       this.enhancements_shadowclip_Sizer = new HorizontalSizer;
       this.enhancements_shadowclip_Sizer.spacing = 4;
       this.enhancements_shadowclip_Sizer.add( this.enhancements_shadowclip_CheckBox );
-      this.enhancements_shadowclip_Sizer.add( this.enhancements_shadowclipperc_edit );
+      this.enhancements_shadowclip_Sizer.add( this.enhancements_shadowclipperc_edit, 100 );
       this.enhancements_shadowclip_Sizer.toolTip = shadowclipTooltip;
-      this.enhancements_shadowclip_Sizer.addStretch();
 
       var enhancementsEnhanceShadowsTooltip = "<p>Enhance shadows by using log on each pixel.</p>";
       this.enhancementsEnhanceShadowsCheckBox = this.guitools.newCheckBox(parent, "Enhance shadows", this.par.enhancements_shadow_enhance, enhancementsEnhanceShadowsTooltip);
@@ -1209,13 +1241,13 @@ createEnhancementsControls(parent)
       var enhancementsGammaTooltip = "<p>Apply gamma correction to the image.</p>" +
                               "<p>Value below 1 will make the image lighter. Value above 1 will make image darker.</p>";
       this.enhancementsGammaCheckBox = this.guitools.newCheckBox(parent, "Gamma", this.par.enhancements_gamma, enhancementsGammaTooltip);
-      this.enhancementsGammaEdit = this.guitools.newNumericEdit(parent, '', this.par.enhancements_gamma_value, 0, 2, enhancementsGammaTooltip);
+      this.enhancementsGammaEdit = this.guitools.newNumericControl2(parent, '', this.par.enhancements_gamma_value, 0, 2, enhancementsGammaTooltip,
+                                                () => { this.gammaLivePreviewSchedule(); });
       this.enhancementsGammaSizer = new HorizontalSizer;
       this.enhancementsGammaSizer.spacing = 4;
       this.enhancementsGammaSizer.add( this.enhancementsGammaCheckBox );
-      this.enhancementsGammaSizer.add( this.enhancementsGammaEdit );
+      this.enhancementsGammaSizer.add( this.enhancementsGammaEdit, 100 );
       this.enhancementsGammaSizer.toolTip = enhancementsGammaTooltip;
-      this.enhancementsGammaSizer.addStretch();
 
       var smoothBackgroundTooltip = 
             "<p>Smoothen background below a given pixel value. Pixel value can be found for example " +
@@ -1268,9 +1300,14 @@ createEnhancementsControls(parent)
                                           "<p>If option Only K is checked then value R/K is used to adjust the whole image.</p>";
 
       this.enhancementsAdjustChannelsCheckBox = this.guitools.newCheckBox(parent, "Adjust channels,", this.par.enhancements_adjust_channels, enhancementsAdjustChannelsToolTip);
-      this.enhancementsAdjustChannelR = this.guitools.newNumericEdit(parent, "R/K", this.par.enhancements_adjust_R, 0, 100, enhancementsAdjustChannelsToolTip);
-      this.enhancementsAdjustChannelG = this.guitools.newNumericEdit(parent, "G", this.par.enhancements_adjust_G, 0, 100, enhancementsAdjustChannelsToolTip);
-      this.enhancementsAdjustChannelB = this.guitools.newNumericEdit(parent, "B", this.par.enhancements_adjust_B, 0, 100, enhancementsAdjustChannelsToolTip);
+      var adjustChannelsUpdated = () => { this.adjustChannelsLivePreviewSchedule(); };
+      this.enhancementsAdjustChannelR = this.guitools.newNumericControl2(parent, "R/K", this.par.enhancements_adjust_R, 0, 4, enhancementsAdjustChannelsToolTip, adjustChannelsUpdated);
+      this.enhancementsAdjustChannelG = this.guitools.newNumericControl2(parent, "G", this.par.enhancements_adjust_G, 0, 4, enhancementsAdjustChannelsToolTip, adjustChannelsUpdated);
+      this.enhancementsAdjustChannelB = this.guitools.newNumericControl2(parent, "B", this.par.enhancements_adjust_B, 0, 4, enhancementsAdjustChannelsToolTip, adjustChannelsUpdated);
+      let adjustChannelsLabelWidth = this.enhancementsAdjustChannelR.label.font.width("R/K:M");
+      this.enhancementsAdjustChannelR.label.setFixedWidth(adjustChannelsLabelWidth);
+      this.enhancementsAdjustChannelG.label.setFixedWidth(adjustChannelsLabelWidth);
+      this.enhancementsAdjustChannelB.label.setFixedWidth(adjustChannelsLabelWidth);
       var enhancementsAdjustChannelR = this.enhancementsAdjustChannelR;
       var enhancementsAdjustChannelG = this.enhancementsAdjustChannelG;
       var enhancementsAdjustChannelB = this.enhancementsAdjustChannelB;
@@ -1287,19 +1324,24 @@ createEnhancementsControls(parent)
             enhancementsAdjustChannelR.setValue(this.par.enhancements_adjust_R.val);
             enhancementsAdjustChannelG.setValue(this.par.enhancements_adjust_G.val);
             enhancementsAdjustChannelB.setValue(this.par.enhancements_adjust_B.val);
+            adjustChannelsUpdated();
       };
-      this.enhancementsAdjustChannelsOnlyKCheckBox = this.guitools.newCheckBox(parent, "Only K", this.par.enhancements_adjust_channels_only_k, enhancementsAdjustChannelsToolTip);
+      this.enhancementsAdjustChannelsOnlyKCheckBox = this.guitools.newCheckBox(parent, "Only K", this.par.enhancements_adjust_channels_only_k, enhancementsAdjustChannelsToolTip,
+                                                adjustChannelsUpdated);
 
-      this.enhancementsAdjustChannelsSizer = new HorizontalSizer;
+      this.enhancementsAdjustChannelsCheckSizer = new HorizontalSizer;
+      this.enhancementsAdjustChannelsCheckSizer.spacing = 4;
+      this.enhancementsAdjustChannelsCheckSizer.add( this.enhancementsAdjustChannelsCheckBox );
+      this.enhancementsAdjustChannelsCheckSizer.add( this.enhancementsAdjustChannelsOnlyKCheckBox );
+      this.enhancementsAdjustChannelsCheckSizer.add( this.enhancementsAdjustChannelDefaultsButton );
+      this.enhancementsAdjustChannelsCheckSizer.addStretch();
+
+      this.enhancementsAdjustChannelsSizer = new VerticalSizer;
       this.enhancementsAdjustChannelsSizer.spacing = 4;
-      // this.enhancementsAdjustChannelsSizer.margin = 2;
-      this.enhancementsAdjustChannelsSizer.add( this.enhancementsAdjustChannelsCheckBox );
+      this.enhancementsAdjustChannelsSizer.add( this.enhancementsAdjustChannelsCheckSizer );
       this.enhancementsAdjustChannelsSizer.add( this.enhancementsAdjustChannelR );
       this.enhancementsAdjustChannelsSizer.add( this.enhancementsAdjustChannelG );
       this.enhancementsAdjustChannelsSizer.add( this.enhancementsAdjustChannelB );
-      this.enhancementsAdjustChannelsSizer.add( this.enhancementsAdjustChannelsOnlyKCheckBox );
-      this.enhancementsAdjustChannelsSizer.add( this.enhancementsAdjustChannelDefaultsButton );
-      this.enhancementsAdjustChannelsSizer.addStretch();
 
       this.enhancements_SmallerStars_CheckBox = this.guitools.newCheckBox(parent, "Smaller stars", this.par.enhancements_smaller_stars, 
             "<p>Make stars smaller on image.</p>" );
@@ -1499,6 +1541,12 @@ createEnhancementsControls(parent)
       this.enhancements_rotate_degrees_ComboBox = this.guitools.newComboBox(parent, this.par.enhancements_rotate_degrees, this.rotate_degrees_values, this.enhancements_rotate_CheckBox.toolTip);
       this.enhancements_image_no_copy_CheckBox = this.guitools.newCheckBox(parent, "No copy", this.par.enhancements_apply_no_copy_image, 
             "<p>Do not make a copy of the image for Apply.</p>" );
+      this.enhancements_live_preview_CheckBox = this.guitools.newCheckBox(parent, "Live preview", this.par.enhancements_live_preview,
+            "<p>Update the preview while slider values are changed. Live preview is available for options that have a slider, " +
+            "like curves, gamma, adjust channels and adjust shadows.</p>" +
+            "<p>Live preview shows only the option that is being changed, applied to a copy of the target image. " +
+            "The target image is not changed. Use Apply to change the target image.</p>",
+            () => { this.livePreviewToggled(); });
       this.enhancements_live_preview_downsample_CheckBox = this.guitools.newCheckBox(parent, "Downsample live preview", this.par.enhancements_live_preview_downsample,
             "<p>Use a downsampled copy of the target image for live preview. The longest side of the downsampled image is " +
             this.live_preview_downsample_size + " pixels.</p>" +
@@ -1506,13 +1554,14 @@ createEnhancementsControls(parent)
             "and reused until the target image changes. Apply always uses the full size image.</p>",
             () => {
                   this.livePreviewClearCache();
-                  this.curvesLivePreviewSchedule();
+                  this.livePreviewScheduleLast();
             });
 
       this.enhancementsImageOptionsSizer1 = new HorizontalSizer;
       this.enhancementsImageOptionsSizer1.spacing = 4;
       this.enhancementsImageOptionsSizer1.add( this.enhancements_auto_reset_CheckBox );
       this.enhancementsImageOptionsSizer1.add( this.enhancements_image_no_copy_CheckBox );
+      this.enhancementsImageOptionsSizer1.add( this.enhancements_live_preview_CheckBox );
       this.enhancementsImageOptionsSizer1.add( this.enhancements_live_preview_downsample_CheckBox );
       this.enhancementsImageOptionsSizer1.add( this.enhancements_force_new_mask_CheckBox );
       this.enhancementsImageOptionsSizer1.add( this.enhancements_range_mask_CheckBox );
@@ -1685,7 +1734,7 @@ enhancementsApplyButtonOnClick()
             } else if (this.util.findWindow(this.global.enhancements_target_image_id) == null) {
                   console.criticalln("Could not find target image " + this.global.enhancements_target_image_id);
             } else {
-                  this.curvesLivePreviewStop();
+                  this.livePreviewStop();
                   if (this.enhancements_gui_info.undo_images.length == 0) {
                         this.global.enhancements_info = [];   // First image, clear enhancements info
                         var saved_enhancements_target_image = this.global.enhancements_target_image_id;
