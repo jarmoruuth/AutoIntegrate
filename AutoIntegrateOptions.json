@@ -1,6 +1,6 @@
 {
- "version": "AutoIntegrate v1.88.0 test1",
- "generated": "Thu Oct 15 2026 18:33:52 GMT+0300 (FLE Daylight Time)",
+ "version": "AutoIntegrate v1.88.0 test2",
+ "generated": "Thu Oct 15 2026 22:25:45 GMT+0300 (FLE Daylight Time)",
  "options": [
   {
    "key": "local_normalization",
@@ -17313,8 +17313,8 @@
    "controls": [
     {
      "kind": "checkbox",
-     "label": "Saturation",
-     "tooltip": "<p>Add saturation to the image using a luminance mask.</p><p>Number of iterations specifies how many times add saturation is run.</p>",
+     "label": "Saturation,",
+     "tooltip": "<p>Add saturation to the image using a luminance mask.</p><p>Amount specifies how much saturation is added. Amount 1 runs the saturation curve once, amount 2 runs it twice and so on. Values in between run a weaker curve for the fractional part.</p><p>If Less is checked saturation is reduced instead of increased. A mask is not used when reducing saturation.</p>",
      "values": null,
      "min": null,
      "max": null,
@@ -17333,27 +17333,27 @@
    ],
    "in_gui": true,
    "kind": "checkbox",
-   "label": "Saturation",
-   "tooltip": "<p>Add saturation to the image using a luminance mask.</p><p>Number of iterations specifies how many times add saturation is run.</p>",
+   "label": "Saturation,",
+   "tooltip": "<p>Add saturation to the image using a luminance mask.</p><p>Amount specifies how much saturation is added. Amount 1 runs the saturation curve once, amount 2 runs it twice and so on. Values in between run a weaker curve for the fractional part.</p><p>If Less is checked saturation is reduced instead of increased. A mask is not used when reducing saturation.</p>",
    "values": null,
    "min": null,
    "max": null
   },
   {
-   "key": "enhancements_saturation_iterations",
-   "name": "Enh saturation iterations",
-   "type": "I",
+   "key": "enhancements_saturation_amount",
+   "name": "Enh saturation amount",
+   "type": "R",
    "def": 1,
    "tip": "",
    "applies": "color",
    "controls": [
     {
-     "kind": "integer",
-     "label": "",
-     "tooltip": "<p>Add saturation to the image using a luminance mask.</p><p>Number of iterations specifies how many times add saturation is run.</p>",
+     "kind": "number",
+     "label": "Amount",
+     "tooltip": "<p>Add saturation to the image using a luminance mask.</p><p>Amount specifies how much saturation is added. Amount 1 runs the saturation curve once, amount 2 runs it twice and so on. Values in between run a weaker curve for the fractional part.</p><p>If Less is checked saturation is reduced instead of increased. A mask is not used when reducing saturation.</p>",
      "values": null,
-     "min": 1,
-     "max": 20,
+     "min": 0.1,
+     "max": 10,
      "tab": "Enhancements",
      "section": "Generic enhancements",
      "expert": false,
@@ -17368,12 +17368,12 @@
     "Generic enhancements"
    ],
    "in_gui": true,
-   "kind": "integer",
-   "label": "",
-   "tooltip": "<p>Add saturation to the image using a luminance mask.</p><p>Number of iterations specifies how many times add saturation is run.</p>",
+   "kind": "number",
+   "label": "Amount",
+   "tooltip": "<p>Add saturation to the image using a luminance mask.</p><p>Amount specifies how much saturation is added. Amount 1 runs the saturation curve once, amount 2 runs it twice and so on. Values in between run a weaker curve for the fractional part.</p><p>If Less is checked saturation is reduced instead of increased. A mask is not used when reducing saturation.</p>",
    "values": null,
-   "min": 1,
-   "max": 20
+   "min": 0.1,
+   "max": 10
   },
   {
    "key": "enhancements_less_saturation",

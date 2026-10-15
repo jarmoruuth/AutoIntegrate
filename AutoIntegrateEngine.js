@@ -16888,20 +16888,75 @@ enhancementsSharpen(enhancementsWin, mask_win)
 
 enhancementsSaturation(enhancementsWin, mask_win)
 {
-      if (this.par.enhancements_less_saturation.val) {
-            this.addEnhancementsStep("Decrease saturation using " + this.par.enhancements_saturation_iterations.val + " iterations");
+      var increase = !this.par.enhancements_less_saturation.val;
+      var amount = this.par.enhancements_saturation_amount.val;
+      this.addEnhancementsStep((increase ? "Increase" : "Decrease") + " saturation using amount " + amount);
+      var node = this.flowchart.flowchartOperation(this.par.use_chrominance.val ? "CurvesTransformation:chrominance" : "CurvesTransformation:saturation");
+
+      var P = this.runSaturationAmount(enhancementsWin, mask_win, amount, increase);
+
+      if (P != null) {
+            this.printAndSaveProcessValues(P, this.par.use_chrominance.val ? "chrominance" : "saturation", enhancementsWin.mainView.id);
+      }
+      this.engine_end_process(node);
+
+      // this.guiUpdatePreviewWin(enhancementsWin);
+}
+
+// Saturation curve with strength 0-1. Strength 1 is the same curve that
+// increaseSaturation and decreaseSaturation use.
+saturationCurvePoints(increase, strength)
+{
+      if (this.par.use_chrominance.val) {
+            var pt = increase ? [0.48604, 0.51200] : [0.51396, 0.4880];
       } else {
-            this.addEnhancementsStep("Increase saturation using " + this.par.enhancements_saturation_iterations.val + " iterations");
+            var pt = increase ? [0.68734, 0.83204] : [0.49261, 0.41734];
+      }
+      return [ [0.00000, 0.00000], [pt[0], pt[0] + strength * (pt[1] - pt[0])], [1.00000, 1.00000] ];
+}
+
+// Change saturation by amount. Integer part of amount runs the full saturation
+// curve that many times, fractional part runs a weaker curve once, so integer
+// amounts match the old iterations. Mask is used only when increasing saturation.
+// No logging, returns the last process or null.
+runSaturationAmount(imgWin, maskWin, amount, increase)
+{
+      if (!increase) {
+            maskWin = null; // No mask when decreasing saturation
+      }
+      var strengths = [];
+      var iterations = Math.floor(amount + 0.001);
+      for (var i = 0; i < iterations; i++) {
+            strengths.push(1);
+      }
+      if (amount - iterations > 0.001) {
+            strengths.push(amount - iterations);
       }
 
-      for (var i = 0; i < this.par.enhancements_saturation_iterations.val; i++) {
-            if (this.par.enhancements_less_saturation.val) {
-                  this.decreaseSaturation(enhancementsWin, mask_win);
-            } else {
-                  this.increaseSaturation(enhancementsWin, mask_win);
-            }
+      if (maskWin != null) {
+            /* Saturate only light parts of the image. */
+            this.setMaskChecked(imgWin, maskWin);
+            imgWin.maskInverted = false;
       }
-      // this.guiUpdatePreviewWin(enhancementsWin);
+
+      var P = null;
+      for (var i = 0; i < strengths.length; i++) {
+            P = new CurvesTransformation;
+            if (this.par.use_chrominance.val) {
+                  P.c = this.saturationCurvePoints(increase, strengths[i]);
+            } else {
+                  P.S = this.saturationCurvePoints(increase, strengths[i]);
+            }
+            imgWin.mainView.beginProcess(UndoFlag.NoSwapFile);
+            P.executeOn(imgWin.mainView, false);
+            imgWin.mainView.endProcess();
+      }
+
+      if (maskWin != null) {
+            imgWin.removeMask();
+      }
+
+      return P;
 }
 
 enhancementsHighlightColor(enhancementsWin)

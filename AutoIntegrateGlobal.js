@@ -28,7 +28,7 @@ super();
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-this.autointegrate_version = "AutoIntegrate v1.88.0 test1"; // Version, also updated into updates.xri
+this.autointegrate_version = "AutoIntegrate v1.88.0 test2"; // Version, also updated into updates.xri
 this.autointegrate_info = "Auto stretching, Auto tools";                // For updates.xri
 
 this.autointegrate_version_info = [
@@ -36,12 +36,11 @@ this.autointegrate_version_info = [
         "- Auto image stretching selects the stretching",
         "  method by analyzing the image",
         "- Auto tool selection in Settings / Tools",
+        "- Live preview of enhancements",
         "- New fast mode option Subset, now the default",
         "- FastIntegration picks a better reference image",
         "- By default only integrated images and the final images",
         "  are left on the desktop at the end of processing.",
-        "- Small improvements",
-        "- Bug fixes",
   ];
 
 /* Interface version changes:
@@ -740,7 +739,7 @@ this.par = {
       enhancements_clarity_amount: { val: 0.3, def: 0.3, name : "Enh clarity amount", type : 'I', oldname: "Extra clarity amount" },
       enhancements_clarity_mask: { val: false, def: false, name : "Enh clarity mask", type : 'B', oldname: "Extra clarity mask" },
       enhancements_saturation: { val: false, def: false, name : "Enh saturation", type : 'B', oldname: "Extra saturation", applies : "color" },
-      enhancements_saturation_iterations: { val: 1, def: 1, name : "Enh saturation iterations", type : 'I', oldname: "Extra saturation iterations", applies : "color" },
+      enhancements_saturation_amount: { val: 1, def: 1, name : "Enh saturation amount", type : 'R', applies : "color" },
       enhancements_less_saturation: { val: false, def: false, name : "Enh less saturation", type : 'B', applies : "color" },
       enhancements_smaller_stars: { val: false, def: false, name : "Enh smaller stars", type : 'B', oldname: "Extra smaller stars" },
       enhancements_smaller_stars_iterations: { val: 1, def: 1, name : "Enh smaller stars iterations", type : 'I', oldname: "Extra smaller stars iterations" },

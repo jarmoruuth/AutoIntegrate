@@ -761,6 +761,13 @@ livePreviewOptions()
                                                    this.par.enhancements_unsharpmask_amount.val);
                   }
             },
+            {     // Mask is used only when increasing saturation
+                  name: "Saturation", param: this.par.enhancements_saturation,
+                  needs_mask: () => !this.par.enhancements_less_saturation.val,
+                  run: (previewWin, maskWin) => {
+                        this.engine.runSaturationAmount(previewWin, maskWin, this.par.enhancements_saturation_amount.val, !this.par.enhancements_less_saturation.val);
+                  }
+            },
             {
                   name: "Clarity", param: this.par.enhancements_clarity,
                   needs_mask: () => this.par.enhancements_clarity_mask.val,
@@ -1636,23 +1643,25 @@ createEnhancementsControls(parent)
       this.enhancementsHighPassSharpenSizer.addStretch();
 
       var enhancements_saturation_tooltip = "<p>Add saturation to the image using a luminance mask.</p>" + 
-                                          "<p>Number of iterations specifies how many times add saturation is run.</p>";
-      this.enhancements_saturation_CheckBox = this.guitools.newCheckBox(parent, "Saturation", this.par.enhancements_saturation, enhancements_saturation_tooltip);
-      this.enhancements_less_saturation_CheckBox = this.guitools.newCheckBox(parent, "Less", this.par.enhancements_less_saturation, "If checked saturation is reduced instead of increased.");
-
-      this.enhancementsSaturationIterationsSpinBox = this.guitools.newSpinBox(parent, this.par.enhancements_saturation_iterations, 1, 20, enhancements_saturation_tooltip);
-      this.enhancementsSaturationIterationsLabel = new Label( parent );
-      this.enhancementsSaturationIterationsLabel.text = "iterations";
-      this.enhancementsSaturationIterationsLabel.textAlignment = TextAlignment.Left|TextAlignment.VertCenter;
-      this.enhancementsSaturationIterationsLabel.toolTip = enhancements_saturation_tooltip;
-      this.enhancementsSaturationIterationsSizer = new HorizontalSizer;
+                                          "<p>Amount specifies how much saturation is added. Amount 1 runs the saturation curve once, " +
+                                          "amount 2 runs it twice and so on. Values in between run a weaker curve for the fractional part.</p>" +
+                                          "<p>If Less is checked saturation is reduced instead of increased. A mask is not used when reducing saturation.</p>";
+      this.enhancements_saturation_CheckBox = this.guitools.newCheckBox(parent, "Saturation,", this.par.enhancements_saturation, enhancements_saturation_tooltip,
+                                                () => { this.livePreviewUpdate(); });
+      this.enhancements_less_saturation_CheckBox = this.guitools.newCheckBox(parent, "Less", this.par.enhancements_less_saturation, "If checked saturation is reduced instead of increased.",
+                                                () => { this.livePreviewUpdate(); });
+      var saturationUpdated = (user_changed) => { this.livePreviewSliderChanged(this.enhancements_saturation_CheckBox, user_changed); };
+      this.enhancementsSaturationAmountEdit = this.guitools.newNumericControlPrecision(parent, "Amount", this.par.enhancements_saturation_amount, 0.1, 10, enhancements_saturation_tooltip, 1, saturationUpdated);
+      this.enhancementsSaturationCheckSizer = new HorizontalSizer;
+      this.enhancementsSaturationCheckSizer.spacing = 4;
+      this.enhancementsSaturationCheckSizer.add( this.enhancements_saturation_CheckBox );
+      this.enhancementsSaturationCheckSizer.add( this.enhancements_less_saturation_CheckBox );
+      this.enhancementsSaturationCheckSizer.toolTip = enhancements_saturation_tooltip;
+      this.enhancementsSaturationCheckSizer.addStretch();
+      this.enhancementsSaturationIterationsSizer = new VerticalSizer;
       this.enhancementsSaturationIterationsSizer.spacing = 4;
-      this.enhancementsSaturationIterationsSizer.add( this.enhancements_saturation_CheckBox );
-      this.enhancementsSaturationIterationsSizer.add( this.enhancementsSaturationIterationsSpinBox );
-      this.enhancementsSaturationIterationsSizer.add( this.enhancementsSaturationIterationsLabel );
-      this.enhancementsSaturationIterationsSizer.add( this.enhancements_less_saturation_CheckBox );
-      this.enhancementsSaturationIterationsSizer.toolTip = enhancements_saturation_tooltip;
-      this.enhancementsSaturationIterationsSizer.addStretch();
+      this.enhancementsSaturationIterationsSizer.add( this.enhancementsSaturationCheckSizer );
+      this.enhancementsSaturationIterationsSizer.add( this.enhancementsSaturationAmountEdit );
 
       var clarity_tooltip = "<p>Add clarity to the image using a luminance mask. Clarity is a local contrast enhancement.</p>" +
                               "<p>Clarity uses UnsharpMask process where stddev should be large and amount should be small.</p>" + 
