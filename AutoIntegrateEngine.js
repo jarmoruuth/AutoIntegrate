@@ -16392,11 +16392,9 @@ enhancementsContrast(imgWin)
       // this.guiUpdatePreviewWin(imgWin);
 }
 
-enhancementsApplyCurves(imgWin)
+// Curve points for CurvesTransformation P.K from enhancements curves sliders
+enhancementsCurvesPoints()
 {
-      this.addEnhancementsStep("Curves adjustment");
-      var node = this.flowchart.flowchartOperation("CurvesTransformation:curves_adjust");
-
       var scale = 0.20;
 
       var hl_adj = this.par.enhancements_curves_highlights.val * scale;
@@ -16420,12 +16418,27 @@ enhancementsApplyCurves(imgWin)
             pts[i][1] = Math.max(pts[i - 1][1], Math.min(pts[i + 1][1], pts[i][1]));
       }
 
+      return pts;
+}
+
+runCurvesTransformationPoints(imgWin, pts)
+{
       var P = new CurvesTransformation;
       P.K = pts;
 
       imgWin.mainView.beginProcess(UndoFlag.NoSwapFile);
       P.executeOn(imgWin.mainView, false);
       imgWin.mainView.endProcess();
+
+      return P;
+}
+
+enhancementsApplyCurves(imgWin)
+{
+      this.addEnhancementsStep("Curves adjustment");
+      var node = this.flowchart.flowchartOperation("CurvesTransformation:curves_adjust");
+
+      var P = this.runCurvesTransformationPoints(imgWin, this.enhancementsCurvesPoints());
 
       this.printAndSaveProcessValues(P, "", imgWin.mainView.id);
       this.engine_end_process(node);

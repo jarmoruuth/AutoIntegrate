@@ -1,6 +1,6 @@
 {
  "version": "AutoIntegrate v1.88.0 test1",
- "generated": "Wed Oct 14 2026 20:10:10 GMT+0300 (FLE Daylight Time)",
+ "generated": "Thu Oct 15 2026 10:00:51 GMT+0300 (FLE Daylight Time)",
  "options": [
   {
    "key": "local_normalization",
@@ -14082,6 +14082,42 @@
    "values": null,
    "min": -1,
    "max": 1
+  },
+  {
+   "key": "enhancements_curves_live_preview",
+   "name": "Enh curves live preview",
+   "type": "B",
+   "def": true,
+   "tip": "",
+   "applies": "interface",
+   "controls": [
+    {
+     "kind": "checkbox",
+     "label": "Live preview",
+     "tooltip": "<p>Update the preview while curve sliders are changed. The curve is applied to a copy of the target image and the target image is not changed. Use Apply to change the target image.</p>",
+     "values": null,
+     "min": null,
+     "max": null,
+     "tab": "Enhancements",
+     "section": "Curves",
+     "expert": false,
+     "located": true
+    }
+   ],
+   "expert": false,
+   "tabs": [
+    "Enhancements"
+   ],
+   "sections": [
+    "Curves"
+   ],
+   "in_gui": true,
+   "kind": "checkbox",
+   "label": "Live preview",
+   "tooltip": "<p>Update the preview while curve sliders are changed. The curve is applied to a copy of the target image and the target image is not changed. Use Apply to change the target image.</p>",
+   "values": null,
+   "min": null,
+   "max": null
   },
   {
    "key": "leave_some_green",

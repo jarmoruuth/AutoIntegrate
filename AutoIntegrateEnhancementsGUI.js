@@ -122,6 +122,7 @@ constructor(parent, guitools, util, global, engine, preview) {
 
       this.enhancements_target_image_window_list = [];
       this.preview_control = null;
+      this.curves_live_preview_timer = null;
 
       this.adjust_type_values = [ 'Lights', 'Darks', 'All' ];
       this.star_reduce_methods = [ 'None', 'Transfer', 'Halo', 'Star' ];
@@ -434,8 +435,178 @@ save_as_undo()
       }
 }
 
+// Get a valid enhancements target window, or null
+getEnhancementsTargetWin()
+{
+      var id = this.global.enhancements_target_image_id;
+      if (id == null || id == this.imageListFirst) {
+            return null;
+      }
+      return this.util.findWindow(id);
+}
+
+// Value of an Akima subspline at x, same interpolation as CurvesTransformation uses by default.
+// pts is an array of [x, y] with increasing x.
+curvesAkimaValue(pts, x)
+{
+      var n = pts.length;
+      var m = [];
+      for (var i = 0; i < n - 1; i++) {
+            m[i + 2] = (pts[i + 1][1] - pts[i][1]) / (pts[i + 1][0] - pts[i][0]);
+      }
+      m[1] = 2 * m[2] - m[3];
+      m[0] = 2 * m[1] - m[2];
+      m[n + 1] = 2 * m[n] - m[n - 1];
+      m[n + 2] = 2 * m[n + 1] - m[n];
+      var t = [];
+      for (var i = 0; i < n; i++) {
+            var w1 = Math.abs(m[i + 3] - m[i + 2]);
+            var w2 = Math.abs(m[i + 1] - m[i]);
+            if (w1 + w2 < 1e-12) {
+                  t[i] = (m[i + 1] + m[i + 2]) / 2;
+            } else {
+                  t[i] = (w1 * m[i + 1] + w2 * m[i + 2]) / (w1 + w2);
+            }
+      }
+      var k = 0;
+      while (k < n - 2 && x > pts[k + 1][0]) {
+            k++;
+      }
+      var h = pts[k + 1][0] - pts[k][0];
+      var s = (x - pts[k][0]) / h;
+      var s2 = s * s;
+      var s3 = s2 * s;
+      var y = (2 * s3 - 3 * s2 + 1) * pts[k][1] + (s3 - 2 * s2 + s) * h * t[k] +
+              (-2 * s3 + 3 * s2) * pts[k + 1][1] + (s3 - s2) * h * t[k + 1];
+      return Math.max(0, Math.min(1, y));
+}
+
+// Small graph that shows the curve defined by curves sliders
+newCurvesGraphControl(parent)
+{
+      var engine = this.engine;
+      var self = this;
+      var control = new Control(parent);
+      control.setScaledFixedSize(110, 110);
+      control.toolTip = "<p>Curve defined by the sliders. The diagonal line is the unchanged image.</p>";
+      control.onPaint = function(x0, y0, x1, y1) {
+            var w = this.width;
+            var h = this.height;
+            var g = new Graphics(this);
+            g.antialiasing = true;
+            g.fillRect(0, 0, w, h, new Brush(0xff000000));
+            g.pen = new Pen(0xff404040, 0);
+            for (var i = 0.25; i < 1; i += 0.25) {
+                  g.drawLine(0, h * i, w, h * i);
+                  g.drawLine(w * i, 0, w * i, h);
+            }
+            g.pen = new Pen(0xff707070, 0);
+            g.drawLine(0, h - 1, w - 1, 0);
+            var pts = engine.enhancementsCurvesPoints();
+            g.pen = new Pen(0xffffffff, 1.5);
+            var px = 0;
+            var py = (1 - self.curvesAkimaValue(pts, 0)) * (h - 1);
+            for (var xi = 1; xi < w; xi++) {
+                  var x = xi / (w - 1);
+                  var y = (1 - self.curvesAkimaValue(pts, x)) * (h - 1);
+                  g.drawLine(px, py, xi, y);
+                  px = xi;
+                  py = y;
+            }
+            g.pen = new Pen(0xffffa000, 0);
+            g.brush = new Brush(0xffffa000);
+            for (var i = 1; i < pts.length - 1; i++) {
+                  g.drawCircle(pts[i][0] * (w - 1), (1 - pts[i][1]) * (h - 1), 2.5);
+            }
+            g.end();
+      };
+      return control;
+}
+
+// Start or restart curves live preview timer. Preview is updated after slider
+// changes have stopped for a short while.
+curvesLivePreviewSchedule()
+{
+      if (!this.par.enhancements_curves_live_preview.val) {
+            return;
+      }
+      if (this.curves_live_preview_timer == null) {
+            this.curves_live_preview_timer = new Timer();
+            this.curves_live_preview_timer.singleShot = true;
+            this.curves_live_preview_timer.interval = 0.3;
+            this.curves_live_preview_timer.onTimeout = () => {
+                  this.curvesLivePreviewUpdate();
+            };
+      }
+      this.curves_live_preview_timer.stop();
+      this.curves_live_preview_timer.start();
+}
+
+curvesLivePreviewStop()
+{
+      if (this.curves_live_preview_timer != null) {
+            this.curves_live_preview_timer.stop();
+      }
+}
+
+// Apply curves to a hidden copy of the target image and show it in the preview.
+// Target image is not changed.
+curvesLivePreviewUpdate()
+{
+      if (this.engine.enhancementsApply || this.global.is_processing != this.global.processing_state.none) {
+            return;
+      }
+      var targetWin = this.getEnhancementsTargetWin();
+      if (targetWin == null) {
+            return;
+      }
+      var start_time = Date.now();
+      var image = targetWin.mainView.image;
+      var previewWin = new ImageWindow(
+                              image.width,
+                              image.height,
+                              image.numberOfChannels,
+                              targetWin.bitsPerSample,
+                              targetWin.isFloatSample,
+                              image.colorSpace != ColorSpace.Gray,
+                              "AutoIntegrate_curves_live_preview");
+      try {
+            previewWin.mainView.beginProcess(UndoFlag.NoSwapFile);
+            previewWin.mainView.image.assign(image);
+            previewWin.mainView.endProcess();
+
+            this.engine.runCurvesTransformationPoints(previewWin, this.engine.enhancementsCurvesPoints());
+
+            // Preview update may set target histogram info, keep the target image info
+            var saved_histogram_info = this.global.enhancements_target_histogram_info;
+            this.preview.updatePreviewWinTxt(previewWin, targetWin.mainView.id + " [curves live preview]");
+            this.global.enhancements_target_histogram_info = saved_histogram_info;
+      } catch (err) {
+            console.criticalln("Curves live preview failed: " + err);
+      }
+      previewWin.forceClose();
+      console.writeln("Curves live preview " + (Date.now() - start_time) / 1000 + " sec");
+}
+
+curvesLivePreviewToggled()
+{
+      if (this.par.enhancements_curves_live_preview.val) {
+            this.curvesLivePreviewSchedule();
+      } else {
+            // Show target image without live preview changes
+            this.curvesLivePreviewStop();
+            var targetWin = this.getEnhancementsTargetWin();
+            if (targetWin != null) {
+                  this.preview.updatePreviewIdReset(targetWin.mainView.id, true);
+            }
+      }
+}
+
 close_undo_images(at_exit = false)
 {
+      if (at_exit) {
+            this.curvesLivePreviewStop();
+      }
       if (this.enhancements_gui_info.undo_images.length > 0) {
             console.writeln("Close undo images");
             this.enhancements_gui_info.undo_images = [];
@@ -508,14 +679,23 @@ createEnhancementsControls(parent)
                           "Range is -1.0 to +1.0.</p>";
       this.enhancements_curves_CheckBox = this.guitools.newCheckBox(parent, "Apply curves", this.par.enhancements_curves,
             "<p>Apply curves adjustment to the image. Use the sliders below to set the curve points.</p>");
-      this.enhancements_curves_highlights_Control = this.guitools.newNumericControl(parent, "Highlights", this.par.enhancements_curves_highlights, -1, 1,
-            curvesTooltip + "<p>Adjusts bright tones (around 75% luminosity).</p>");
-      this.enhancements_curves_lights_Control = this.guitools.newNumericControl(parent, "Lights", this.par.enhancements_curves_lights, -1, 1,
-            curvesTooltip + "<p>Adjusts medium-bright tones (around 62.5% luminosity).</p>");
-      this.enhancements_curves_darks_Control = this.guitools.newNumericControl(parent, "Darks", this.par.enhancements_curves_darks, -1, 1,
-            curvesTooltip + "<p>Adjusts medium-dark tones (around 37.5% luminosity).</p>");
-      this.enhancements_curves_shadows_Control = this.guitools.newNumericControl(parent, "Shadows", this.par.enhancements_curves_shadows, -1, 1,
-            curvesTooltip + "<p>Adjusts dark tones (around 25% luminosity).</p>");
+      var curvesUpdated = () => {
+            this.curvesGraphControl.repaint();
+            this.curvesLivePreviewSchedule();
+      };
+      this.enhancements_curves_highlights_Control = this.guitools.newNumericControl2(parent, "Highlights", this.par.enhancements_curves_highlights, -1, 1,
+            curvesTooltip + "<p>Adjusts bright tones (around 75% luminosity).</p>", curvesUpdated);
+      this.enhancements_curves_lights_Control = this.guitools.newNumericControl2(parent, "Lights", this.par.enhancements_curves_lights, -1, 1,
+            curvesTooltip + "<p>Adjusts medium-bright tones (around 62.5% luminosity).</p>", curvesUpdated);
+      this.enhancements_curves_darks_Control = this.guitools.newNumericControl2(parent, "Darks", this.par.enhancements_curves_darks, -1, 1,
+            curvesTooltip + "<p>Adjusts medium-dark tones (around 37.5% luminosity).</p>", curvesUpdated);
+      this.enhancements_curves_shadows_Control = this.guitools.newNumericControl2(parent, "Shadows", this.par.enhancements_curves_shadows, -1, 1,
+            curvesTooltip + "<p>Adjusts dark tones (around 25% luminosity).</p>", curvesUpdated);
+      this.curvesGraphControl = this.newCurvesGraphControl(parent);
+      this.enhancements_curves_live_preview_CheckBox = this.guitools.newCheckBox(parent, "Live preview", this.par.enhancements_curves_live_preview,
+            "<p>Update the preview while curve sliders are changed. The curve is applied to a copy of the target image " +
+            "and the target image is not changed. Use Apply to change the target image.</p>",
+            () => { this.curvesLivePreviewToggled(); });
 
       let labelWidth = this.enhancements_curves_highlights_Control.label.font.width("Method:M");
       this.enhancements_curves_highlights_Control.label.setFixedWidth(labelWidth);
@@ -539,21 +719,32 @@ createEnhancementsControls(parent)
             curves_lights_Control.setValue(0);
             curves_darks_Control.setValue(0);
             curves_shadows_Control.setValue(0);
+            curvesUpdated();
       };
 
       this.enhancementsCurvesCheckSizer = new HorizontalSizer;
       this.enhancementsCurvesCheckSizer.spacing = 4;
       this.enhancementsCurvesCheckSizer.add(this.enhancements_curves_CheckBox);
       this.enhancementsCurvesCheckSizer.add(enhancementsCurvesResetButton);
+      this.enhancementsCurvesCheckSizer.add(this.enhancements_curves_live_preview_CheckBox);
       this.enhancementsCurvesCheckSizer.addStretch();
+
+      this.enhancementsCurvesSlidersSizer = new VerticalSizer;
+      this.enhancementsCurvesSlidersSizer.spacing = 4;
+      this.enhancementsCurvesSlidersSizer.add(this.enhancements_curves_highlights_Control);
+      this.enhancementsCurvesSlidersSizer.add(this.enhancements_curves_lights_Control);
+      this.enhancementsCurvesSlidersSizer.add(this.enhancements_curves_darks_Control);
+      this.enhancementsCurvesSlidersSizer.add(this.enhancements_curves_shadows_Control);
+
+      this.enhancementsCurvesGraphSizer = new HorizontalSizer;
+      this.enhancementsCurvesGraphSizer.spacing = 8;
+      this.enhancementsCurvesGraphSizer.add(this.enhancementsCurvesSlidersSizer, 100);
+      this.enhancementsCurvesGraphSizer.add(this.curvesGraphControl);
 
       this.enhancementsCurvesSizer = new VerticalSizer;
       this.enhancementsCurvesSizer.spacing = 4;
       this.enhancementsCurvesSizer.add(this.enhancementsCurvesCheckSizer);
-      this.enhancementsCurvesSizer.add(this.enhancements_curves_highlights_Control);
-      this.enhancementsCurvesSizer.add(this.enhancements_curves_lights_Control);
-      this.enhancementsCurvesSizer.add(this.enhancements_curves_darks_Control);
-      this.enhancementsCurvesSizer.add(this.enhancements_curves_shadows_Control);
+      this.enhancementsCurvesSizer.add(this.enhancementsCurvesGraphSizer);
 
       this.narrowband_leave_some_green_CheckBox = this.guitools.newCheckBox(parent, "Leave some green", this.par.leave_some_green, 
             "<p>Leave some green color on image when running SCNR. Useful with SHO color palette. </p>");
@@ -1420,6 +1611,7 @@ enhancementsApplyButtonOnClick()
             } else if (this.util.findWindow(this.global.enhancements_target_image_id) == null) {
                   console.criticalln("Could not find target image " + this.global.enhancements_target_image_id);
             } else {
+                  this.curvesLivePreviewStop();
                   if (this.enhancements_gui_info.undo_images.length == 0) {
                         this.global.enhancements_info = [];   // First image, clear enhancements info
                         var saved_enhancements_target_image = this.global.enhancements_target_image_id;

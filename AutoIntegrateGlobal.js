@@ -648,6 +648,7 @@ this.par = {
       enhancements_curves_lights: { val: 0, def: 0, name : "Enh curves lights", type : 'R' },
       enhancements_curves_darks: { val: 0, def: 0, name : "Enh curves darks", type : 'R' },
       enhancements_curves_shadows: { val: 0, def: 0, name : "Enh curves shadows", type : 'R' },
+      enhancements_curves_live_preview: { val: true, def: true, name : "Enh curves live preview", type : 'B', applies : "interface" },
 
       leave_some_green: { val: false, def: false, name : "Enh narrowband leave some green", type : 'B', oldname: "Extra narrowband leave some green", applies : "narrowband" },
       leave_some_green_amount: { val: 0.50, def: 0.50, name : "Enh narrowband leave some green amount", type : 'R', oldname: "Extra narrowband leave some green amount", applies : "narrowband" },
