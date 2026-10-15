@@ -254,10 +254,11 @@ class AutoIntegratePreviewControl extends Frame
             if (!this.bitmap) {
                   return;
             }
+            if (newZoom > this.zoomInLimit) {
+                   newZoom = this.zoomInLimit;
+             }
             if (newZoom < this.zoomOutLimit) {
                    newZoom = this.zoomOutLimit;
-             } else if (newZoom >= 1) {
-                   newZoom = 1;
              }
              if (this.par.debug.val) console.writeln(this.name + ":UpdateZoom:newZoom " + newZoom);
              if (newZoom == this.zoom && this.scaledBitmap) {
@@ -284,12 +285,20 @@ class AutoIntegratePreviewControl extends Frame
                   this.scaledBitmap = null;
              }
             if (this.zoom >= 1) {
-                  this.zoomVal_Label.text = "1:1";
+                  this.zoomVal_Label.text = (Math.round(this.zoom * 10) / 10).toString() + ":1";
             } else {
                   this.zoomVal_Label.text = format("1:%d", Math.ceil(1 / this.zoom));
             }
             if (this.bitmap) {
-                   if (this.zoom > this.zoomOutLimit) {
+                   if (this.zoom > 1) {
+                        // Zoom in above 1:1 would create a very large bitmap, so only
+                        // the size is stored and the visible part is drawn in onPaint.
+                        if (this.par.debug.val) console.writeln(this.name + ":UpdateZoom:zoom in scale " + this.scale);
+                        this.scaledBitmap = { width: Math.round(this.bitmap.width * this.scale),
+                                              height: Math.round(this.bitmap.height * this.scale),
+                                              zoomedIn: true,
+                                              clear: function() {} };
+                   } else if (this.zoom > this.zoomOutLimit) {
                         if (this.par.debug.val) console.writeln(this.name + ":UpdateZoom:scale " + this.scale);
                         this.scaledBitmap = this.bitmap.scaled(this.scale);
                    } else {
@@ -312,6 +321,27 @@ class AutoIntegratePreviewControl extends Frame
              this.scrollbox.viewport.update();
        }
 
+       // Zoom steps are fractions of the fit size below 1:1 and whole numbers above 1:1
+       ZoomIn(refPoint)
+       {
+            if (this.zoom >= 1) {
+                  var newZoom = Math.floor(this.zoom) + 1;
+            } else {
+                  var newZoom = Math.min(1, this.zoom + this.zoomOutLimit);
+            }
+            this.UpdateZoom(newZoom, refPoint);
+       }
+
+       ZoomOut(refPoint)
+       {
+            if (this.zoom > 1) {
+                  var newZoom = Math.ceil(this.zoom) - 1;
+            } else {
+                  var newZoom = this.zoom - this.zoomOutLimit;
+            }
+            this.UpdateZoom(newZoom, refPoint);
+       }
+
        initGUI()
        {
  
@@ -322,7 +352,7 @@ class AutoIntegratePreviewControl extends Frame
       this.zoomIn_Button.onClick = () =>
       {
             if (this.par.debug.val) console.writeln(this.name + ":zoom-in");
-            this.UpdateZoom(this.zoom + this.zoomOutLimit);
+            this.ZoomIn();
       };
 
       this.zoomOut_Button = new ToolButton( this );
@@ -332,7 +362,7 @@ class AutoIntegratePreviewControl extends Frame
       this.zoomOut_Button.onClick = () =>
       {
             if (this.par.debug.val) console.writeln(this.name + ":zoom-out");
-            this.UpdateZoom(this.zoom - this.zoomOutLimit);
+            this.ZoomOut();
       };
 
       this.zoom11_Button = new ToolButton( this );
@@ -435,6 +465,7 @@ class AutoIntegratePreviewControl extends Frame
        this.zoom = 1;
        this.scale = 1;
        this.zoomOutLimit = -100;
+       this.zoomInLimit = 8;          // max zoom 8:1
        this.scrollbox = new ScrollBox(this);
        this.scrollbox.autoScroll = true;
        this.scrollbox.tracking = true;
@@ -455,7 +486,11 @@ class AutoIntegratePreviewControl extends Frame
       this.scrollbox.viewport.onMouseWheel = function (x, y, delta, buttonState, modifiers)
        {
              var preview = this.parent.parent;
-             preview.UpdateZoom(preview.zoom + (delta > 0 ? preview.zoomOutLimit : -preview.zoomOutLimit), new Point(x,y));
+             if (delta > 0) {
+                   preview.ZoomIn(new Point(x,y));
+             } else {
+                   preview.ZoomOut(new Point(x,y));
+             }
        }
  
        this.scrollbox.viewport.onClick = function ( x, y, button, buttonState, modifiers )
@@ -509,7 +544,7 @@ class AutoIntegratePreviewControl extends Frame
  
              var p =  preview.transform(x, y, preview);
 
-             if (preview.zoom == 1 && preview.coordinatesEdit) {
+             if (preview.zoom >= 1 && preview.coordinatesEdit) {
                   preview.coordinatesEdit.text = Math.floor(p.x).toString() + "," + Math.floor(p.y).toString();
              }
 
@@ -557,7 +592,19 @@ class AutoIntegratePreviewControl extends Frame
                    var offsetX = this.parent.maxHorizontalScrollPosition>0 ? -this.parent.horizontalScrollPosition : (this.width-preview.scaledBitmap.width)/2;
                    var offsetY = this.parent.maxVerticalScrollPosition>0 ? -this.parent.verticalScrollPosition: (this.height-preview.scaledBitmap.height)/2;
                    graphics.translateTransformation(offsetX, offsetY);
-                   if(preview.bitmap)
+                   if (preview.bitmap && preview.scaledBitmap.zoomedIn) {
+                         // Draw only the visible part of the bitmap, without smoothing so pixels are visible
+                         var scale = preview.scale;
+                         var sx0 = Math.max(0, Math.floor(-offsetX / scale));
+                         var sy0 = Math.max(0, Math.floor(-offsetY / scale));
+                         var sx1 = Math.min(preview.bitmap.width, Math.ceil((this.width - offsetX) / scale) + 1);
+                         var sy1 = Math.min(preview.bitmap.height, Math.ceil((this.height - offsetY) / scale) + 1);
+                         if (sx1 > sx0 && sy1 > sy0) {
+                               graphics.smoothInterpolation = false;
+                               graphics.drawScaledBitmapRect(sx0 * scale, sy0 * scale, sx1 * scale, sy1 * scale,
+                                                             preview.bitmap, sx0, sy0, sx1, sy1);
+                         }
+                   } else if(preview.bitmap)
                          graphics.drawBitmap(0, 0, preview.scaledBitmap);
                    else
                          graphics.fillRect(0, 0, preview.scaledBitmap.width, preview.scaledBitmap.height, new Brush(0xff000000));
@@ -604,9 +651,9 @@ class AutoIntegratePreviewControl extends Frame
             this.coordinatesLabel = new Label(this);
             this.coordinatesLabel.textAlignment = TextAlignment.Left|TextAlignment.VertCenter;
             this.coordinatesLabel.text = "X,Y:";
-            this.coordinatesLabel.toolTip = "Zoom to 1:1 view and click left mouse button to fill coordinates to the coordinates box.";
+            this.coordinatesLabel.toolTip = "Zoom to 1:1 or larger view and click left mouse button to fill coordinates to the coordinates box.";
             this.coordinatesEdit = new Edit(this);
-            this.coordinatesEdit.toolTip = "Zoom to 1:1 view and click left mouse button to fill coordinates to the coordinates box.";
+            this.coordinatesEdit.toolTip = "Zoom to 1:1 or larger view and click left mouse button to fill coordinates to the coordinates box.";
             
             this.coordinatesCopyFirstButton = new ToolButton( this );
             this.coordinatesCopyFirstButton.icon = this.parentDialog.scaledResource( ":/icons/left.png" );
