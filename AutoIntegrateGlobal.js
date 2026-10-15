@@ -36,7 +36,7 @@ this.autointegrate_version_info = [
         "- Auto image stretching selects the stretching",
         "  method by analyzing the image",
         "- Auto tool selection in Settings / Tools",
-        "- Live preview of enhancements",
+        "- Enhancements live preview",
         "- New fast mode option Subset, now the default",
         "- FastIntegration picks a better reference image",
         "- By default only integrated images and the final images",
