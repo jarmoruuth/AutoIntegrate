@@ -466,6 +466,7 @@ class AutoIntegratePreviewControl extends Frame
        this.scale = 1;
        this.zoomOutLimit = -100;
        this.zoomInLimit = 8;          // max zoom 8:1
+       this.drag = null;              // mouse drag start position when moving the image
        this.scrollbox = new ScrollBox(this);
        this.scrollbox.autoScroll = true;
        this.scrollbox.tracking = true;
@@ -503,34 +504,43 @@ class AutoIntegratePreviewControl extends Frame
              }
        }
  
+       // Drag the image with the left mouse button when it is larger than the view
+       this.scrollbox.viewport.onMousePress = function ( x, y, button, buttonState, modifiers )
+       {
+             var preview = this.parent.parent;
+             var scrollbox = preview.scrollbox;
+             if (button == MouseButton.Left && (scrollbox.maxHorizontalScrollPosition > 0 || scrollbox.maxVerticalScrollPosition > 0)) {
+                   preview.drag = { x: x, y: y,
+                                    h: scrollbox.horizontalScrollPosition, v: scrollbox.verticalScrollPosition,
+                                    moved: false };
+                   this.cursor = new Cursor(StdCursor.ClosedHand);
+             }
+             if (preview.bitmap) {
+                   preview.updateCoordinates(preview.transform(x, y, preview));
+             }
+       }
+
        this.scrollbox.viewport.onMouseMove = function ( x, y, buttonState, modifiers )
        {
              var preview = this.parent.parent;
 
-             if (!preview.image) {
+             if (preview.drag != null) {
+                   if (Math.abs(x - preview.drag.x) > 2 || Math.abs(y - preview.drag.y) > 2) {
+                         preview.drag.moved = true;
+                   }
+                   if (preview.drag.moved) {
+                         var scrollbox = preview.scrollbox;
+                         scrollbox.horizontalScrollPosition = Math.max(0, Math.min(scrollbox.maxHorizontalScrollPosition, preview.drag.h - (x - preview.drag.x)));
+                         scrollbox.verticalScrollPosition = Math.max(0, Math.min(scrollbox.maxVerticalScrollPosition, preview.drag.v - (y - preview.drag.y)));
+                   }
+             }
+
+             if (!preview.bitmap) {
                   return;
              }
              var p =  preview.transform(x, y, preview);
 
-            var val = Math.floor(p.x);
-            if (val < 0) {
-                  val = 0;
-            } else if (val >= preview.image.width) {
-                  val = preview.image.width - 1;
-            }
-            preview.Xval_Label.text = val.toString();
-            var val = Math.floor(p.y);
-            if (val < 0) {
-                  val = 0;
-            } else if (val >= preview.image.height) {
-                  val = preview.image.height - 1;
-            }
-            preview.Yval_Label.text = val.toString();
-            try {
-                  var val = preview.image.sample(Math.floor(p.x), Math.floor(p.y));
-                  preview.SampleVal_Label.text = val.toFixed(5);
-            } catch(err) {
-            }
+             preview.updateCoordinates(p);
 
              if(preview.onCustomMouseMove)
              {
@@ -544,7 +554,13 @@ class AutoIntegratePreviewControl extends Frame
  
              var p =  preview.transform(x, y, preview);
 
-             if (preview.zoom >= 1 && preview.coordinatesEdit) {
+             var dragged = preview.drag != null && preview.drag.moved;
+             if (preview.drag != null) {
+                   preview.drag = null;
+                   this.cursor = new Cursor(StdCursor.Arrow);
+             }
+
+             if (preview.zoom >= 1 && preview.coordinatesEdit && !dragged) {
                   preview.coordinatesEdit.text = Math.floor(p.x).toString() + "," + Math.floor(p.y).toString();
              }
 
@@ -634,18 +650,22 @@ class AutoIntegratePreviewControl extends Frame
       this.Xval_Label = new Label(this);
       this.Xval_Label.textAlignment = TextAlignment.Left|TextAlignment.VertCenter;
       this.Xval_Label.text = "---";
+      this.Xval_Label.setMinWidth(this.font.width("00000"));
       this.Ylabel_Label = new Label(this);
       this.Ylabel_Label.textAlignment = TextAlignment.Left|TextAlignment.VertCenter;
       this.Ylabel_Label.text = "Y:";
       this.Yval_Label = new Label(this);
       this.Yval_Label.textAlignment = TextAlignment.Left|TextAlignment.VertCenter;
       this.Yval_Label.text = "---";
+      this.Yval_Label.setMinWidth(this.font.width("00000"));
       this.SampleLabel_Label = new Label(this);
       this.SampleLabel_Label.textAlignment = TextAlignment.Left|TextAlignment.VertCenter;
       this.SampleLabel_Label.text = "Val:";
+      this.SampleLabel_Label.toolTip = "Displayed pixel value, one value for gray pixels, R G B values for color pixels.";
       this.SampleVal_Label = new Label(this);
       this.SampleVal_Label.textAlignment = TextAlignment.Left|TextAlignment.VertCenter;
       this.SampleVal_Label.text = "---";
+      this.SampleVal_Label.setMinWidth(this.font.width("0.000 0.000 0.000"));
 
       if (this.normalPreview && !this.standalone) {
             this.coordinatesLabel = new Label(this);
@@ -752,6 +772,29 @@ class AutoIntegratePreviewControl extends Frame
              oy = scrollbox.maxVerticalScrollPosition>0 ? -scrollbox.verticalScrollPosition: (scrollbox.viewport.height-preview.scaledBitmap.height)/2;
              var coordPx = new Point((x - ox) / preview.scale, (y - oy) / preview.scale);
              return new Point(coordPx.x, coordPx.y);
+       }
+
+       // Show image coordinates p and the displayed pixel value in X, Y and Val fields.
+       // Only the rendered bitmap is kept, so the value is the displayed 8-bit value scaled to 0-1.
+       updateCoordinates(p)
+       {
+            var x = Math.max(0, Math.min(this.bitmap.width - 1, Math.floor(p.x)));
+            var y = Math.max(0, Math.min(this.bitmap.height - 1, Math.floor(p.y)));
+            this.Xval_Label.text = x.toString();
+            this.Yval_Label.text = y.toString();
+            try {
+                  var argb = this.bitmap.pixel(x, y);
+                  var r = ((argb >>> 16) & 0xff) / 255;
+                  var g = ((argb >>> 8) & 0xff) / 255;
+                  var b = (argb & 0xff) / 255;
+                  if (r == g && g == b) {
+                        this.SampleVal_Label.text = r.toFixed(3);
+                  } else {
+                        this.SampleVal_Label.text = r.toFixed(3) + " " + g.toFixed(3) + " " + b.toFixed(3);
+                  }
+            } catch(err) {
+                  this.SampleVal_Label.text = "---";
+            }
        }
  
        center()
