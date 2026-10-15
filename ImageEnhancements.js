@@ -111,7 +111,8 @@ class AutoIntegrateImageEnhancementsDialog extends Dialog {
     updatePreviewIdReset(id, keep_zoom, histogramInfo)
     {
         if (this.global.debug) console.writeln("AutoIntegrateImageEnhancementsDialog::updatePreviewIdReset: id = " + id);
-        this.updatePreviewWin(ImageWindow.windowById(id));
+        var win = ImageWindow.windowById(id);
+        this.previewControl.UpdateImage(win.mainView.image, win.mainView.id + " [Preview]");
     }
 
     updatePreviewNoImage()
@@ -134,7 +135,7 @@ class AutoIntegrateImageEnhancementsDialog extends Dialog {
     updatePreviewWinTxt(imgWin, txt)
     {
         if (this.global.debug) console.writeln("AutoIntegrateImageEnhancementsDialog::updatePreviewWinTxt: imgWin = " + imgWin);
-        this.updatePreviewWin(imgWin);
+        this.previewControl.UpdateImage(imgWin.mainView.image, txt);
     }
 
     initGUI() {
@@ -208,6 +209,7 @@ class AutoIntegrateImageEnhancementsDialog extends Dialog {
     this.guitools.newSectionBarAdd(this, this.enhancementsGroupBox, this.enhancementsGUIControls.optionsControl, "Misc options", "EnhancementsOptions");
     this.guitools.newSectionBarAdd(this, this.enhancementsGroupBox, this.enhancementsGUIControls.narrowbandControl, "Narrowband enhancements", "Enhancements2");
     this.guitools.newSectionBarAdd(this, this.enhancementsGroupBox, this.enhancementsGUIControls.selectiveColorControl, "Selective Color", "Enhancements3");
+    this.guitools.newSectionBarAdd(this, this.enhancementsGroupBox, this.enhancementsGUIControls.curvesControl, "Curves", "EnhancementsCurves");
     this.guitools.newSectionBarAdd(this, this.enhancementsGroupBox, this.enhancementsGUIControls.genericControl, "Generic enhancements", "Enhancements1");
     this.guitools.newSectionBarAdd(this, this.enhancementsGroupBox, this.enhancementsGUIControls.starsControl, "Stars enhancements", "EnhancementsStars");
     this.guitools.newSectionBarAdd(this, this.enhancementsGroupBox, this.toolsControl, "Tools", "EnhancementsTools");
