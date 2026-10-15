@@ -123,8 +123,9 @@ constructor(parent, guitools, util, global, engine, preview) {
       this.enhancements_target_image_window_list = [];
       this.preview_control = null;
       this.live_preview_timer = null;
-      this.live_preview_last = null;              // latest live preview operation { name, operation }
+      this.live_preview_shown = false;            // true when preview shows a live preview image
       this.live_preview_cache = { key: null, image: null };
+      this.live_preview_mask_cache = { key: null, image: null };
       this.live_preview_downsample_size = 2000;     // longest side of downsampled live preview image
 
       this.adjust_type_values = [ 'Lights', 'Darks', 'All' ];
@@ -526,13 +527,10 @@ newCurvesGraphControl(parent)
       return control;
 }
 
-// Start or restart live preview timer for operation(previewWin). Preview is updated
-// after slider changes have stopped for a short while. The latest operation is
-// remembered so the preview can be updated again for example when downsampling
-// is changed.
-livePreviewSchedule(name, operation)
+// Start or restart live preview timer. Preview is updated after changes have stopped
+// for a short while. Preview shows all checked live preview options.
+livePreviewUpdate()
 {
-      this.live_preview_last = { name: name, operation: operation };
       if (!this.par.enhancements_live_preview.val) {
             return;
       }
@@ -541,21 +539,22 @@ livePreviewSchedule(name, operation)
             this.live_preview_timer.singleShot = true;
             this.live_preview_timer.interval = 0.3;
             this.live_preview_timer.onTimeout = () => {
-                  if (this.live_preview_last != null) {
-                        this.livePreviewRun(this.live_preview_last.name, this.live_preview_last.operation);
-                  }
+                  this.livePreviewRunOptions();
             };
       }
       this.live_preview_timer.stop();
       this.live_preview_timer.start();
 }
 
-// Update live preview again using the latest operation, if any
-livePreviewScheduleLast()
+// Slider of a live preview option changed. When the user moves the slider the option
+// is checked so that the live preview and Apply use the same options.
+livePreviewSliderChanged(checkbox, user_changed)
 {
-      if (this.live_preview_last != null) {
-            this.livePreviewSchedule(this.live_preview_last.name, this.live_preview_last.operation);
+      if (user_changed && this.par.enhancements_live_preview.val && !checkbox.aiParam.val) {
+            checkbox.aiParam.val = true;
+            checkbox.checked = true;
       }
+      this.livePreviewUpdate();
 }
 
 livePreviewStop()
@@ -599,6 +598,18 @@ livePreviewClearCache()
             this.live_preview_cache.image.free();
       }
       this.live_preview_cache = { key: null, image: null };
+      if (this.live_preview_mask_cache.image != null) {
+            this.live_preview_mask_cache.image.free();
+      }
+      this.live_preview_mask_cache = { key: null, image: null };
+}
+
+// Key that changes when the target image changes
+livePreviewTargetKey(targetWin)
+{
+      var image = targetWin.mainView.image;
+      return targetWin.mainView.id + "|" + this.enhancements_gui_info.undo_images_pos + "|" +
+             this.enhancements_gui_info.undo_images.length + "|" + image.width + "x" + image.height;
 }
 
 // Source image for a live preview, returns { image, downsampled }. Optionally a
@@ -613,8 +624,7 @@ livePreviewSourceImage(targetWin)
       if (maxlen <= this.live_preview_downsample_size) {
             return { image: image, downsampled: false };
       }
-      var key = targetWin.mainView.id + "|" + this.enhancements_gui_info.undo_images_pos + "|" +
-                this.enhancements_gui_info.undo_images.length + "|" + image.width + "x" + image.height;
+      var key = this.livePreviewTargetKey(targetWin);
       if (this.live_preview_cache.key != key) {
             this.livePreviewClearCache();
             var win = this.newHiddenWindowFromImage(image, targetWin, "AutoIntegrate_live_preview_downsample");
@@ -629,7 +639,29 @@ livePreviewSourceImage(targetWin)
       return { image: this.live_preview_cache.image, downsampled: true };
 }
 
-// Run operation(previewWin) on a hidden copy of the target image and show it in the preview
+// Lightness mask window for a live preview image. Mask is created like the enhancements
+// lightness mask and cached until the target image changes. Caller closes the window.
+livePreviewMaskWin(previewWin, targetWin, downsampled, options_key)
+{
+      var name = "AutoIntegrate_live_preview_mask";
+      var key = this.livePreviewTargetKey(targetWin) + "|" + downsampled + "|" + this.par.skip_mask_contrast.val + "|" + options_key;
+      if (this.live_preview_mask_cache.key == key) {
+            return this.newHiddenWindowFromImage(this.live_preview_mask_cache.image, previewWin, name);
+      }
+      if (this.live_preview_mask_cache.image != null) {
+            this.live_preview_mask_cache.image.free();
+      }
+      this.live_preview_mask_cache = { key: null, image: null };
+      var maskWin = this.engine.newHiddenLightnessMaskWindow(previewWin, name);
+      this.live_preview_mask_cache = { key: key, image: new Image(maskWin.mainView.image) };
+      console.writeln("Live preview created lightness mask");
+      return maskWin;
+}
+
+// Run operation(previewWin, context) on a hidden copy of the target image and show it in the preview.
+// context.scale is the preview image size relative to the target image, use it to scale
+// pixel based values. context.maskWin(options_key) returns a lightness mask created from
+// the current preview image, options_key identifies the options applied before the mask.
 livePreviewRun(name, operation)
 {
       var targetWin = this.livePreviewTargetWin();
@@ -638,67 +670,157 @@ livePreviewRun(name, operation)
       }
       var start_time = Date.now();
       var previewWin = null;
+      var maskWin = null;
       try {
             var source = this.livePreviewSourceImage(targetWin);
             var downsampled = source.downsampled;
             previewWin = this.newHiddenWindowFromImage(source.image, targetWin, "AutoIntegrate_live_preview");
 
-            operation(previewWin);
+            var context = {
+                  scale: source.image.width / targetWin.mainView.image.width,
+                  maskWin: (options_key) => {
+                        if (maskWin == null) {
+                              maskWin = this.livePreviewMaskWin(previewWin, targetWin, downsampled, options_key);
+                        }
+                        return maskWin;
+                  }
+            };
+
+            operation(previewWin, context);
 
             // Preview update may set target histogram info, keep the target image info
             var saved_histogram_info = this.global.enhancements_target_histogram_info;
-            this.preview.updatePreviewWinTxt(previewWin, targetWin.mainView.id + " [" + name + " live preview" + (downsampled ? ", downsampled" : "") + "]");
+            this.preview.updatePreviewWinTxt(previewWin, targetWin.mainView.id + " [Live preview: " + name + (downsampled ? ", downsampled" : "") + "]");
             this.global.enhancements_target_histogram_info = saved_histogram_info;
+            this.live_preview_shown = true;
       } catch (err) {
-            console.criticalln(name + " live preview failed: " + err);
+            console.criticalln("Live preview " + name + " failed: " + err);
       }
       if (previewWin != null) {
             previewWin.forceClose();
       }
-      console.writeln(name + " live preview " + (Date.now() - start_time) / 1000 + " sec");
+      if (maskWin != null) {
+            maskWin.forceClose();
+      }
+      console.writeln("Live preview " + name + " " + (Date.now() - start_time) / 1000 + " sec");
 }
 
-// Live preview operations, each one schedules a preview update for its enhancement
-
-curvesLivePreviewSchedule()
+// Options that have a live preview, in the same order as in enhancements Apply.
+// Options with before_mask are run before the lightness mask is created, like in Apply,
+// and key gives their values for the mask cache. needs_mask tells if an option uses
+// the lightness mask.
+livePreviewOptions()
 {
-      this.livePreviewSchedule("Curves", (previewWin) => {
-            this.engine.runCurvesTransformationPoints(previewWin, this.engine.enhancementsCurvesPoints());
-      });
+      return [
+            {     // Apply runs narrowband options only with narrowband images
+                  name: "Leave some green", param: this.par.leave_some_green, before_mask: true,
+                  enabled: () => this.util.is_narrowband_option(),
+                  key: () => "green " + this.par.leave_some_green_amount.val,
+                  run: (previewWin) => {
+                        this.engine.runSCNRAmount(previewWin, this.par.leave_some_green_amount.val);
+                  }
+            },
+            {
+                  name: "Curves", param: this.par.enhancements_curves, before_mask: true,
+                  key: () => "curves " + JSON.stringify(this.engine.enhancementsCurvesPoints()),
+                  run: (previewWin) => {
+                        this.engine.runCurvesTransformationPoints(previewWin, this.engine.enhancementsCurvesPoints());
+                  }
+            },
+            {
+                  name: "Adjust shadows", param: this.par.enhancements_shadowclipping,
+                  run: (previewWin) => {
+                        this.engine.runAdjustShadowsTransformation(previewWin, this.par.enhancements_shadowclippingperc.val);
+                  }
+            },
+            {
+                  name: "Gamma", param: this.par.enhancements_gamma,
+                  run: (previewWin) => {
+                        this.engine.runPixelMathExpressions(previewWin, [ this.engine.enhancementsGammaExpression() ]);
+                  }
+            },
+            {
+                  name: "Adjust channels", param: this.par.enhancements_adjust_channels,
+                  run: (previewWin) => {
+                        this.engine.runPixelMathExpressions(previewWin, this.engine.enhancementsAdjustChannelsExpressions());
+                  }
+            },
+            {     // A user created range mask is not available in the live preview, lightness mask is used instead
+                  name: "ExponentialTransformation", param: this.par.enhancements_ET,
+                  needs_mask: () => this.livePreviewETAdjustType() != 'All',
+                  run: (previewWin, maskWin) => {
+                        this.engine.runExponentialTransformation(previewWin, maskWin, this.par.enhancements_ET_order.val, this.livePreviewETAdjustType());
+                  }
+            },
+            {     // StdDev is in pixels so it is scaled for a downsampled preview image
+                  name: "UnsharpMask", param: this.par.enhancements_unsharpmask,
+                  needs_mask: () => true,
+                  run: (previewWin, maskWin, scale) => {
+                        this.engine.runUnsharpMask(previewWin, maskWin,
+                                                   Math.max(0.1, this.par.enhancements_unsharpmask_stddev.val * scale),
+                                                   this.par.enhancements_unsharpmask_amount.val);
+                  }
+            },
+            {
+                  name: "Clarity", param: this.par.enhancements_clarity,
+                  needs_mask: () => this.par.enhancements_clarity_mask.val,
+                  run: (previewWin, maskWin, scale) => {
+                        this.engine.runUnsharpMask(previewWin, maskWin,
+                                                   Math.max(0.1, this.par.enhancements_clarity_stddev.val * scale),
+                                                   this.par.enhancements_clarity_amount.val);
+                  }
+            }
+      ];
 }
 
-gammaLivePreviewSchedule()
+livePreviewETAdjustType()
 {
-      this.livePreviewSchedule("Gamma", (previewWin) => {
-            this.engine.runPixelMathExpressions(previewWin, [ this.engine.enhancementsGammaExpression() ]);
-      });
+      return this.par.enhancements_range_mask.val ? 'Lights' : this.par.enhancements_ET_adjusttype.val;
 }
 
-adjustChannelsLivePreviewSchedule()
+// Run all checked live preview options. If none is checked, show the target image.
+livePreviewRunOptions()
 {
-      this.livePreviewSchedule("Adjust channels", (previewWin) => {
-            this.engine.runPixelMathExpressions(previewWin, this.engine.enhancementsAdjustChannelsExpressions());
-      });
-}
-
-shadowClippingLivePreviewSchedule()
-{
-      this.livePreviewSchedule("Adjust shadows", (previewWin) => {
-            this.engine.runAdjustShadowsTransformation(previewWin, this.par.enhancements_shadowclippingperc.val);
+      var options = this.livePreviewOptions().filter((option) => option.param.val && (option.enabled == undefined || option.enabled()));
+      if (options.length == 0) {
+            if (this.live_preview_shown) {
+                  this.livePreviewShowTarget();
+            }
+            return;
+      }
+      var name = options.map((option) => option.name).join(", ");
+      this.livePreviewRun(name, (previewWin, context) => {
+            var options_key = "";
+            for (var i = 0; i < options.length; i++) {
+                  var option = options[i];
+                  var maskWin = null;
+                  if (option.before_mask) {
+                        options_key += option.key() + "|";
+                  } else if (option.needs_mask != undefined && option.needs_mask()) {
+                        maskWin = context.maskWin(options_key);
+                  }
+                  option.run(previewWin, maskWin, context.scale);
+            }
       });
 }
 
 livePreviewToggled()
 {
       if (this.par.enhancements_live_preview.val) {
-            this.livePreviewScheduleLast();
+            this.livePreviewUpdate();
       } else {
-            // Show target image without live preview changes
-            this.livePreviewStop();
-            var targetWin = this.getEnhancementsTargetWin();
-            if (targetWin != null) {
-                  this.preview.updatePreviewIdReset(targetWin.mainView.id, true);
-            }
+            this.livePreviewShowTarget();
+      }
+}
+
+// Show target image without live preview changes
+livePreviewShowTarget()
+{
+      this.livePreviewStop();
+      this.live_preview_shown = false;
+      var targetWin = this.livePreviewTargetWin();
+      if (targetWin != null) {
+            this.preview.updatePreviewIdReset(targetWin.mainView.id, true);
       }
 }
 
@@ -779,10 +901,11 @@ createEnhancementsControls(parent)
                           "Positive values brighten the affected tonal range, negative values darken it. " +
                           "Range is -1.0 to +1.0.</p>";
       this.enhancements_curves_CheckBox = this.guitools.newCheckBox(parent, "Apply curves", this.par.enhancements_curves,
-            "<p>Apply curves adjustment to the image. Use the sliders below to set the curve points.</p>");
-      var curvesUpdated = () => {
+            "<p>Apply curves adjustment to the image. Use the sliders below to set the curve points.</p>",
+            () => { this.livePreviewUpdate(); });
+      var curvesUpdated = (user_changed) => {
             this.curvesGraphControl.repaint();
-            this.curvesLivePreviewSchedule();
+            this.livePreviewSliderChanged(this.enhancements_curves_CheckBox, user_changed);
       };
       this.enhancements_curves_highlights_Control = this.guitools.newNumericControl2(parent, "Highlights", this.par.enhancements_curves_highlights, -1, 1,
             curvesTooltip + "<p>Adjusts bright tones (around 75% luminosity).</p>", curvesUpdated);
@@ -843,14 +966,15 @@ createEnhancementsControls(parent)
       this.enhancementsCurvesSizer.add(this.enhancementsCurvesGraphSizer);
 
       this.narrowband_leave_some_green_CheckBox = this.guitools.newCheckBox(parent, "Leave some green", this.par.leave_some_green, 
-            "<p>Leave some green color on image when running SCNR. Useful with SHO color palette. </p>");
-      this.narrowband_leave_some_green_Edit = this.guitools.newNumericEdit(parent, "Amount", this.par.leave_some_green_amount, 0, 1, 
-            "<p>Amount value 0 keeps all the green, value 1 removes all green.</p>");
+            "<p>Leave some green color on image when running SCNR. Useful with SHO color palette. </p>",
+            () => { this.livePreviewUpdate(); });
+      this.narrowband_leave_some_green_Edit = this.guitools.newNumericControl2(parent, "Amount", this.par.leave_some_green_amount, 0, 1,
+            "<p>Amount value 0 keeps all the green, value 1 removes all green.</p>",
+            (user_changed) => { this.livePreviewSliderChanged(this.narrowband_leave_some_green_CheckBox, user_changed); });
       this.narrowband_leave_some_green_sizer = new HorizontalSizer;
       this.narrowband_leave_some_green_sizer.spacing = 4;
       this.narrowband_leave_some_green_sizer.add( this.narrowband_leave_some_green_CheckBox );
-      this.narrowband_leave_some_green_sizer.add( this.narrowband_leave_some_green_Edit );
-      this.narrowband_leave_some_green_sizer.addStretch();
+      this.narrowband_leave_some_green_sizer.add( this.narrowband_leave_some_green_Edit, 100 );
       this.run_narrowband_SCNR_CheckBox = this.guitools.newCheckBox(parent, "Remove green cast", this.par.run_narrowband_SCNR, 
             "<p>Run SCNR to remove green cast. Useful with SHO color palette.</p>");
       this.no_star_fix_mask_CheckBox = this.guitools.newCheckBox(parent, "No mask when fixing star colors", this.par.skip_star_fix_mask, 
@@ -1037,21 +1161,28 @@ createEnhancementsControls(parent)
             "<p>Run banding reduction on the image.</p>" );
 
       var enhancements_ET_tooltip = "<p>Run ExponentialTransform on image using a mask.</p>";
-      this.enhancements_ET_CheckBox = this.guitools.newCheckBox(parent, "ExponentialTransform,", this.par.enhancements_ET, enhancements_ET_tooltip);
-      this.enhancements_ET_order_edit = this.guitools.newNumericEdit(parent, 'Order', this.par.enhancements_ET_order, 0.1, 6, "Order value for ExponentialTransform.");
+      this.enhancements_ET_CheckBox = this.guitools.newCheckBox(parent, "ExponentialTransform,", this.par.enhancements_ET, enhancements_ET_tooltip,
+                                                () => { this.livePreviewUpdate(); });
+      var ETUpdated = (user_changed) => { this.livePreviewSliderChanged(this.enhancements_ET_CheckBox, user_changed); };
+      this.enhancements_ET_order_edit = this.guitools.newNumericControlPrecision(parent, 'Order', this.par.enhancements_ET_order, 0.1, 6, "Order value for ExponentialTransform.", 1, ETUpdated);
       this.enhancements_ET_adjust_label = this.guitools.newLabel(parent, "Adjust", "<p>Adjust type to be used with ExponentialTransform.</p>" +
                                                                   "<p>Lightness mask is used to get the desired adjustment.</p>" +
                                                                   this.guitools.adjust_type_toolTip);
-      this.enhancements_ET_adjust_Combobox = this.guitools.newComboBox(parent, this.par.enhancements_ET_adjusttype, this.adjust_type_values, this.enhancements_ET_adjust_label.toolTip);
+      this.enhancements_ET_adjust_Combobox = this.guitools.newComboBox(parent, this.par.enhancements_ET_adjusttype, this.adjust_type_values, this.enhancements_ET_adjust_label.toolTip,
+                                                                  ETUpdated);
 
-      this.enhancements_ET_Sizer = new HorizontalSizer;
+      this.enhancements_ET_CheckSizer = new HorizontalSizer;
+      this.enhancements_ET_CheckSizer.spacing = 4;
+      this.enhancements_ET_CheckSizer.add( this.enhancements_ET_CheckBox );
+      this.enhancements_ET_CheckSizer.add( this.enhancements_ET_adjust_label );
+      this.enhancements_ET_CheckSizer.add( this.enhancements_ET_adjust_Combobox );
+      this.enhancements_ET_CheckSizer.addStretch();
+
+      this.enhancements_ET_Sizer = new VerticalSizer;
       this.enhancements_ET_Sizer.spacing = 4;
-      this.enhancements_ET_Sizer.add( this.enhancements_ET_CheckBox );
+      this.enhancements_ET_Sizer.add( this.enhancements_ET_CheckSizer );
       this.enhancements_ET_Sizer.add( this.enhancements_ET_order_edit );
-      this.enhancements_ET_Sizer.add( this.enhancements_ET_adjust_label );
-      this.enhancements_ET_Sizer.add( this.enhancements_ET_adjust_Combobox );
       this.enhancements_ET_Sizer.toolTip = enhancements_ET_tooltip;
-      this.enhancements_ET_Sizer.addStretch();
 
       var enhancements_HDRMLT_tooltip = "<p>Run HDRMultiscaleTransform on image using a mask.</p>" +
                                     "<p>Color option is used to select different methods to keep hue and saturation.</p> " + 
@@ -1213,9 +1344,10 @@ createEnhancementsControls(parent)
       var shadowclipTooltip = "<p>Adjust shadows in the image. Adjust percentage tells how much shadow pixels are clipped.</p>" +
                               "<p>With a value of 0, no shadow pixels are clipped but histogram, is moved to the left.</p>" +
                               "<p>You can use the Enhnacements / Misc options clipped tool to see clipped pixels.</p>";
-      this.enhancements_shadowclip_CheckBox = this.guitools.newCheckBox(parent, "Adjust shadows,", this.par.enhancements_shadowclipping, shadowclipTooltip);
+      this.enhancements_shadowclip_CheckBox = this.guitools.newCheckBox(parent, "Adjust shadows,", this.par.enhancements_shadowclipping, shadowclipTooltip,
+                                                () => { this.livePreviewUpdate(); });
       this.enhancements_shadowclipperc_edit = this.guitools.newNumericControlPrecision(parent, '%', this.par.enhancements_shadowclippingperc, 0, 10, shadowclipTooltip, 4,
-                                                () => { this.shadowClippingLivePreviewSchedule(); });
+                                                (user_changed) => { this.livePreviewSliderChanged(this.enhancements_shadowclip_CheckBox, user_changed); });
       this.enhancements_shadowclip_Sizer = new HorizontalSizer;
       this.enhancements_shadowclip_Sizer.spacing = 4;
       this.enhancements_shadowclip_Sizer.add( this.enhancements_shadowclip_CheckBox );
@@ -1240,9 +1372,10 @@ createEnhancementsControls(parent)
 
       var enhancementsGammaTooltip = "<p>Apply gamma correction to the image.</p>" +
                               "<p>Value below 1 will make the image lighter. Value above 1 will make image darker.</p>";
-      this.enhancementsGammaCheckBox = this.guitools.newCheckBox(parent, "Gamma", this.par.enhancements_gamma, enhancementsGammaTooltip);
+      this.enhancementsGammaCheckBox = this.guitools.newCheckBox(parent, "Gamma", this.par.enhancements_gamma, enhancementsGammaTooltip,
+                                                () => { this.livePreviewUpdate(); });
       this.enhancementsGammaEdit = this.guitools.newNumericControl2(parent, '', this.par.enhancements_gamma_value, 0, 2, enhancementsGammaTooltip,
-                                                () => { this.gammaLivePreviewSchedule(); });
+                                                (user_changed) => { this.livePreviewSliderChanged(this.enhancementsGammaCheckBox, user_changed); });
       this.enhancementsGammaSizer = new HorizontalSizer;
       this.enhancementsGammaSizer.spacing = 4;
       this.enhancementsGammaSizer.add( this.enhancementsGammaCheckBox );
@@ -1299,8 +1432,9 @@ createEnhancementsControls(parent)
       var enhancementsAdjustChannelsToolTip = "<p>Adjust channels in PixelMath by multiplying them with a given value.</p>" + 
                                           "<p>If option Only K is checked then value R/K is used to adjust the whole image.</p>";
 
-      this.enhancementsAdjustChannelsCheckBox = this.guitools.newCheckBox(parent, "Adjust channels,", this.par.enhancements_adjust_channels, enhancementsAdjustChannelsToolTip);
-      var adjustChannelsUpdated = () => { this.adjustChannelsLivePreviewSchedule(); };
+      this.enhancementsAdjustChannelsCheckBox = this.guitools.newCheckBox(parent, "Adjust channels,", this.par.enhancements_adjust_channels, enhancementsAdjustChannelsToolTip,
+                                                () => { this.livePreviewUpdate(); });
+      var adjustChannelsUpdated = (user_changed) => { this.livePreviewSliderChanged(this.enhancementsAdjustChannelsCheckBox, user_changed); };
       this.enhancementsAdjustChannelR = this.guitools.newNumericControl2(parent, "R/K", this.par.enhancements_adjust_R, 0, 4, enhancementsAdjustChannelsToolTip, adjustChannelsUpdated);
       this.enhancementsAdjustChannelG = this.guitools.newNumericControl2(parent, "G", this.par.enhancements_adjust_G, 0, 4, enhancementsAdjustChannelsToolTip, adjustChannelsUpdated);
       this.enhancementsAdjustChannelB = this.guitools.newNumericControl2(parent, "B", this.par.enhancements_adjust_B, 0, 4, enhancementsAdjustChannelsToolTip, adjustChannelsUpdated);
@@ -1435,15 +1569,19 @@ createEnhancementsControls(parent)
       this.enhancementsSharpenIterationsSizer.addStretch();
 
       var unsharpmask_tooltip = "Sharpen image using UnsharpMask and a luminance mask.";
-      this.enhancements_unsharpmask_CheckBox = this.guitools.newCheckBox(parent, "UnsharpMask,", this.par.enhancements_unsharpmask, unsharpmask_tooltip);
-      this.enhancementsUnsharpMaskStdDevEdit = this.guitools.newNumericEdit(parent, "StdDev", this.par.enhancements_unsharpmask_stddev, 0.1, 250, unsharpmask_tooltip);
-      this.enhancementsUnsharpMaskAmountEdit = this.guitools.newNumericEdit(parent, "Amount", this.par.enhancements_unsharpmask_amount, 0.1, 1.00, unsharpmask_tooltip);
-      this.enhancementsUnsharpMaskSizer = new HorizontalSizer;
+      this.enhancements_unsharpmask_CheckBox = this.guitools.newCheckBox(parent, "UnsharpMask", this.par.enhancements_unsharpmask, unsharpmask_tooltip,
+                                                () => { this.livePreviewUpdate(); });
+      var unsharpMaskUpdated = (user_changed) => { this.livePreviewSliderChanged(this.enhancements_unsharpmask_CheckBox, user_changed); };
+      this.enhancementsUnsharpMaskStdDevEdit = this.guitools.newNumericControlPrecision(parent, "StdDev", this.par.enhancements_unsharpmask_stddev, 0.1, 25, unsharpmask_tooltip, 1, unsharpMaskUpdated);
+      this.enhancementsUnsharpMaskAmountEdit = this.guitools.newNumericControl2(parent, "Amount", this.par.enhancements_unsharpmask_amount, 0.1, 1.00, unsharpmask_tooltip, unsharpMaskUpdated);
+      let unsharpMaskLabelWidth = this.enhancementsUnsharpMaskStdDevEdit.label.font.width("Amount:M");
+      this.enhancementsUnsharpMaskStdDevEdit.label.setFixedWidth(unsharpMaskLabelWidth);
+      this.enhancementsUnsharpMaskAmountEdit.label.setFixedWidth(unsharpMaskLabelWidth);
+      this.enhancementsUnsharpMaskSizer = new VerticalSizer;
       this.enhancementsUnsharpMaskSizer.spacing = 4;
       this.enhancementsUnsharpMaskSizer.add( this.enhancements_unsharpmask_CheckBox );
       this.enhancementsUnsharpMaskSizer.add( this.enhancementsUnsharpMaskStdDevEdit );
       this.enhancementsUnsharpMaskSizer.add( this.enhancementsUnsharpMaskAmountEdit );
-      this.enhancementsUnsharpMaskSizer.addStretch();
 
       var highpass_sharpen_tooltip = "<p>Sharpen image using high pass filter and a luminance mask.</p>" +
                                           "<p>High pass sharpen should be used only for starless images.</p>";
@@ -1519,17 +1657,25 @@ createEnhancementsControls(parent)
       var clarity_tooltip = "<p>Add clarity to the image using a luminance mask. Clarity is a local contrast enhancement.</p>" +
                               "<p>Clarity uses UnsharpMask process where stddev should be large and amount should be small.</p>" + 
                               "<p>If a mask is used then clarity is applied only to the light parts of the image.</p>";
-      this.enhancements_clarity_CheckBox = this.guitools.newCheckBox(parent, "Clarity,", this.par.enhancements_clarity, clarity_tooltip);
-      this.enhancementsClarityStdDevEdit = this.guitools.newNumericEdit(parent, "StdDev", this.par.enhancements_clarity_stddev, 0.1, 250, clarity_tooltip);
-      this.enhancementsClarityAmountEdit = this.guitools.newNumericEdit(parent, "Amount", this.par.enhancements_clarity_amount, 0.1, 1.00, clarity_tooltip);
-      this.enhancementsClarityMaskCheckBox = this.guitools.newCheckBox(parent, "Mask", this.par.enhancements_clarity_mask, clarity_tooltip);
-      this.enhancementsClaritySizer = new HorizontalSizer;
+      this.enhancements_clarity_CheckBox = this.guitools.newCheckBox(parent, "Clarity,", this.par.enhancements_clarity, clarity_tooltip,
+                                                () => { this.livePreviewUpdate(); });
+      var clarityUpdated = (user_changed) => { this.livePreviewSliderChanged(this.enhancements_clarity_CheckBox, user_changed); };
+      this.enhancementsClarityStdDevEdit = this.guitools.newNumericControlPrecision(parent, "StdDev", this.par.enhancements_clarity_stddev, 1, 250, clarity_tooltip, 1, clarityUpdated);
+      this.enhancementsClarityAmountEdit = this.guitools.newNumericControl2(parent, "Amount", this.par.enhancements_clarity_amount, 0.1, 1.00, clarity_tooltip, clarityUpdated);
+      let clarityLabelWidth = this.enhancementsClarityStdDevEdit.label.font.width("Amount:M");
+      this.enhancementsClarityStdDevEdit.label.setFixedWidth(clarityLabelWidth);
+      this.enhancementsClarityAmountEdit.label.setFixedWidth(clarityLabelWidth);
+      this.enhancementsClarityMaskCheckBox = this.guitools.newCheckBox(parent, "Mask", this.par.enhancements_clarity_mask, clarity_tooltip, clarityUpdated);
+      this.enhancementsClarityCheckSizer = new HorizontalSizer;
+      this.enhancementsClarityCheckSizer.spacing = 4;
+      this.enhancementsClarityCheckSizer.add( this.enhancements_clarity_CheckBox );
+      this.enhancementsClarityCheckSizer.add( this.enhancementsClarityMaskCheckBox );
+      this.enhancementsClarityCheckSizer.addStretch();
+      this.enhancementsClaritySizer = new VerticalSizer;
       this.enhancementsClaritySizer.spacing = 4;
-      this.enhancementsClaritySizer.add( this.enhancements_clarity_CheckBox );
+      this.enhancementsClaritySizer.add( this.enhancementsClarityCheckSizer );
       this.enhancementsClaritySizer.add( this.enhancementsClarityStdDevEdit );
       this.enhancementsClaritySizer.add( this.enhancementsClarityAmountEdit );
-      this.enhancementsClaritySizer.add( this.enhancementsClarityMaskCheckBox );
-      this.enhancementsClaritySizer.addStretch();
 
 
       this.enhancements_highlight_color_CheckBox = this.guitools.newCheckBox(parent, "Enhance highlight color", this.par.enhancements_highlight_color,
@@ -1542,9 +1688,10 @@ createEnhancementsControls(parent)
       this.enhancements_image_no_copy_CheckBox = this.guitools.newCheckBox(parent, "No copy", this.par.enhancements_apply_no_copy_image, 
             "<p>Do not make a copy of the image for Apply.</p>" );
       this.enhancements_live_preview_CheckBox = this.guitools.newCheckBox(parent, "Live preview", this.par.enhancements_live_preview,
-            "<p>Update the preview while slider values are changed. Live preview is available for options that have a slider, " +
-            "like curves, gamma, adjust channels and adjust shadows.</p>" +
-            "<p>Live preview shows only the option that is being changed, applied to a copy of the target image. " +
+            "<p>Update the preview when options with a slider are changed, like curves, gamma, adjust channels, " +
+            "adjust shadows, ExponentialTransform, UnsharpMask and clarity. Moving a slider checks its option.</p>" +
+            "<p>Live preview shows all checked options that have a slider, applied in the same order as Apply to a copy of the target image. " +
+            "Other checked options are not included in the live preview. " +
             "The target image is not changed. Use Apply to change the target image.</p>",
             () => { this.livePreviewToggled(); });
       this.enhancements_live_preview_downsample_CheckBox = this.guitools.newCheckBox(parent, "Downsample live preview", this.par.enhancements_live_preview_downsample,
@@ -1554,7 +1701,7 @@ createEnhancementsControls(parent)
             "and reused until the target image changes. Apply always uses the full size image.</p>",
             () => {
                   this.livePreviewClearCache();
-                  this.livePreviewScheduleLast();
+                  this.livePreviewUpdate();
             });
 
       this.enhancementsImageOptionsSizer1 = new HorizontalSizer;

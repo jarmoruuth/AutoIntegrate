@@ -1737,6 +1737,27 @@ newMaskWindow(sourceWindow, name, allow_duplicate_name, clip_shadows_more)
       return targetWindow;
 }
 
+// Create a hidden lightness mask window like newMaskWindow but without logging
+// or showing the window. Used for live previews. Caller closes the window.
+newHiddenLightnessMaskWindow(sourceWindow, name)
+{
+      var image = sourceWindow.mainView.image;
+      var maskWin = new ImageWindow(image.width, image.height, 1, 32, true, false, name);
+      var expression = image.colorSpace != ColorSpace.Gray ? "CIEL(" + sourceWindow.mainView.id + ")" : sourceWindow.mainView.id;
+      this.runPixelMathExpressions(maskWin, [ expression ]);
+
+      if (!this.par.skip_mask_contrast.val) {
+            this.runPixelMathExpressions(maskWin, [ this.autoContrastExpression(maskWin, 0.1, 99.9) ]);
+      }
+
+      var P = this.noiseMild();
+      maskWin.mainView.beginProcess(UndoFlag.NoSwapFile);
+      P.executeOn(maskWin.mainView, false);
+      maskWin.mainView.endProcess();
+
+      return maskWin;
+}
+
 setNewMaskWindow(maskWin)
 {
       if (maskWin != null && maskWin.isNull) {
@@ -12145,24 +12166,32 @@ runSCNR(imgWin, fixing_stars)
             return;
       }
 
-      var P = new SCNR;
       if (this.process_narrowband && this.par.leave_some_green.val && !fixing_stars) {
-            P.amount = this.par.leave_some_green_amount.val;
-            this.util.addProcessingStep("Run SCNR using amount " + P.amount + " to leave some green color");
+            var amount = this.par.leave_some_green_amount.val;
+            this.util.addProcessingStep("Run SCNR using amount " + amount + " to leave some green color");
       } else {
-            P.amount = 1.00;
+            var amount = 1.00;
       }
 
-      RGBimgView.beginProcess(UndoFlag.NoSwapFile);
-
-      P.executeOn(RGBimgView, false);
-
-      RGBimgView.endProcess();
+      var P = this.runSCNRAmount(imgWin, amount);
 
       this.printAndSaveProcessValues(P, "", RGBimgView.id);
       this.engine_end_process(node, imgWin, "SCNR");
 
       this.guiUpdatePreviewId(RGBimgView.id);
+}
+
+// Run SCNR with a given amount, no logging, returns the process
+runSCNRAmount(imgWin, amount)
+{
+      var P = new SCNR;
+      P.amount = amount;
+
+      imgWin.mainView.beginProcess(UndoFlag.NoSwapFile);
+      P.executeOn(imgWin.mainView, false);
+      imgWin.mainView.endProcess();
+
+      return P;
 }
 
 // Run hue shift on narrowband image to enhance orange.
@@ -16153,17 +16182,28 @@ enhancementsExponentialTransformation(imgWin, maskWin)
       this.addEnhancementsStep("ExponentialTransformation, order " + this.par.enhancements_ET_order.val);
       var node = this.flowchart.flowchartOperation("ExponentialTransformation");
 
-      var P = new ExponentialTransformation;
-      P.functionType = ExponentialTransformation.PIP;
-      P.order = this.par.enhancements_ET_order.val;
-      P.sigma = 0.00;
-      
-      imgWin.mainView.beginProcess(UndoFlag.NoSwapFile);
-
       var adjusttype = this.par.enhancements_ET_adjusttype.val;
       if (this.par.enhancements_range_mask.val) {
             adjusttype = 'range_mask';
       }
+
+      var P = this.runExponentialTransformation(imgWin, maskWin, this.par.enhancements_ET_order.val, adjusttype);
+
+      this.printAndSaveProcessValues(P, "", imgWin.mainView.id);
+      this.engine_end_process(node);
+
+      // this.guiUpdatePreviewWin(imgWin);
+}
+
+// Run ExponentialTransformation using a mask selected by adjusttype, no logging, returns the process
+runExponentialTransformation(imgWin, maskWin, order, adjusttype)
+{
+      var P = new ExponentialTransformation;
+      P.functionType = ExponentialTransformation.PIP;
+      P.order = order;
+      P.sigma = 0.00;
+
+      imgWin.mainView.beginProcess(UndoFlag.NoSwapFile);
 
       switch (adjusttype) {
             case 'All':
@@ -16187,21 +16227,18 @@ enhancementsExponentialTransformation(imgWin, maskWin)
                   imgWin.maskInverted = false;
                   break;
             default:
-                  this.util.throwFatalError("Invalid ExponentialTransformation mask type " + this.par.enhancements_LHE_adjusttype.val);
+                  this.util.throwFatalError("Invalid ExponentialTransformation mask type " + adjusttype);
       }
 
       P.executeOn(imgWin.mainView, false);
 
-      if (this.par.enhancements_ET_adjusttype.val != 'All') {
+      if (adjusttype != 'All') {
             imgWin.removeMask();
       }
 
       imgWin.mainView.endProcess();
 
-      this.printAndSaveProcessValues(P, "", imgWin.mainView.id);
-      this.engine_end_process(node);
-
-      // this.guiUpdatePreviewWin(imgWin);
+      return P;
 }
 
 createNewStarMaskWin(imgWin)
@@ -16559,13 +16596,19 @@ autoContrast(win, contrast_limit_low, contrast_limit_high)
             return;
       }
 
-      var low_adjust = this.getAdjustPoint(win, contrast_limit_low);
-      var high_adjust = this.getAdjustPoint(win, contrast_limit_high);
-
-      var mapping = "($T-" + low_adjust.normalizedAdjustPoint + ")*(1/(" + high_adjust.normalizedAdjustPoint + "-" + low_adjust.normalizedAdjustPoint + "))";
+      var mapping = this.autoContrastExpression(win, contrast_limit_low, contrast_limit_high);
       console.writeln("autoContrast: mapping " + mapping);
 
       this.runPixelMathSingleMappingEx(win.mainView.id, "autocontrast", mapping, false, null);
+}
+
+// Auto contrast PixelMath expression
+autoContrastExpression(win, contrast_limit_low, contrast_limit_high)
+{
+      var low_adjust = this.getAdjustPoint(win, contrast_limit_low);
+      var high_adjust = this.getAdjustPoint(win, contrast_limit_high);
+
+      return "($T-" + low_adjust.normalizedAdjustPoint + ")*(1/(" + high_adjust.normalizedAdjustPoint + "-" + low_adjust.normalizedAdjustPoint + "))";
 }
 
 enhancementsAutoContrastChannel(imgWin, channel, contrast_limit_low, contrast_limit_high)
@@ -16776,29 +16819,38 @@ enhancementsUnsharpMask(enhancementsWin, mask_win)
       this.addEnhancementsStep("UnsharpMask using StdDev " + this.par.enhancements_unsharpmask_stddev.val + ", amount " + this.par.enhancements_unsharpmask_amount.val);
       var node = this.flowchart.flowchartOperation("UnsharpMask:sharpen");
 
-      var P = new UnsharpMask;
-      P.sigma = this.par.enhancements_unsharpmask_stddev.val;
-      P.amount = this.par.enhancements_unsharpmask_amount.val;
-      P.useLuminance = true;
-
-      if (mask_win != null) {
-            /* Sharpen only light parts of the image. */
-            this.setMaskChecked(enhancementsWin, mask_win);
-            enhancementsWin.maskInverted = false;
-      }
-
-      enhancementsWin.mainView.beginProcess(UndoFlag.NoSwapFile);
-      P.executeOn(enhancementsWin.mainView, false);
-      enhancementsWin.mainView.endProcess();
+      var P = this.runUnsharpMask(enhancementsWin, mask_win, this.par.enhancements_unsharpmask_stddev.val, this.par.enhancements_unsharpmask_amount.val);
 
       this.printAndSaveProcessValues(P, "", enhancementsWin.mainView.id);
       this.engine_end_process(node);
 
-      if (this.mask_win != null) {
-            enhancementsWin.removeMask();
+      // this.guiUpdatePreviewWin(enhancementsWin);
+}
+
+// Run UnsharpMask, optionally using a mask to sharpen only light parts of the image.
+// No logging, returns the process.
+runUnsharpMask(imgWin, maskWin, sigma, amount)
+{
+      var P = new UnsharpMask;
+      P.sigma = sigma;
+      P.amount = amount;
+      P.useLuminance = true;
+
+      if (maskWin != null) {
+            /* Sharpen only light parts of the image. */
+            this.setMaskChecked(imgWin, maskWin);
+            imgWin.maskInverted = false;
       }
 
-      // this.guiUpdatePreviewWin(enhancementsWin);
+      imgWin.mainView.beginProcess(UndoFlag.NoSwapFile);
+      P.executeOn(imgWin.mainView, false);
+      imgWin.mainView.endProcess();
+
+      if (maskWin != null) {
+            imgWin.removeMask();
+      }
+
+      return P;
 }
 
 enhancementsClarity(enhancementsWin, mask_win)
@@ -16810,27 +16862,10 @@ enhancementsClarity(enhancementsWin, mask_win)
       }
       var node = this.flowchart.flowchartOperation("UnsharpMask:clarity");
 
-      var P = new UnsharpMask;
-      P.sigma = this.par.enhancements_clarity_stddev.val;
-      P.amount = this.par.enhancements_clarity_amount.val;
-      P.useLuminance = true;
-
-      if (mask_win != null) {
-            /* Sharpen only light parts of the image. */
-            this.setMaskChecked(enhancementsWin, mask_win);
-            enhancementsWin.maskInverted = false;
-      }
-
-      enhancementsWin.mainView.beginProcess(UndoFlag.NoSwapFile);
-      P.executeOn(enhancementsWin.mainView, false);
-      enhancementsWin.mainView.endProcess();
+      var P = this.runUnsharpMask(enhancementsWin, mask_win, this.par.enhancements_clarity_stddev.val, this.par.enhancements_clarity_amount.val);
 
       this.printAndSaveProcessValues(P, "", enhancementsWin.mainView.id);
       this.engine_end_process(node);
-
-      if (mask_win != null) {
-            enhancementsWin.removeMask();
-      }
 
       // this.guiUpdatePreviewWin(enhancementsWin);
 }

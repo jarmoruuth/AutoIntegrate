@@ -1,6 +1,6 @@
 {
  "version": "AutoIntegrate v1.88.0 test1",
- "generated": "Thu Oct 15 2026 17:50:43 GMT+0300 (FLE Daylight Time)",
+ "generated": "Thu Oct 15 2026 18:33:52 GMT+0300 (FLE Daylight Time)",
  "options": [
   {
    "key": "local_normalization",
@@ -14094,7 +14094,7 @@
     {
      "kind": "checkbox",
      "label": "Live preview",
-     "tooltip": "<p>Update the preview while slider values are changed. Live preview is available for options that have a slider, like curves, gamma, adjust channels and adjust shadows.</p><p>Live preview shows only the option that is being changed, applied to a copy of the target image. The target image is not changed. Use Apply to change the target image.</p>",
+     "tooltip": "<p>Update the preview when options with a slider are changed, like curves, gamma, adjust channels, adjust shadows, ExponentialTransform, UnsharpMask and clarity. Moving a slider checks its option.</p><p>Live preview shows all checked options that have a slider, applied in the same order as Apply to a copy of the target image. Other checked options are not included in the live preview. The target image is not changed. Use Apply to change the target image.</p>",
      "values": null,
      "min": null,
      "max": null,
@@ -14114,7 +14114,7 @@
    "in_gui": true,
    "kind": "checkbox",
    "label": "Live preview",
-   "tooltip": "<p>Update the preview while slider values are changed. Live preview is available for options that have a slider, like curves, gamma, adjust channels and adjust shadows.</p><p>Live preview shows only the option that is being changed, applied to a copy of the target image. The target image is not changed. Use Apply to change the target image.</p>",
+   "tooltip": "<p>Update the preview when options with a slider are changed, like curves, gamma, adjust channels, adjust shadows, ExponentialTransform, UnsharpMask and clarity. Moving a slider checks its option.</p><p>Live preview shows all checked options that have a slider, applied in the same order as Apply to a copy of the target image. Other checked options are not included in the live preview. The target image is not changed. Use Apply to change the target image.</p>",
    "values": null,
    "min": null,
    "max": null
@@ -15883,7 +15883,7 @@
    "key": "enhancements_shadowclippingperc",
    "name": "Enh shadow clipping percentage",
    "type": "R",
-   "def": 0.1,
+   "def": 0,
    "tip": "",
    "applies": "",
    "controls": [
@@ -16833,7 +16833,7 @@
    "controls": [
     {
      "kind": "checkbox",
-     "label": "UnsharpMask,",
+     "label": "UnsharpMask",
      "tooltip": "Sharpen image using UnsharpMask and a luminance mask.",
      "values": null,
      "min": null,
@@ -16853,7 +16853,7 @@
    ],
    "in_gui": true,
    "kind": "checkbox",
-   "label": "UnsharpMask,",
+   "label": "UnsharpMask",
    "tooltip": "Sharpen image using UnsharpMask and a luminance mask.",
    "values": null,
    "min": null,
@@ -16873,7 +16873,7 @@
      "tooltip": "Sharpen image using UnsharpMask and a luminance mask.",
      "values": null,
      "min": 0.1,
-     "max": 250,
+     "max": 25,
      "tab": "Enhancements",
      "section": "Generic enhancements",
      "expert": false,
@@ -16893,7 +16893,7 @@
    "tooltip": "Sharpen image using UnsharpMask and a luminance mask.",
    "values": null,
    "min": 0.1,
-   "max": 250
+   "max": 25
   },
   {
    "key": "enhancements_unsharpmask_amount",
@@ -17208,7 +17208,7 @@
      "label": "StdDev",
      "tooltip": "<p>Add clarity to the image using a luminance mask. Clarity is a local contrast enhancement.</p><p>Clarity uses UnsharpMask process where stddev should be large and amount should be small.</p><p>If a mask is used then clarity is applied only to the light parts of the image.</p>",
      "values": null,
-     "min": 0.1,
+     "min": 1,
      "max": 250,
      "tab": "Enhancements",
      "section": "Generic enhancements",
@@ -17228,7 +17228,7 @@
    "label": "StdDev",
    "tooltip": "<p>Add clarity to the image using a luminance mask. Clarity is a local contrast enhancement.</p><p>Clarity uses UnsharpMask process where stddev should be large and amount should be small.</p><p>If a mask is used then clarity is applied only to the light parts of the image.</p>",
    "values": null,
-   "min": 0.1,
+   "min": 1,
    "max": 250
   },
   {

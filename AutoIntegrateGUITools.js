@@ -379,10 +379,11 @@ newNumericControlPrecision(parent, txt, param, min, max, tooltip, precision, upd
       edt.label.text = txt;
       edt.label.textAlignment = TextAlignment.Right|TextAlignment.VertCenter;
       edt.aiParam = param;
-      edt.onValueUpdated = function(value) { 
-            edt.aiParam.val = value; 
+      // updatedCallback(user_changed) is called with true when the user changes the value
+      edt.onValueUpdated = function(value) {
+            edt.aiParam.val = value;
             if (updatedCallback != null) {
-                  updatedCallback();
+                  updatedCallback(true);
             }
       };
       edt.setPrecision( precision );
@@ -400,7 +401,7 @@ newNumericControlPrecision(parent, txt, param, min, max, tooltip, precision, upd
       edt.aiParam.reset = () => {
             edt.setValue(edt.aiParam.val);
             if (updatedCallback != null) {
-                  updatedCallback();
+                  updatedCallback(false);
             }
       };
       edt.textAlignment = TextAlignment.Left|TextAlignment.VertCenter;
