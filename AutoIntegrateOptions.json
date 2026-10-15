@@ -1,6 +1,6 @@
 {
  "version": "AutoIntegrate v1.88.0 test1",
- "generated": "Thu Oct 15 2026 10:00:51 GMT+0300 (FLE Daylight Time)",
+ "generated": "Thu Oct 15 2026 10:09:29 GMT+0300 (FLE Daylight Time)",
  "options": [
   {
    "key": "local_normalization",
@@ -14115,6 +14115,42 @@
    "kind": "checkbox",
    "label": "Live preview",
    "tooltip": "<p>Update the preview while curve sliders are changed. The curve is applied to a copy of the target image and the target image is not changed. Use Apply to change the target image.</p>",
+   "values": null,
+   "min": null,
+   "max": null
+  },
+  {
+   "key": "enhancements_live_preview_downsample",
+   "name": "Enh live preview downsample",
+   "type": "B",
+   "def": false,
+   "tip": "",
+   "applies": "interface",
+   "controls": [
+    {
+     "kind": "checkbox",
+     "label": "Downsample live preview",
+     "tooltip": "<p>Use a downsampled copy of the target image for live preview. The longest side of the downsampled image is 2000 pixels.</p><p>This can make live preview faster with large images or slower computers. The downsampled copy is created once and reused until the target image changes. Apply always uses the full size image.</p>",
+     "values": null,
+     "min": null,
+     "max": null,
+     "tab": "Enhancements",
+     "section": "Misc options",
+     "expert": false,
+     "located": true
+    }
+   ],
+   "expert": false,
+   "tabs": [
+    "Enhancements"
+   ],
+   "sections": [
+    "Misc options"
+   ],
+   "in_gui": true,
+   "kind": "checkbox",
+   "label": "Downsample live preview",
+   "tooltip": "<p>Use a downsampled copy of the target image for live preview. The longest side of the downsampled image is 2000 pixels.</p><p>This can make live preview faster with large images or slower computers. The downsampled copy is created once and reused until the target image changes. Apply always uses the full size image.</p>",
    "values": null,
    "min": null,
    "max": null

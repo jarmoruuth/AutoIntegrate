@@ -123,6 +123,8 @@ constructor(parent, guitools, util, global, engine, preview) {
       this.enhancements_target_image_window_list = [];
       this.preview_control = null;
       this.curves_live_preview_timer = null;
+      this.live_preview_cache = { key: null, image: null };
+      this.live_preview_downsample_size = 2000;     // longest side of downsampled live preview image
 
       this.adjust_type_values = [ 'Lights', 'Darks', 'All' ];
       this.star_reduce_methods = [ 'None', 'Transfer', 'Halo', 'Star' ];
@@ -549,43 +551,104 @@ curvesLivePreviewStop()
       }
 }
 
-// Apply curves to a hidden copy of the target image and show it in the preview.
-// Target image is not changed.
-curvesLivePreviewUpdate()
+// Live preview helpers. A live preview applies an operation to a hidden copy of
+// the target image and shows the copy in the preview. Target image is not changed.
+
+// Live preview is not possible while processing or without a target image
+livePreviewTargetWin()
 {
       if (this.engine.enhancementsApply || this.global.is_processing != this.global.processing_state.none) {
-            return;
+            return null;
       }
-      var targetWin = this.getEnhancementsTargetWin();
+      return this.getEnhancementsTargetWin();
+}
+
+newHiddenWindowFromImage(image, sourceWin, name)
+{
+      var win = new ImageWindow(
+                        image.width,
+                        image.height,
+                        image.numberOfChannels,
+                        sourceWin.bitsPerSample,
+                        sourceWin.isFloatSample,
+                        image.colorSpace != ColorSpace.Gray,
+                        name);
+      win.mainView.beginProcess(UndoFlag.NoSwapFile);
+      win.mainView.image.assign(image);
+      win.mainView.endProcess();
+      return win;
+}
+
+livePreviewClearCache()
+{
+      if (this.live_preview_cache.image != null) {
+            this.live_preview_cache.image.free();
+      }
+      this.live_preview_cache = { key: null, image: null };
+}
+
+// Source image for a live preview, returns { image, downsampled }. Optionally a
+// downsampled copy of the target image which is cached until the target image changes.
+livePreviewSourceImage(targetWin)
+{
+      var image = targetWin.mainView.image;
+      if (!this.par.enhancements_live_preview_downsample.val) {
+            return { image: image, downsampled: false };
+      }
+      var maxlen = Math.max(image.width, image.height);
+      if (maxlen <= this.live_preview_downsample_size) {
+            return { image: image, downsampled: false };
+      }
+      var key = targetWin.mainView.id + "|" + this.enhancements_gui_info.undo_images_pos + "|" +
+                this.enhancements_gui_info.undo_images.length + "|" + image.width + "x" + image.height;
+      if (this.live_preview_cache.key != key) {
+            this.livePreviewClearCache();
+            var win = this.newHiddenWindowFromImage(image, targetWin, "AutoIntegrate_live_preview_downsample");
+            try {
+                  this.engine.runResample(win, this.live_preview_downsample_size / maxlen);
+                  this.live_preview_cache = { key: key, image: new Image(win.mainView.image) };
+            } finally {
+                  win.forceClose();
+            }
+            console.writeln("Live preview downsampled image " + this.live_preview_cache.image.width + "x" + this.live_preview_cache.image.height);
+      }
+      return { image: this.live_preview_cache.image, downsampled: true };
+}
+
+// Run operation(previewWin) on a hidden copy of the target image and show it in the preview
+livePreviewRun(name, operation)
+{
+      var targetWin = this.livePreviewTargetWin();
       if (targetWin == null) {
             return;
       }
       var start_time = Date.now();
-      var image = targetWin.mainView.image;
-      var previewWin = new ImageWindow(
-                              image.width,
-                              image.height,
-                              image.numberOfChannels,
-                              targetWin.bitsPerSample,
-                              targetWin.isFloatSample,
-                              image.colorSpace != ColorSpace.Gray,
-                              "AutoIntegrate_curves_live_preview");
+      var previewWin = null;
       try {
-            previewWin.mainView.beginProcess(UndoFlag.NoSwapFile);
-            previewWin.mainView.image.assign(image);
-            previewWin.mainView.endProcess();
+            var source = this.livePreviewSourceImage(targetWin);
+            var downsampled = source.downsampled;
+            previewWin = this.newHiddenWindowFromImage(source.image, targetWin, "AutoIntegrate_live_preview");
 
-            this.engine.runCurvesTransformationPoints(previewWin, this.engine.enhancementsCurvesPoints());
+            operation(previewWin);
 
             // Preview update may set target histogram info, keep the target image info
             var saved_histogram_info = this.global.enhancements_target_histogram_info;
-            this.preview.updatePreviewWinTxt(previewWin, targetWin.mainView.id + " [curves live preview]");
+            this.preview.updatePreviewWinTxt(previewWin, targetWin.mainView.id + " [" + name + " live preview" + (downsampled ? ", downsampled" : "") + "]");
             this.global.enhancements_target_histogram_info = saved_histogram_info;
       } catch (err) {
-            console.criticalln("Curves live preview failed: " + err);
+            console.criticalln(name + " live preview failed: " + err);
       }
-      previewWin.forceClose();
-      console.writeln("Curves live preview " + (Date.now() - start_time) / 1000 + " sec");
+      if (previewWin != null) {
+            previewWin.forceClose();
+      }
+      console.writeln(name + " live preview " + (Date.now() - start_time) / 1000 + " sec");
+}
+
+curvesLivePreviewUpdate()
+{
+      this.livePreviewRun("Curves", (previewWin) => {
+            this.engine.runCurvesTransformationPoints(previewWin, this.engine.enhancementsCurvesPoints());
+      });
 }
 
 curvesLivePreviewToggled()
@@ -607,6 +670,7 @@ close_undo_images(at_exit = false)
       if (at_exit) {
             this.curvesLivePreviewStop();
       }
+      this.livePreviewClearCache();
       if (this.enhancements_gui_info.undo_images.length > 0) {
             console.writeln("Close undo images");
             this.enhancements_gui_info.undo_images = [];
@@ -1435,11 +1499,21 @@ createEnhancementsControls(parent)
       this.enhancements_rotate_degrees_ComboBox = this.guitools.newComboBox(parent, this.par.enhancements_rotate_degrees, this.rotate_degrees_values, this.enhancements_rotate_CheckBox.toolTip);
       this.enhancements_image_no_copy_CheckBox = this.guitools.newCheckBox(parent, "No copy", this.par.enhancements_apply_no_copy_image, 
             "<p>Do not make a copy of the image for Apply.</p>" );
+      this.enhancements_live_preview_downsample_CheckBox = this.guitools.newCheckBox(parent, "Downsample live preview", this.par.enhancements_live_preview_downsample,
+            "<p>Use a downsampled copy of the target image for live preview. The longest side of the downsampled image is " +
+            this.live_preview_downsample_size + " pixels.</p>" +
+            "<p>This can make live preview faster with large images or slower computers. The downsampled copy is created once " +
+            "and reused until the target image changes. Apply always uses the full size image.</p>",
+            () => {
+                  this.livePreviewClearCache();
+                  this.curvesLivePreviewSchedule();
+            });
 
       this.enhancementsImageOptionsSizer1 = new HorizontalSizer;
       this.enhancementsImageOptionsSizer1.spacing = 4;
       this.enhancementsImageOptionsSizer1.add( this.enhancements_auto_reset_CheckBox );
       this.enhancementsImageOptionsSizer1.add( this.enhancements_image_no_copy_CheckBox );
+      this.enhancementsImageOptionsSizer1.add( this.enhancements_live_preview_downsample_CheckBox );
       this.enhancementsImageOptionsSizer1.add( this.enhancements_force_new_mask_CheckBox );
       this.enhancementsImageOptionsSizer1.add( this.enhancements_range_mask_CheckBox );
 #ifndef AUTOINTEGRATE_STANDALONE
