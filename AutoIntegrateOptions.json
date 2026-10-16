@@ -1,6 +1,6 @@
 {
  "version": "AutoIntegrate v1.88.0 test2",
- "generated": "Thu Oct 15 2026 22:25:45 GMT+0300 (FLE Daylight Time)",
+ "generated": "Fri Oct 16 2026 23:38:30 GMT+0300 (FLE Daylight Time)",
  "options": [
   {
    "key": "local_normalization",
@@ -980,6 +980,42 @@
    "kind": "checkbox",
    "label": "Color calibration using SPCC",
    "tooltip": "<p>Run color calibration using SpectrophotometricColorCalibration (SPCC). This requires image solving which is done automatically on Integration_RGB image if it is not already done.</p><p>If image does not have correct coordinates or focal length embedded they can be given in <i>Postprocessing / Image solving</i> section.</p><p>SPCC settings can be updated at <i>Postprocessing / Color calibration</i> section.</p>",
+   "values": null,
+   "min": null,
+   "max": null
+  },
+  {
+   "key": "auto_spcc",
+   "name": "Auto SPCC",
+   "type": "B",
+   "def": true,
+   "tip": "",
+   "applies": "color",
+   "controls": [
+    {
+     "kind": "checkbox",
+     "label": "Auto SPCC",
+     "tooltip": "<p>Use SPCC automatically for color calibration of RGB data when <i>Color calibration using SPCC</i> is not checked.</p><p>SPCC is not used with narrowband data.</p><p>If image solving or SPCC fails, for example when the Gaia DR3/SP database needed by SPCC is not installed, ColorCalibration is used instead. The decision is shown in the Auto decisions list at the end of processing.</p><p>When <i>Color calibration using SPCC</i> is checked, SPCC is always used and a failure stops the processing.</p>",
+     "values": null,
+     "min": null,
+     "max": null,
+     "tab": "Settings",
+     "section": "Image processing parameters",
+     "expert": false,
+     "located": true
+    }
+   ],
+   "expert": false,
+   "tabs": [
+    "Settings"
+   ],
+   "sections": [
+    "Image processing parameters"
+   ],
+   "in_gui": true,
+   "kind": "checkbox",
+   "label": "Auto SPCC",
+   "tooltip": "<p>Use SPCC automatically for color calibration of RGB data when <i>Color calibration using SPCC</i> is not checked.</p><p>SPCC is not used with narrowband data.</p><p>If image solving or SPCC fails, for example when the Gaia DR3/SP database needed by SPCC is not installed, ColorCalibration is used instead. The decision is shown in the Auto decisions list at the end of processing.</p><p>When <i>Color calibration using SPCC</i> is checked, SPCC is always used and a failure stops the processing.</p>",
    "values": null,
    "min": null,
    "max": null
@@ -2503,6 +2539,42 @@
    "values": null,
    "min": 1,
    "max": 10
+  },
+  {
+   "key": "auto_drizzle",
+   "name": "Auto drizzle",
+   "type": "B",
+   "def": false,
+   "tip": "",
+   "applies": "",
+   "controls": [
+    {
+     "kind": "checkbox",
+     "label": "Auto",
+     "tooltip": "<p>Use drizzle automatically when <i>Drizzle</i> is not checked and images are undersampled.</p><p>Drizzle is used when the median FWHM measured by SubframeSelector is less than 2 pixels, every filter has at least 20 images and the drizzled image is not larger than 150 megapixels. Drizzle scale is taken from the <i>Drizzle, scale</i> value.</p><p>Drizzle needs dithered images. Do not use this option with images that are not dithered.</p><p>Auto drizzle is not used in fast mode, with FastIntegration, comet alignment, or when SubframeSelector is not run. The decision is shown in the Auto decisions list at the end of processing.</p>",
+     "values": null,
+     "min": null,
+     "max": null,
+     "tab": "Settings",
+     "section": "Image processing parameters",
+     "expert": false,
+     "located": true
+    }
+   ],
+   "expert": false,
+   "tabs": [
+    "Settings"
+   ],
+   "sections": [
+    "Image processing parameters"
+   ],
+   "in_gui": true,
+   "kind": "checkbox",
+   "label": "Auto",
+   "tooltip": "<p>Use drizzle automatically when <i>Drizzle</i> is not checked and images are undersampled.</p><p>Drizzle is used when the median FWHM measured by SubframeSelector is less than 2 pixels, every filter has at least 20 images and the drizzled image is not larger than 150 megapixels. Drizzle scale is taken from the <i>Drizzle, scale</i> value.</p><p>Drizzle needs dithered images. Do not use this option with images that are not dithered.</p><p>Auto drizzle is not used in fast mode, with FastIntegration, comet alignment, or when SubframeSelector is not run. The decision is shown in the Auto decisions list at the end of processing.</p>",
+   "values": null,
+   "min": null,
+   "max": null
   },
   {
    "key": "drizzle_drop_shrink",

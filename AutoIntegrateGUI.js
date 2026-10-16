@@ -5553,11 +5553,21 @@ AutoIntegrateDialog()
             "<p>Consider using drizzle when selecting SPCC for color calibration.</p>" +
             "<p>For Drizzle settings see <i>Integration / Drizzle</i> section.</p>");
       this.drizzle_scale_SpinBox = this.guitools.newSpinBox(this, this.par.drizzle_scale, 1, 10, this.use_drizzle_CheckBox.toolTip);
+      this.auto_drizzle_CheckBox = this.guitools.newCheckBox(this, "Auto", this.par.auto_drizzle,
+            "<p>Use drizzle automatically when <i>Drizzle</i> is not checked and images are undersampled.</p>" +
+            "<p>Drizzle is used when the median FWHM measured by SubframeSelector is less than 2 pixels, " +
+            "every filter has at least 20 images and the drizzled image is not larger than 150 megapixels. " +
+            "Drizzle scale is taken from the <i>Drizzle, scale</i> value.</p>" +
+            "<p>Drizzle needs dithered images. Do not use this option with images that are not dithered.</p>" +
+            "<p>Auto drizzle is not used in fast mode, with FastIntegration, comet alignment, or when " +
+            "SubframeSelector is not run. The decision is shown in the Auto decisions list at the end of processing.</p>");
 
       this.drizzleSizer = new HorizontalSizer;
       this.drizzleSizer.spacing = 2;
       this.drizzleSizer.add( this.use_drizzle_CheckBox );
       this.drizzleSizer.add( this.drizzle_scale_SpinBox );
+      this.drizzleSizer.addSpacing( 8 );
+      this.drizzleSizer.add( this.auto_drizzle_CheckBox );
       this.drizzleSizer.addStretch();
 
       this.imageintegration_ssweight_CheckBox = this.guitools.newCheckBox(this, "ImageIntegration use ssweight", this.par.use_imageintegration_ssweight, 

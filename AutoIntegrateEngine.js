@@ -156,6 +156,7 @@ constructor(global, util, flowchart) {
       // processing. When decided, operations are renamed to the selected operation.
       this.autoColorCalibrationName = "Auto color calibration";
       this.autoStretchingName = "Auto stretching";
+      this.autoDrizzleName = "Auto drizzle";
       this.auto_spcc_failed_node = null;      // flowchart operation of failed Auto SPCC, see runSPCC
 
       // List of images used in processing
@@ -7711,6 +7712,11 @@ runImageIntegrationEx(images, name, local_normalization)
 {
       var integrationImageId = this.runBasicIntegration(images, name, local_normalization);
 
+      if (this.global.get_flowchart_data && name != 'LDD' && this.isAutoDrizzleCandidate() && this.autoDrizzleSettingsReason() == null) {
+            // Drizzle is decided during processing, renamed or removed then
+            var node = this.flowchart.flowchartOperation(this.autoDrizzleName);
+            this.engine_end_process(node);
+      }
       if (this.par.use_drizzle.val && name != 'LDD') {
             this.guiUpdatePreviewId(integrationImageId);
             integrationImageId = this.util.windowRename(integrationImageId, integrationImageId + "_tmp");
@@ -13552,6 +13558,9 @@ createChannelImages(parent, auto_continue)
                   return this.retval.INCOMPLETE;
             }
 
+            // Median FWHM is measured, decide drizzle before StarAlignment generates drizzle data
+            this.resolveAutoDrizzle(filtered_lights, fileNames);
+
             /********************************************************************
              * StarAlignment
              * 
@@ -16963,6 +16972,104 @@ solveImageForColorCalibration(id)
       }
 }
 
+// Auto drizzle is considered when the option is set and drizzle is not selected by the user
+isAutoDrizzleCandidate()
+{
+      return this.par.auto_drizzle.val && !this.par.use_drizzle.val;
+}
+
+// Reason why Auto drizzle cannot be used with the current settings, or null.
+// These are known before processing so the flowchart generated before processing
+// uses the same checks.
+autoDrizzleSettingsReason()
+{
+      if (this.global.testmode) {
+            return "test mode";
+      } else if (this.par.fast_mode.val) {
+            return "fast mode";
+      } else if (this.par.use_fastintegration.val) {
+            return "FastIntegration";
+      } else if (this.par.comet_align.val) {
+            return "comet alignment";
+      } else if (this.par.start_from_imageintegration.val) {
+            return "start from ImageIntegration";
+      } else if (this.par.skip_subframeselector.val) {
+            return "SubframeSelector is not run";
+      } else {
+            return null;
+      }
+}
+
+// Auto drizzle. Use drizzle if images are undersampled, there are enough images
+// for drizzle in every filter and the drizzled image is not too large. Must be
+// called after SubframeSelector has measured median FWHM and before StarAlignment
+// that generates drizzle data.
+// filtered_lights has light files for each filter, fileNames are the files to be aligned.
+resolveAutoDrizzle(filtered_lights, fileNames)
+{
+      const max_fwhm = 2.0;               // median FWHM in pixels, smaller values are undersampled
+      const min_images = 20;              // minimum number of images in every filter
+      const max_megapixels = 150;         // maximum size of drizzled image
+
+      if (this.global.get_flowchart_data || !this.isAutoDrizzleCandidate()) {
+            return;
+      }
+      var scale = this.par.drizzle_scale.val;
+      var reason = this.autoDrizzleSettingsReason();
+      if (reason == null) {
+            if (this.medianFWHM == null) {
+                  reason = "median FWHM not available";
+            } else if (this.medianFWHM >= max_fwhm) {
+                  reason = "median FWHM " + this.medianFWHM.toFixed(2) + " px, limit " + max_fwhm.toFixed(1) + " px";
+            }
+      }
+      if (reason == null) {
+            var allfilesarr = filtered_lights.allfilesarr;
+            for (var i = 0; i < allfilesarr.length; i++) {
+                  var count = allfilesarr[i].files.length;
+                  if (count > 0 && count < min_images) {
+                        reason = count + " images for filter " + allfilesarr[i].filter + ", need " + min_images;
+                        break;
+                  }
+            }
+      }
+      if (reason == null) {
+            var naxis1 = 0;
+            var naxis2 = 0;
+            var keywords = this.getFileKeywords(this.global.best_image);
+            for (var i = 0; i < keywords.length; i++) {
+                  if (keywords[i].name == "NAXIS1") {
+                        naxis1 = parseInt(keywords[i].strippedValue.trim());
+                  } else if (keywords[i].name == "NAXIS2") {
+                        naxis2 = parseInt(keywords[i].strippedValue.trim());
+                  }
+            }
+            var megapixels = naxis1 * naxis2 * scale * scale / 1000000;
+            if (megapixels > max_megapixels) {
+                  reason = "drizzled image would be " + Math.round(megapixels) + " megapixels, limit " + max_megapixels;
+            }
+      }
+      if (reason == null && this.par.use_processed_files.val) {
+            // Already aligned files are used as is, they must have drizzle data
+            var aligned = this.getFileProcessedStatus(fileNames, '_r').processed;
+            for (var i = 0; i < aligned.length; i++) {
+                  if (!File.exists(aligned[i].replace(".xisf", ".xdrz"))) {
+                        reason = "already aligned files have no drizzle data";
+                        break;
+                  }
+            }
+      }
+      if (reason != null) {
+            this.addAutoDecision("drizzle", "not used", reason);
+            this.flowchart.flowchartRemoveOperations(this.autoDrizzleName);
+            return;
+      }
+      this.par.use_drizzle.val = true;
+      this.par.use_drizzle.auto_selected = true;
+      this.addAutoDecision("drizzle", "scale " + scale, "median FWHM " + this.medianFWHM.toFixed(2) + " px, limit " + max_fwhm.toFixed(1) + " px");
+      this.flowchart.flowchartRenameOperations(this.autoDrizzleName, "DrizzleIntegration");
+}
+
 // V8 limitations for now
 check_available_processes()
 {
@@ -17084,6 +17191,7 @@ autointegrateProcessingEngine(parent, auto_continue, autocontinue_narrowband, tx
 
        this.auto_decisions = [];
        this.clearAutoSelected(this.par.use_spcc);
+       this.clearAutoSelected(this.par.use_drizzle);
 
        this.get_local_copies_of_parameters();
 
@@ -17863,6 +17971,7 @@ autointegrateProcessingEngine(parent, auto_continue, autocontinue_narrowband, tx
 
        this.imageSolver.solved_imageId = null;
        this.clearAutoSelected(this.par.use_spcc);
+       this.clearAutoSelected(this.par.use_drizzle);
 
        this.lightFileNames = null;
        this.darkFileNames = null;

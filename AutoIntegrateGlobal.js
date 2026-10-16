@@ -310,6 +310,7 @@ this.par = {
       create_process_icons: { val: true, def: true, name : "Create process icons", type : 'B', applies : "interface" },
       use_drizzle: { val: false, def: false, name : "Drizzle", type : 'B' },
       drizzle_scale: { val: 2, def: 2, name : "Drizzle scale", type : 'I' },
+      auto_drizzle: { val: false, def: false, name : "Auto drizzle", type : 'B' },
       drizzle_drop_shrink: { val: 0.9, def: 0.9, name : "Drizzle drop shrink", type : 'R' },
       keep_integrated_images: { val: false, def: false, name : "Keep integrated images", type : 'B', applies : "interface" },
       windows_at_end: { val: 'Keep integrated and final images', def: 'Keep integrated and final images', name : "Windows at end of processing", type : 'S', applies : "interface" },

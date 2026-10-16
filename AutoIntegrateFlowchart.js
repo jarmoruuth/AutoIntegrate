@@ -544,6 +544,44 @@ flowchartRenameOperations(oldtxt, newtxt)
       }
 }
 
+// Remove operations that are not yet run from the previously generated flowchart.
+// Used when an Auto option decides during processing that an operation is not run,
+// like Auto drizzle, so the flowchart shown during processing matches what is run.
+// Operation ids are renumbered so they match operation positions.
+flowchartRemoveOperations(txt)
+{
+      var list = this.global.flowchartOperationList;
+      var removed = [];
+      var newlist = [];
+      for (var i = 0; i < list.length; i++) {
+            if (list[i].id > this.global.flowchartActiveId && list[i].txt == txt) {
+                  removed.push(list[i]);
+            } else {
+                  newlist.push(list[i]);
+            }
+      }
+      if (removed.length == 0) {
+            return;
+      }
+      for (var i = 0; i < newlist.length; i++) {
+            newlist[i].id = i + 1;
+      }
+      this.global.flowchartOperationList = newlist;
+      if (this.global.flowchartData != null) {
+            this.flowchartRemoveNodes(this.global.flowchartData, removed);
+      }
+      console.writeln("Flowchart: removed " + removed.length + " operations " + txt);
+      this.gui.flowchartUpdated();
+}
+
+flowchartRemoveNodes(parent, nodes)
+{
+      parent.list = parent.list.filter((node) => nodes.indexOf(node) == -1);
+      for (var i = 0; i < parent.list.length; i++) {
+            this.flowchartRemoveNodes(parent.list[i], nodes);
+      }
+}
+
 flowchartOperationEnd(node)
 {
         if (this.par.flowchart_debug.val) console.writeln("engine_end_process " + node.txt + ", flowchart.flowchart_operation_level: " + this.flowchart_operation_level);
