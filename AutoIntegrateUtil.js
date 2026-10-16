@@ -695,6 +695,7 @@ autointegrateProcessingHistory(imageWindow)
             AutoIntegrate: [],
             info: [],
             options: [],
+            auto_decisions: [],
             steps: [],
             enhancements: []
       };
@@ -721,6 +722,10 @@ autointegrateProcessingHistory(imageWindow)
                 && keyword.strippedValue != "Processing options:") 
             {
                   history.options[history.options.length] = [ keyword.name, keyword.strippedValue.trim(), keyword.comment.trim() ]; 
+                  is_history = true;
+            }
+            if (keyword.name == 'HISTORY' && trimmedComment.startsWith("AutoIntegrate auto decision")) {
+                  history.auto_decisions[history.auto_decisions.length] = [ keyword.name, keyword.strippedValue.trim(), keyword.comment.trim() ];
                   is_history = true;
             }
             if (keyword.name == 'HISTORY' && trimmedComment.startsWith("AutoIntegrate enhancements")) {

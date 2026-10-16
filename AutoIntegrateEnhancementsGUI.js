@@ -2129,6 +2129,12 @@ createTargetImageSizer(parent)
                               console.writeln(" - "  + history.options[i][1]);
                         }
                   }
+                  if (history.auto_decisions.length > 0) {
+                        console.noteln("Auto decisions:");
+                        for (var i = 0; i < history.auto_decisions.length; i++) {
+                              console.writeln(" - "  + history.auto_decisions[i][1]);
+                        }
+                  }
                   if (history.steps.length > 0) {
                         console.noteln("Processing steps:");
                         for (var i = 0; i < history.steps.length; i++) {

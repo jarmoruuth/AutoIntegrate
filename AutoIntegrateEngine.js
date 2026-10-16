@@ -148,6 +148,10 @@ constructor(global, util, flowchart) {
 
       this.medianFWHM = null;
 
+      // Decisions made by Auto options during processing, see addAutoDecision.
+      // Printed at the end of processing and saved to the final image history.
+      this.auto_decisions = [];
+
       // List of images used in processing
       // Images is an array of objects with properties (see init_images):
       //   images : array of image ids
@@ -970,7 +974,15 @@ skyAnalysisStretching(win, image_stretching)
       if (stretching == 'MultiscaleAdaptiveStretch' && this.global.image_stretching_values.indexOf('MultiscaleAdaptiveStretch') == -1) {
             stretching = 'Auto STF';
       }
+      // This line is parsed by TestAutoIntegrate skyanalysis.py, keep the format
       console.noteln("Auto image stretching selected by sky analysis on " + win.mainView.id + ": " + stretching);
+      var m = res.model;
+      this.addAutoDecision("image stretching", stretching,
+                           "sky analysis" +
+                           (m != null && m.contrast != null ? ", contrast " + m.contrast.contrast.toFixed(1) +
+                                                              ", bright area " + (m.contrast.bright_area * 100).toFixed(1) + "%"
+                                                            : ", contrast not available"),
+                           false);
       if (stretching != image_stretching) {
             // Flowchart generated before processing does not run sky analysis, update it
             this.flowchart.flowchartRenameOperations(image_stretching, stretching);
@@ -1000,14 +1012,16 @@ resolveImageStretching()
       var target_stretching = this.targetTypeToStretching(this.par.target_type.val);
       if (target_stretching != null) {
             stretching = target_stretching;
-            console.writeln("Auto image stretching: " + this.par.target_type.val + " target using " + stretching);
+            this.addAutoDecision("image stretching", stretching, this.par.target_type.val + " target type");
       } else {
             if (!this.global.testmode && this.global.image_stretching_values.indexOf('MultiscaleAdaptiveStretch') != -1) {
                   stretching = 'MultiscaleAdaptiveStretch';
+                  var reason = "default";
             } else {
                   stretching = 'Auto STF';
+                  var reason = this.global.testmode ? "default in test mode" : "MultiscaleAdaptiveStretch not available";
             }
-            console.writeln("Auto image stretching: " + stretching);
+            this.addAutoDecision("image stretching", stretching, reason);
       }
       return stretching;
 }
@@ -2118,6 +2132,12 @@ saveProcessingHistoryToImage(imageWindow)
                   name: "HISTORY",
                   value: processing_info.options[i],
                   comment: "AutoIntegrate processing option " + (i + 1) };
+      }
+      for (var i = 0; i < this.auto_decisions.length; i++) {
+            keywords[keywords.length] = {
+                  name: "HISTORY",
+                  value: this.autoDecisionText(this.auto_decisions[i]),
+                  comment: "AutoIntegrate auto decision " + (i + 1) };
       }
       // Update history and version keywords in a single operation,
       // reading and writing keywords is expensive.
@@ -16703,6 +16723,30 @@ isGraXpertAvailable()
       return path != "" && (File.exists(path) || File.directoryExists(path));
 }
 
+// Record a decision made by an Auto option. what is the decided thing, choice is
+// the selected value and reason tells why it was selected. Decisions are printed
+// at the end of processing and saved to the final image history. A later decision
+// on the same thing replaces the earlier one. If print is false the decision is
+// only recorded, used when the caller already logs it.
+addAutoDecision(what, choice, reason, print = true)
+{
+      var decision = { what: what, choice: choice, reason: reason };
+      var index = this.auto_decisions.findIndex((d) => d.what == what);
+      if (index >= 0) {
+            this.auto_decisions[index] = decision;
+      } else {
+            this.auto_decisions.push(decision);
+      }
+      if (print) {
+            console.noteln(this.autoDecisionText(decision));
+      }
+}
+
+autoDecisionText(decision)
+{
+      return "Auto " + decision.what + ": " + decision.choice + (decision.reason ? " (" + decision.reason + ")" : "");
+}
+
 // Auto tool selection. If no tool is selected in a tool category, select
 // the first available tool from candidates. Candidates are in priority order,
 // AI based tools first. Automatically selected tool is marked with auto_selected
@@ -16737,11 +16781,11 @@ resolveAutoTool(category, candidates)
             if (candidates[i].available()) {
                   candidates[i].param.val = true;
                   candidates[i].param.auto_selected = true;
-                  console.writeln("Auto " + category + " tool: " + candidates[i].name);
+                  this.addAutoDecision(category + " tool", candidates[i].name, "best available tool");
                   return;
             }
       }
-      console.writeln("Auto " + category + " tool: no tool available, using built-in processing");
+      this.addAutoDecision(category + " tool", "built-in processing", "no tool available");
 }
 
 // Resolve Auto selections in Settings / Tools to the best available tools.
@@ -16898,7 +16942,9 @@ autointegrateProcessingEngine(parent, auto_continue, autocontinue_narrowband, tx
        console.writeln("gllobal.outputRootDir: " + this.global.outputRootDir);
 
        this.global.debug = this.par.debug.val;
-       
+
+       this.auto_decisions = [];
+
        this.get_local_copies_of_parameters();
 
        if (!this.check_engine_processing()) {
@@ -17649,6 +17695,13 @@ autointegrateProcessingEngine(parent, auto_continue, autocontinue_narrowband, tx
  
        }
        console.writeln("--------------------------------------");
+       if (this.auto_decisions.length > 0) {
+            console.noteln("Auto decisions:");
+            for (var i = 0; i < this.auto_decisions.length; i++) {
+                  console.writeln(this.autoDecisionText(this.auto_decisions[i]));
+            }
+            console.writeln("--------------------------------------");
+       }
        if (this.global.processing_warnings.length > 0) {
             var start_timer = this.util.startTimer();
             console.warningln("Processing warnings:");
