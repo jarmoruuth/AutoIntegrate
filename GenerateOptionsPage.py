@@ -225,7 +225,7 @@ RULES = [
     (r'^(skip_subframeselector|use_weight|ssweight_limit|sort_order_type|filter_limit|outliers_'
      r'|use_imageintegration_ssweight)', 'quality'),
     (r'^(staralignment_|comet_|binning|use_drizzle|auto_drizzle|drizzle_|crop_)', 'registration'),
-    (r'^(local_normalization|use_localnormalization_multiscale|imageintegration_normalization'
+    (r'^(local_normalization|auto_local_normalization|use_localnormalization_multiscale|imageintegration_normalization'
      r'|imageintegration_buffer_size|imageintegration_stack_size'
      r'|integration_combination|use_clipping|skip_imageintegration_clipping|percentile_|sigma_'
      r'|winsorised_cutoff|linearfit_|ESD_|large_scale_pixel_rejection|use_fastintegration'

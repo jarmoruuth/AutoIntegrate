@@ -157,6 +157,8 @@ constructor(global, util, flowchart) {
       this.autoColorCalibrationName = "Auto color calibration";
       this.autoStretchingName = "Auto stretching";
       this.autoDrizzleName = "Auto drizzle";
+      this.autoLocalNormalizationName = "Auto local normalization";
+      this.auto_ln_channels = [];             // integration names using Auto local normalization
       this.auto_spcc_failed_node = null;      // flowchart operation of failed Auto SPCC, see runSPCC
 
       // List of images used in processing
@@ -7839,6 +7841,7 @@ runImageIntegration(channel_images, name, save_to_file, flowchartname)
       }
       this.util.addProcessingStepAndStatusInfo("Image " + name + " integration on " + images.length + " files");
       this.flowchart.flowchartChildBegin(flowchartname ? flowchartname : name);
+      this.autoLocalNormalizationFlowchart(name);
       if (!this.global.get_flowchart_data) {
             var single_image = this.checkIntegrationImageCount(images, name);
       } else {
@@ -7848,7 +7851,7 @@ runImageIntegration(channel_images, name, save_to_file, flowchartname)
       if (single_image) {
             var image_id = this.useSingleImageAsIntegration(images[0][1], name);
 
-      } else if (!this.par.local_normalization.val || name == 'LDD') {
+      } else if (!this.useLocalNormalization(name)) {
             if (this.par.use_drizzle.val) {
                   var drizzleImages = [];
                   for (var i = 0; i < images.length; i++) {
@@ -13649,9 +13652,12 @@ createChannelImages(parent, auto_continue)
                   return this.retval.INCOMPLETE;
             }
 
+            // Decide local normalization for each filter before ImageIntegration
+            this.resolveAutoLocalNormalization(filtered_lights);
+
             /********************************************************************
              * ImageIntegration
-             * 
+             *
              * Run ImageIntegration for each channel.
              * Output is Integration_*.xisf files.
              ********************************************************************/
@@ -17070,6 +17076,123 @@ resolveAutoDrizzle(filtered_lights, fileNames)
       this.flowchart.flowchartRenameOperations(this.autoDrizzleName, "DrizzleIntegration");
 }
 
+// Auto local normalization is considered when the option is set and local normalization
+// is not selected by the user
+isAutoLocalNormalizationCandidate()
+{
+      return this.par.auto_local_normalization.val && !this.par.local_normalization.val;
+}
+
+// Reason why Auto local normalization cannot be used with the current settings, or null.
+// These are known before processing so the flowchart generated before processing
+// uses the same checks.
+autoLocalNormalizationSettingsReason()
+{
+      if (this.global.testmode) {
+            return "test mode";
+      } else if (this.par.fast_mode.val) {
+            return "fast mode";
+      } else if (this.par.use_fastintegration.val) {
+            return "FastIntegration";
+      } else {
+            return null;
+      }
+}
+
+// Count observing sessions in files using DATE-OBS. A new session starts when
+// there is a gap of more than max_gap_hours between images.
+// Returns 0 if DATE-OBS is missing from some file.
+countObservingSessions(files, max_gap_hours)
+{
+      var jds = [];
+      for (var i = 0; i < files.length; i++) {
+            if (files[i].date_obs == null || files[i].date_obs == "") {
+                  return 0;
+            }
+            try {
+                  jds.push(Math.calendarTimeToJD(files[i].date_obs));
+            } catch (e) {
+                  console.writeln("countObservingSessions: invalid DATE-OBS " + files[i].date_obs + " in " + files[i].name);
+                  return 0;
+            }
+      }
+      if (jds.length == 0) {
+            return 0;
+      }
+      jds.sort((a, b) => a - b);
+      var sessions = 1;
+      for (var i = 1; i < jds.length; i++) {
+            if ((jds[i] - jds[i - 1]) * 24 > max_gap_hours) {
+                  sessions++;
+            }
+      }
+      return sessions;
+}
+
+// Auto local normalization. Use local normalization for a filter if its images are
+// from several nights. Decision is made separately for each filter, see
+// useLocalNormalization. Must be called before ImageIntegration.
+// filtered_lights has light files for each filter.
+resolveAutoLocalNormalization(filtered_lights)
+{
+      const max_gap_hours = 8;      // gap between images that starts a new night
+
+      this.auto_ln_channels = [];
+      if (this.global.get_flowchart_data || !this.isAutoLocalNormalizationCandidate()) {
+            return;
+      }
+      var reason = this.autoLocalNormalizationSettingsReason();
+      if (reason != null) {
+            this.addAutoDecision("local normalization", "not used", reason);
+            return;
+      }
+      var allfilesarr = filtered_lights.allfilesarr;
+      for (var i = 0; i < allfilesarr.length; i++) {
+            var files = allfilesarr[i].files;
+            if (files.length == 0) {
+                  continue;
+            }
+            // Integration name for the filter
+            var name = allfilesarr[i].filter == 'C' ? 'RGB' : allfilesarr[i].filter;
+            var sessions = this.countObservingSessions(files, max_gap_hours);
+            if (sessions == 0) {
+                  this.addAutoDecision("local normalization " + name, "not used", "DATE-OBS missing");
+            } else if (sessions == 1) {
+                  this.addAutoDecision("local normalization " + name, "not used", "images from one night");
+            } else {
+                  this.auto_ln_channels.push(name);
+                  this.addAutoDecision("local normalization " + name, "used", "images from " + sessions + " nights");
+            }
+      }
+}
+
+// Check if local normalization is used in ImageIntegration for name
+useLocalNormalization(name)
+{
+      if (name == 'LDD') {
+            return false;
+      }
+      return this.par.local_normalization.val || this.auto_ln_channels.indexOf(name) != -1;
+}
+
+// Flowchart for Auto local normalization. Flowchart generated before processing has
+// Auto local normalization operation before ImageIntegration. During processing
+// it is renamed to LocalNormalization or removed. Called for each ImageIntegration.
+autoLocalNormalizationFlowchart(name)
+{
+      if (name == 'LDD' || !this.isAutoLocalNormalizationCandidate() || this.autoLocalNormalizationSettingsReason() != null) {
+            return;
+      }
+      if (this.global.get_flowchart_data) {
+            var node = this.flowchart.flowchartOperation(this.autoLocalNormalizationName);
+            this.engine_end_process(node);
+      } else if (this.useLocalNormalization(name)) {
+            this.flowchart.flowchartRenameOperations(this.autoLocalNormalizationName, "LocalNormalization", true);
+      } else {
+            this.flowchart.flowchartRemoveOperations(this.autoLocalNormalizationName, true);
+      }
+}
+
 // V8 limitations for now
 check_available_processes()
 {
@@ -17190,6 +17313,7 @@ autointegrateProcessingEngine(parent, auto_continue, autocontinue_narrowband, tx
        this.global.debug = this.par.debug.val;
 
        this.auto_decisions = [];
+       this.auto_ln_channels = [];
        this.clearAutoSelected(this.par.use_spcc);
        this.clearAutoSelected(this.par.use_drizzle);
 

@@ -527,8 +527,8 @@ flowchartOperation(txt)
 // Rename operations that are not yet run in the previously generated flowchart.
 // Used when an operation is selected during processing, like stretching method
 // selected by sky analysis, so the flowchart shown during processing matches
-// what is actually run.
-flowchartRenameOperations(oldtxt, newtxt)
+// what is actually run. If first_only is true only the next operation is renamed.
+flowchartRenameOperations(oldtxt, newtxt, first_only = false)
 {
       var list = this.global.flowchartOperationList;
       var count = 0;
@@ -536,6 +536,9 @@ flowchartRenameOperations(oldtxt, newtxt)
             if (list[i].id > this.global.flowchartActiveId && list[i].txt == oldtxt) {
                   list[i].txt = newtxt;
                   count++;
+                  if (first_only) {
+                        break;
+                  }
             }
       }
       if (count > 0) {
@@ -548,13 +551,14 @@ flowchartRenameOperations(oldtxt, newtxt)
 // Used when an Auto option decides during processing that an operation is not run,
 // like Auto drizzle, so the flowchart shown during processing matches what is run.
 // Operation ids are renumbered so they match operation positions.
-flowchartRemoveOperations(txt)
+// If first_only is true only the next operation is removed.
+flowchartRemoveOperations(txt, first_only = false)
 {
       var list = this.global.flowchartOperationList;
       var removed = [];
       var newlist = [];
       for (var i = 0; i < list.length; i++) {
-            if (list[i].id > this.global.flowchartActiveId && list[i].txt == txt) {
+            if (list[i].id > this.global.flowchartActiveId && list[i].txt == txt && !(first_only && removed.length > 0)) {
                   removed.push(list[i]);
             } else {
                   newlist.push(list[i]);

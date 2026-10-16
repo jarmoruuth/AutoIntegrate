@@ -1,6 +1,6 @@
 {
  "version": "AutoIntegrate v1.88.0 test2",
- "generated": "Fri Oct 16 2026 23:38:30 GMT+0300 (FLE Daylight Time)",
+ "generated": "Sat Oct 17 2026 00:26:37 GMT+0300 (FLE Daylight Time)",
  "options": [
   {
    "key": "local_normalization",
@@ -34,6 +34,42 @@
    "kind": "checkbox",
    "label": "Local Normalization",
    "tooltip": "<p>Use local normalization data for ImageIntegration</p><p>For local normalization settings see section <i>Integration / LocalNormalization</i></p>",
+   "values": null,
+   "min": null,
+   "max": null
+  },
+  {
+   "key": "auto_local_normalization",
+   "name": "Auto local normalization",
+   "type": "B",
+   "def": true,
+   "tip": "",
+   "applies": "",
+   "controls": [
+    {
+     "kind": "checkbox",
+     "label": "Auto",
+     "tooltip": "<p>Use local normalization automatically when <i>Local Normalization</i> is not checked and images for a filter are from several nights.</p><p>Decision is made separately for each filter. Images are from several nights if there is a gap of more than 8 hours between images based on DATE-OBS keyword.</p><p>Auto local normalization is not used in fast mode or with FastIntegration. The decision is shown in the Auto decisions list at the end of processing.</p>",
+     "values": null,
+     "min": null,
+     "max": null,
+     "tab": "Settings",
+     "section": "Image processing parameters",
+     "expert": false,
+     "located": true
+    }
+   ],
+   "expert": false,
+   "tabs": [
+    "Settings"
+   ],
+   "sections": [
+    "Image processing parameters"
+   ],
+   "in_gui": true,
+   "kind": "checkbox",
+   "label": "Auto",
+   "tooltip": "<p>Use local normalization automatically when <i>Local Normalization</i> is not checked and images for a filter are from several nights.</p><p>Decision is made separately for each filter. Images are from several nights if there is a gap of more than 8 hours between images based on DATE-OBS keyword.</p><p>Auto local normalization is not used in fast mode or with FastIntegration. The decision is shown in the Auto decisions list at the end of processing.</p>",
    "values": null,
    "min": null,
    "max": null
@@ -994,7 +1030,7 @@
    "controls": [
     {
      "kind": "checkbox",
-     "label": "Auto SPCC",
+     "label": "Auto",
      "tooltip": "<p>Use SPCC automatically for color calibration of RGB data when <i>Color calibration using SPCC</i> is not checked.</p><p>SPCC is not used with narrowband data.</p><p>If image solving or SPCC fails, for example when the Gaia DR3/SP database needed by SPCC is not installed, ColorCalibration is used instead. The decision is shown in the Auto decisions list at the end of processing.</p><p>When <i>Color calibration using SPCC</i> is checked, SPCC is always used and a failure stops the processing.</p>",
      "values": null,
      "min": null,
@@ -1014,7 +1050,7 @@
    ],
    "in_gui": true,
    "kind": "checkbox",
-   "label": "Auto SPCC",
+   "label": "Auto",
    "tooltip": "<p>Use SPCC automatically for color calibration of RGB data when <i>Color calibration using SPCC</i> is not checked.</p><p>SPCC is not used with narrowband data.</p><p>If image solving or SPCC fails, for example when the Gaia DR3/SP database needed by SPCC is not installed, ColorCalibration is used instead. The decision is shown in the Auto decisions list at the end of processing.</p><p>When <i>Color calibration using SPCC</i> is checked, SPCC is always used and a failure stops the processing.</p>",
    "values": null,
    "min": null,

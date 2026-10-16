@@ -203,9 +203,11 @@ runImageSolverEx(id, use_defaults, use_dialog, xpixsz_multiplier)
       this.util.addProcessingStepAndStatusInfo("ImageSolver on image " + imgWin.mainView.id);
 
       var succ = false;
+      var solver = null;
+      var processing_state = this.global.is_processing;
 
       try {
-            var solver = new ImageSolver();
+            solver = new ImageSolver();
 
             solver.initialize(imgWin);
 
@@ -383,16 +385,23 @@ runImageSolverEx(id, use_defaults, use_dialog, xpixsz_multiplier)
 
             console.writeln("runImageSolverEx: solveImage succeeded on image "+ id);
       } catch (err) {
-            console.writeln("runImageSolverEx: exception error, solveImage failed on image " + id);
-            this.util.addCriticalStatus(err.toString());
+            if (this.global.is_processing != processing_state) {
+                  // Fatal error or cancel from throwFatalError, for example invalid RA DEC value
+                  throw err;
+            }
+            // Not an error yet, the caller may retry with different settings
+            // and reports if solving finally fails
+            console.warningln("runImageSolverEx: exception error, solveImage failed on image " + id + ": " + err.toString());
             succ = false;
       }
       if (!succ) {
-            console.writeln("solver.metadata.focal: " + solver.metadata.focal);
-            console.writeln("solver.metadata.xpixsz: " + solver.metadata.xpixsz);
-            console.writeln("solver.metadata.resolution: " + solver.metadata.resolution);
-            console.writeln("solver.metadata.ra: " + solver.metadata.ra);
-            console.writeln("solver.metadata.dec: " + solver.metadata.dec);
+            if (solver != null && solver.metadata) {
+                  console.writeln("solver.metadata.focal: " + solver.metadata.focal);
+                  console.writeln("solver.metadata.xpixsz: " + solver.metadata.xpixsz);
+                  console.writeln("solver.metadata.resolution: " + solver.metadata.resolution);
+                  console.writeln("solver.metadata.ra: " + solver.metadata.ra);
+                  console.writeln("solver.metadata.dec: " + solver.metadata.dec);
+            }
             console.writeln("ImageSolver failed on image " + id);
             return false
       } else {

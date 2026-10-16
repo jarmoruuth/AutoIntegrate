@@ -236,6 +236,7 @@ this.narrowbandAutoMapping = [
 this.par = {
       // Image processing parameters
       local_normalization: { val: false, def: false, name : "Local normalization", type : 'B' },
+      auto_local_normalization: { val: true, def: true, name : "Auto local normalization", type : 'B' },
       fix_column_defects: { val: false, def: false, name : "Fix column defects", type : 'B', ignore_used: true }, // Does not work in V8
       fix_row_defects: { val: false, def: false, name : "Fix row defects", type : 'B', ignore_used: true },       // Does not work in V8
       skip_cosmeticcorrection: { val: false, def: false, name : "No Cosmetic correction", type : 'B', oldname: "Cosmetic correction" },

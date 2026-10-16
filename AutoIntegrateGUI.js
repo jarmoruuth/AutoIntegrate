@@ -5320,6 +5320,19 @@ AutoIntegrateDialog()
       this.useLocalNormalizationCheckBox = this.guitools.newCheckBox(this, "Local Normalization", this.par.local_normalization, 
             "<p>Use local normalization data for ImageIntegration</p>" +
             "<p>For local normalization settings see section <i>Integration / LocalNormalization</i></p>");
+      this.autoLocalNormalizationCheckBox = this.guitools.newCheckBox(this, "Auto", this.par.auto_local_normalization,
+            "<p>Use local normalization automatically when <i>Local Normalization</i> is not checked and " +
+            "images for a filter are from several nights.</p>" +
+            "<p>Decision is made separately for each filter. Images are from several nights if there is a gap of more " +
+            "than 8 hours between images based on DATE-OBS keyword.</p>" +
+            "<p>Auto local normalization is not used in fast mode or with FastIntegration. " +
+            "The decision is shown in the Auto decisions list at the end of processing.</p>");
+      this.localNormalizationAutoSizer = new HorizontalSizer;
+      this.localNormalizationAutoSizer.spacing = 2;
+      this.localNormalizationAutoSizer.add( this.useLocalNormalizationCheckBox );
+      this.localNormalizationAutoSizer.addSpacing( 8 );
+      this.localNormalizationAutoSizer.add( this.autoLocalNormalizationCheckBox );
+      this.localNormalizationAutoSizer.addStretch();
 #ifdef LDD_IN_V8
       this.FixColumnDefectsCheckBox = this.guitools.newCheckBox(this, "Fix column defects", this.par.fix_column_defects, 
             "If checked, fix linear column defects by using linear defect detection algorithm from LinearDefectDetection.js script. " + 
@@ -5479,7 +5492,7 @@ AutoIntegrateDialog()
             "Integration_RGB image if it is not already done.</p>" +
             "<p>If image does not have correct coordinates or focal length embedded they can be given in <i>Postprocessing / Image solving</i> section.</p>" +
             "<p>SPCC settings can be updated at <i>Postprocessing / Color calibration</i> section.</p>");
-      this.auto_spcc_CheckBox = this.guitools.newCheckBox(this, "Auto SPCC", this.par.auto_spcc,
+      this.auto_spcc_CheckBox = this.guitools.newCheckBox(this, "Auto", this.par.auto_spcc,
             "<p>Use SPCC automatically for color calibration of RGB data when <i>Color calibration using SPCC</i> is not checked.</p>" +
             "<p>SPCC is not used with narrowband data.</p>" +
             "<p>If image solving or SPCC fails, for example when the Gaia DR3/SP database needed by SPCC is not installed, " +
@@ -5698,7 +5711,7 @@ AutoIntegrateDialog()
       this.imageParamsSet1_right.spacing = 4;
       this.imageParamsSet1_right.add( this.imageintegration_ssweight_CheckBox );
       this.imageParamsSet1_right.add( this.fastIntegrationCheckBox );
-      this.imageParamsSet1_right.add( this.useLocalNormalizationCheckBox );
+      this.imageParamsSet1_right.add( this.localNormalizationAutoSizer );
       this.imageParamsSet1_right.add( this.drizzleSizer );
 
       this.imageParamsSet1Label = this.guitools.newSectionLabel( this, "Preprocessing" );
@@ -5722,8 +5735,13 @@ AutoIntegrateDialog()
       this.imageParamsSet2_right.margin = 6;
       this.imageParamsSet2_right.spacing = 4;
       this.imageParamsSet2_right.add( this.use_background_neutralization_CheckBox );
-      this.imageParamsSet2_right.add( this.use_spcc_CheckBox );
-      this.imageParamsSet2_right.add( this.auto_spcc_CheckBox );
+      this.spccAutoSizer = new HorizontalSizer;
+      this.spccAutoSizer.spacing = 2;
+      this.spccAutoSizer.add( this.use_spcc_CheckBox );
+      this.spccAutoSizer.addSpacing( 8 );
+      this.spccAutoSizer.add( this.auto_spcc_CheckBox );
+      this.spccAutoSizer.addStretch();
+      this.imageParamsSet2_right.add( this.spccAutoSizer );
 
       this.imageParamsSet2Label = this.guitools.newSectionLabel( this, "Postprocessing" );
       this.imageParamsSet2 = new HorizontalSizer;
