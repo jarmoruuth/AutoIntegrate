@@ -160,6 +160,8 @@ constructor(global, util, flowchart) {
       this.autoLocalNormalizationName = "Auto local normalization";
       this.auto_ln_channels = [];             // integration names using Auto local normalization
       this.auto_spcc_failed_node = null;      // flowchart operation of failed Auto SPCC, see runSPCC
+      this.auto_spcc_decision = "color calibration";  // Auto decision name for Auto SPCC fallback
+      this.rgb_stars_auto_spcc_done = false;  // RGB stars image was color calibrated using Auto SPCC
 
       // List of images used in processing
       // Images is an array of objects with properties (see init_images):
@@ -15330,12 +15332,16 @@ createRGBstars()
       this.util.closeOneWindowById(tmp_id);
       win.mainView.id = tmp_id;
 
+      var stars_auto_spcc = this.startAutoSPCCForRGBStars();
       if (this.par.use_spcc.val) {
             // SPCC needs a solved image. Solution is reused for the RGB image.
             this.solveImageForColorCalibration(win.mainView.id);
       }
       console.writeln("RGB stars, color calibration on RGB stars image " + win.mainView.id);
       this.runColorCalibration(win, 'linear', true);
+      if (stars_auto_spcc) {
+            this.endAutoSPCCForRGBStars();
+      }
 
       console.writeln("RGB stars, saturation on RGB stars image " + win.mainView.id);
       this.runCurvesTransformationSaturation(win, null);
@@ -16961,8 +16967,39 @@ autoSPCCFallback(reason)
       // Flowchart operations not yet run use now ColorCalibration
       this.flowchart.flowchartRenameOperations(this.autoColorCalibrationName, "ColorCalibration");
       this.flowchart.flowchartRenameOperations(this.autoColorCalibrationName + ":stars", "ColorCalibration:stars");
-      this.addAutoDecision("color calibration", "ColorCalibration", reason);
+      this.addAutoDecision(this.auto_spcc_decision, "ColorCalibration", reason);
       this.util.addWarningStatus("Auto SPCC: " + reason + ", using ColorCalibration");
+}
+
+// Auto SPCC for the RGB stars image. With narrowband data Auto SPCC is not used
+// for the main image, but the RGB stars image is created from RGB channels so
+// Auto SPCC can be used for it. If used, SPCC is selected only while the RGB stars
+// image is color calibrated, see endAutoSPCCForRGBStars.
+// Returns true if SPCC is selected for the RGB stars image.
+startAutoSPCCForRGBStars()
+{
+      if (this.par.use_spcc.val
+          || !this.par.auto_spcc.val
+          || this.par.skip_color_calibration.val
+          || this.global.testmode)
+      {
+            return false;
+      }
+      this.auto_spcc_decision = "color calibration RGB stars";
+      this.par.use_spcc.val = true;
+      this.par.use_spcc.auto_selected = true;
+      this.initSPCCvalues();
+      this.addAutoDecision(this.auto_spcc_decision, "SPCC", "RGB stars image is RGB data");
+      return true;
+}
+
+endAutoSPCCForRGBStars()
+{
+      // Remember if SPCC succeeded, then ColorCalibration is not run on stretched stars
+      this.rgb_stars_auto_spcc_done = this.isAutoSPCC();
+      this.clearAutoSelected(this.par.use_spcc);
+      this.initSPCCvalues();
+      this.auto_spcc_decision = "color calibration";
 }
 
 // Solve image for SPCC or Solve image option. With Auto selected SPCC a failed
@@ -17314,6 +17351,8 @@ autointegrateProcessingEngine(parent, auto_continue, autocontinue_narrowband, tx
 
        this.auto_decisions = [];
        this.auto_ln_channels = [];
+       this.auto_spcc_decision = "color calibration";
+       this.rgb_stars_auto_spcc_done = false;
        this.clearAutoSelected(this.par.use_spcc);
        this.clearAutoSelected(this.par.use_drizzle);
 
@@ -17705,7 +17744,11 @@ autointegrateProcessingEngine(parent, auto_continue, autocontinue_narrowband, tx
                         /* Color calibration on RGB
                          */
                         this.runColorCalibration(ImageWindow.windowById(LRGB_processed_HT_id), 'nonlinear');
-                        if (RGB_stars_id != null) {
+                        if (RGB_stars_id != null
+                            && !(this.rgb_stars_auto_spcc_done && this.par.color_calibration_time.val == 'auto'))
+                        {
+                              // Stars image color calibrated with Auto SPCC is not color calibrated
+                              // again, like images using SPCC
                               this.runColorCalibration(ImageWindow.windowById(RGB_stars_id), 'nonlinear');
                         }
                   } 

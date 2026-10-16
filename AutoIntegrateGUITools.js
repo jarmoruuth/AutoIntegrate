@@ -1059,7 +1059,8 @@ createSkyAnalysisButton(parent, engine)
                        "a frame filling or dark nebula.</p>" +
                        "<p>The image is analyzed as shown in the preview. It is usually stretched with AutoSTF " +
                        "and it may be resampled.</p>" +
-                       "<p>This is a test feature, Auto does not use the result yet.</p>";
+                       "<p>During processing the same analysis is used by <i>Auto</i> image stretching when the " +
+                       "<i>Use in Auto</i> option is checked.</p>";
       button.onClick = () => {
             var tmp_win = null;
             if (this.current_preview.imgWin != null) {
