@@ -152,6 +152,12 @@ constructor(global, util, flowchart) {
       // Printed at the end of processing and saved to the final image history.
       this.auto_decisions = [];
 
+      // Flowchart operation names used for Auto choices that are decided during
+      // processing. When decided, operations are renamed to the selected operation.
+      this.autoColorCalibrationName = "Auto color calibration";
+      this.autoStretchingName = "Auto stretching";
+      this.auto_spcc_failed_node = null;      // flowchart operation of failed Auto SPCC, see runSPCC
+
       // List of images used in processing
       // Images is an array of objects with properties (see init_images):
       //   images : array of image ids
@@ -955,8 +961,7 @@ skyAnalysisStretching(win, image_stretching)
       if (win == null) {
             return image_stretching;
       }
-      var target_type = this.par.target_type.val;
-      var use_analysis = this.image_stretching_auto && this.par.stretching_sky_analysis.val && (target_type == 'Default' || target_type == 'Nebula');
+      var use_analysis = this.skyAnalysisSelectsStretching();
       var res = this.autoStretchingAnalysis(win, image_stretching);
       if (!use_analysis) {
             return image_stretching;
@@ -968,6 +973,7 @@ skyAnalysisStretching(win, image_stretching)
       this.sky_analysis_decided = true;
       if (res == null) {
             console.writeln("  sky analysis failed, using " + image_stretching);
+            this.flowchart.flowchartRenameOperations(this.autoStretchingName, image_stretching);
             return image_stretching;
       }
       var stretching = res.suggestion;
@@ -983,12 +989,23 @@ skyAnalysisStretching(win, image_stretching)
                                                               ", bright area " + (m.contrast.bright_area * 100).toFixed(1) + "%"
                                                             : ", contrast not available"),
                            false);
-      if (stretching != image_stretching) {
-            // Flowchart generated before processing does not run sky analysis, update it
-            this.flowchart.flowchartRenameOperations(image_stretching, stretching);
-      }
+      // Flowchart generated before processing does not run sky analysis and shows
+      // Auto stretching, update it
+      this.flowchart.flowchartRenameOperations(this.autoStretchingName, stretching);
       this.local_image_stretching = stretching;
       return stretching;
+}
+
+// True if image stretching method is selected by sky analysis during processing.
+// Used when image stretching is Auto and Auto stretching uses sky analysis option
+// is set, and only with target types Default and Nebula.
+skyAnalysisSelectsStretching()
+{
+#ifdef AUTOINTEGRATE_STANDALONE
+      return false;
+#endif
+      var target_type = this.par.target_type.val;
+      return this.image_stretching_auto && this.par.stretching_sky_analysis.val && (target_type == 'Default' || target_type == 'Nebula');
 }
 
 // Resolve image stretching method. Auto is resolved to a stretching method,
@@ -9924,7 +9941,12 @@ runHistogramTransform(GC_win, iscolor, type)
             }
       }
 
-      var node = this.flowchart.flowchartOperation(image_stretching + flowchart_name);
+      if (type != 'stars' && type != 'mask' && this.global.get_flowchart_data && this.skyAnalysisSelectsStretching()) {
+            // Stretching method is selected by sky analysis during processing
+            var node = this.flowchart.flowchartOperation(this.autoStretchingName + flowchart_name);
+      } else {
+            var node = this.flowchart.flowchartOperation(image_stretching + flowchart_name);
+      }
       if (this.global.get_flowchart_data) {
             return GC_win;
       }
@@ -11608,9 +11630,16 @@ runDBE(imgWin, replaceTarget, postfix, skip_flowchart)
       return GC_id;
 }
 
-runColorCalibrationProcess(imgWin, roi, structureDetection = false)
+// If node is given, it is an already started flowchart operation that is used
+// for ColorCalibration, used when ColorCalibration replaces failed Auto SPCC.
+runColorCalibrationProcess(imgWin, roi, structureDetection = false, node = null)
 {
-      var node = this.flowchart.flowchartOperation("ColorCalibration" + (this.util.findKeywordName(imgWin, "AutoIntegrateStars") ? ":stars" : ""));
+      var txt = "ColorCalibration" + (this.util.findKeywordName(imgWin, "AutoIntegrateStars") ? ":stars" : "");
+      if (node) {
+            node.txt = txt;
+      } else {
+            node = this.flowchart.flowchartOperation(txt);
+      }
       if (this.global.get_flowchart_data) {
             return;
       }
@@ -11652,12 +11681,21 @@ runColorCalibrationProcess(imgWin, roi, structureDetection = false)
       }
 }
 
+// Run SPCC on image. Returns true if SPCC was run. With Auto selected SPCC a failure
+// returns false so ColorCalibration can be used instead, otherwise a failure stops
+// processing. With Auto selected SPCC the flowchart operation is named Auto color
+// calibration until we know if SPCC succeeds. On failure the operation is left open
+// in this.auto_spcc_failed_node for the ColorCalibration that replaces SPCC.
 runSPCC(imgWin, phase)
 {
-      var node = this.flowchart.flowchartOperation("SpectrophotometricColorCalibration" + (this.util.findKeywordName(imgWin, "AutoIntegrateStars") ? ":stars" : ""));
+      var auto_spcc = this.isAutoSPCC();
+      var stars_txt = this.util.findKeywordName(imgWin, "AutoIntegrateStars") ? ":stars" : "";
+      var node = this.flowchart.flowchartOperation((auto_spcc ? this.autoColorCalibrationName : "SpectrophotometricColorCalibration") + stars_txt);
       if (this.global.get_flowchart_data) {
-            return;
+            return true;
       }
+      var processing_state = this.global.is_processing;
+      var err_txt = null;
       try {
             this.util.addProcessingStepAndStatusInfo("Color calibration on " + imgWin.mainView.id + " using SpectrophotometricColorCalibration process");
 
@@ -11748,27 +11786,40 @@ runSPCC(imgWin, phase)
             P.generateTextFiles = false;
             P.outputDirectory = "";
             
-            var succp = P.executeOn(imgWin.mainView);
-
-            if (!succp) {
-                  this.save_images_in_save_id_list(); // Save images so we can retur with AutoContinue
-                  this.util.throwFatalError("SpectrophotometricColorCalibration failed");
+            if (!P.executeOn(imgWin.mainView)) {
+                  err_txt = "SpectrophotometricColorCalibration returned failure";
             }
-
-            this.printAndSaveProcessValues(P, "", imgWin.mainView.id);
-            this.engine_end_process(node, imgWin, "SpectrophotometricColorCalibration");
-
-            this.guiUpdatePreviewId(imgWin.mainView.id);
-
-            this.util.setFITSKeyword(imgWin, "AutoSPCC", "true", "Spectrophotometric Color Calibration was done by AutoIntegrate");
-
       } catch(err) {
-            this.save_images_in_save_id_list(); // Save images so we can retur with AutoContinue
+            if (this.global.is_processing != processing_state) {
+                  // Fatal error or cancel from throwFatalError, for example invalid settings
+                  throw err;
+            }
+            err_txt = err.toString();
+      }
+
+      if (err_txt != null) {
             console.criticalln("SpectrophotometricColorCalibration failed");
-            console.criticalln(err);
+            console.criticalln(err_txt);
+            if (auto_spcc) {
+                  this.auto_spcc_failed_node = node;
+                  return false;
+            }
+            this.save_images_in_save_id_list(); // Save images so we can retur with AutoContinue
             console.noteln("You can try adjusting SpectophotometricColorCalibration parameters and rerun the script.");
             this.util.throwFatalError("SpectrophotometricColorCalibration failed");
       }
+
+      if (node) {
+            node.txt = "SpectrophotometricColorCalibration" + stars_txt;
+      }
+      this.printAndSaveProcessValues(P, "", imgWin.mainView.id);
+      this.engine_end_process(node, imgWin, "SpectrophotometricColorCalibration");
+
+      this.guiUpdatePreviewId(imgWin.mainView.id);
+
+      this.util.setFITSKeyword(imgWin, "AutoSPCC", "true", "Spectrophotometric Color Calibration was done by AutoIntegrate");
+
+      return true;
 }
 
 runColorCalibration(imgWin, phase, is_RGB = false)
@@ -11813,7 +11864,13 @@ runColorCalibration(imgWin, phase, is_RGB = false)
       if (this.par.use_spcc.val && phase == 'linear') {
             /* Use SPCC. SPCC is run only in linear phase.
              */
-            this.runSPCC(imgWin, phase, is_RGB);
+            if (!this.runSPCC(imgWin, phase)) {
+                  // Auto selected SPCC failed, use ColorCalibration instead in
+                  // the same flowchart operation
+                  this.autoSPCCFallback("SPCC failed");
+                  this.runColorCalibrationProcess(imgWin, null, false, this.auto_spcc_failed_node);
+                  this.auto_spcc_failed_node = null;
+            }
       }
 }
 
@@ -15149,7 +15206,7 @@ testRGBHaMapping1(savelog)
                                     this.runBackgroundNeutralization(color_win);
                               }
                               if (this.par.use_spcc.val) {
-                                    this.imageSolver.runImageSolver(color_win.mainView.id);
+                                    this.solveImageForColorCalibration(color_win.mainView.id);
                               }
                               this.runColorCalibration(color_win, 'linear');
                         } else {
@@ -15258,6 +15315,10 @@ createRGBstars()
       this.util.closeOneWindowById(tmp_id);
       win.mainView.id = tmp_id;
 
+      if (this.par.use_spcc.val) {
+            // SPCC needs a solved image. Solution is reused for the RGB image.
+            this.solveImageForColorCalibration(win.mainView.id);
+      }
       console.writeln("RGB stars, color calibration on RGB stars image " + win.mainView.id);
       this.runColorCalibration(win, 'linear', true);
 
@@ -15342,13 +15403,17 @@ processRGBimage(RGBmapping)
             }
       } else {
             var gc_done;
+            // SPCC selection before image solving and color calibration. Auto selected SPCC
+            // may fall back to ColorCalibration but background neutralization is still run
+            // in the same place as with SPCC so processing order matches the flowchart.
+            var spcc_selected = this.par.use_spcc.val;
             if (this.preprocessed_images == this.global.start_images.RGB_GC) {
                   /* We have gradient corrected integrated image. */
                   this.util.addProcessingStep("Start from image " + this.RGB_GC_start_win.mainView.id);
                   let win = this.util.copyWindow(this.RGB_GC_start_win, this.ppar.win_prefix + "Integration_RGB_processed");
                   this.RGB_processed_id = win.mainView.id;
                   if (this.par.solve_image.val || this.par.use_spcc.val) {
-                        this.imageSolver.runImageSolver(this.RGB_processed_id);
+                        this.solveImageForColorCalibration(this.RGB_processed_id);
                   }
                   gc_done = false;
             } else {
@@ -15364,7 +15429,7 @@ processRGBimage(RGBmapping)
                         this.runBlurXTerminator(this.RGB_win, true);
                   }
                   if (this.par.solve_image.val || this.par.use_spcc.val) {
-                        this.imageSolver.runImageSolver(this.RGB_win.mainView.id);
+                        this.solveImageForColorCalibration(this.RGB_win.mainView.id);
                   }
                   if (this.par.use_GC_on_L_RGB.val
                       || (this.is_color_files && this.par.GC_before_channel_combination.val && !this.par.use_GC_on_L_RGB_stretched.val)) 
@@ -15381,7 +15446,7 @@ processRGBimage(RGBmapping)
                   gc_done = true;
             }
 
-            if (this.par.use_background_neutralization.val && !this.par.use_spcc.val) {
+            if (this.par.use_background_neutralization.val && !spcc_selected) {
                   /* Without SPCC, run background neutralization before CC. */
                   this.runBackgroundNeutralization(ImageWindow.windowById(this.RGB_processed_id));
             }
@@ -15391,7 +15456,7 @@ processRGBimage(RGBmapping)
             /* Color calibration on RGB
             */
             this.runColorCalibration(ImageWindow.windowById(this.RGB_processed_id), 'linear');
-            if (this.par.use_background_neutralization.val && this.par.use_spcc.val) {
+            if (this.par.use_background_neutralization.val && spcc_selected) {
                   /* With SPCC, run background neutralization after CC. */
                   this.runBackgroundNeutralization(ImageWindow.windowById(this.RGB_processed_id));
             }
@@ -16730,6 +16795,10 @@ isGraXpertAvailable()
 // only recorded, used when the caller already logs it.
 addAutoDecision(what, choice, reason, print = true)
 {
+      if (this.global.get_flowchart_data) {
+            // Decisions are made again during processing
+            return;
+      }
       var decision = { what: what, choice: choice, reason: reason };
       var index = this.auto_decisions.findIndex((d) => d.what == what);
       if (index >= 0) {
@@ -16822,6 +16891,76 @@ resolveAutoTools()
             { name: "GraXpert deconvolution", ai: true, external: true, param: this.par.use_graxpert_deconvolution, available: () => this.isGraXpertAvailable() },
             { name: "MultiscaleLinearTransform", param: this.par.use_mlt_sharpening, available: () => true }
       ]);
+}
+
+// Clear a value set by an Auto option so it is not used as a user setting
+clearAutoSelected(param)
+{
+      if (param.auto_selected) {
+            param.val = false;
+            param.auto_selected = false;
+      }
+}
+
+isAutoSPCC()
+{
+      return this.par.use_spcc.val && this.par.use_spcc.auto_selected;
+}
+
+// Auto SPCC. If SPCC is not selected by the user, use SPCC for RGB data.
+// Not used with narrowband data. Must be called after channel mapping when we
+// know if we process narrowband data. If image solving or SPCC fails, for example
+// when the Gaia DR3/SP database is not installed, ColorCalibration is used instead.
+// In test mode Auto SPCC is not used so test results do not depend on the
+// installed database. SPCC can still be selected explicitly.
+resolveAutoSPCC()
+{
+      if (this.par.use_spcc.val
+          || !this.par.auto_spcc.val
+          || this.par.skip_color_calibration.val
+          || this.par.monochrome_image.val)
+      {
+            return;
+      }
+      var reason = null;
+      if (this.process_narrowband) {
+            reason = "narrowband data";
+      } else if (this.global.testmode) {
+            reason = "test mode";
+      }
+      if (reason != null) {
+            this.addAutoDecision("color calibration", "ColorCalibration", reason);
+            return;
+      }
+      this.par.use_spcc.val = true;
+      this.par.use_spcc.auto_selected = true;
+      this.initSPCCvalues();
+      this.addAutoDecision("color calibration", "SPCC", "RGB data");
+}
+
+// Auto selected SPCC could not be used, use ColorCalibration instead
+autoSPCCFallback(reason)
+{
+      this.clearAutoSelected(this.par.use_spcc);
+      this.initSPCCvalues();
+      // Flowchart operations not yet run use now ColorCalibration
+      this.flowchart.flowchartRenameOperations(this.autoColorCalibrationName, "ColorCalibration");
+      this.flowchart.flowchartRenameOperations(this.autoColorCalibrationName + ":stars", "ColorCalibration:stars");
+      this.addAutoDecision("color calibration", "ColorCalibration", reason);
+      this.util.addWarningStatus("Auto SPCC: " + reason + ", using ColorCalibration");
+}
+
+// Solve image for SPCC or Solve image option. With Auto selected SPCC a failed
+// solve is not an error, ColorCalibration is used instead of SPCC.
+solveImageForColorCalibration(id)
+{
+      if (this.isAutoSPCC() && !this.par.solve_image.val) {
+            if (!this.imageSolver.runImageSolver(id, false)) {
+                  this.autoSPCCFallback("image solving failed");
+            }
+      } else {
+            this.imageSolver.runImageSolver(id);
+      }
 }
 
 // V8 limitations for now
@@ -16944,6 +17083,7 @@ autointegrateProcessingEngine(parent, auto_continue, autocontinue_narrowband, tx
        this.global.debug = this.par.debug.val;
 
        this.auto_decisions = [];
+       this.clearAutoSelected(this.par.use_spcc);
 
        this.get_local_copies_of_parameters();
 
@@ -17187,7 +17327,10 @@ autointegrateProcessingEngine(parent, auto_continue, autocontinue_narrowband, tx
                    this.mapColorImage("Integration_RGB", "Integration_RGB_map");
                    this.cropImageIf(this.RGB_win_id);
              }
- 
+
+             // After channel mapping we know if we process narrowband data
+             this.resolveAutoSPCC();
+
              if (!this.is_color_files && this.is_luminance_images) {
                    /* Process and stretch L image from linear to non-linear.
                     * This need to be run early as we create a mask from
@@ -17719,6 +17862,7 @@ autointegrateProcessingEngine(parent, auto_continue, autocontinue_narrowband, tx
        }
 
        this.imageSolver.solved_imageId = null;
+       this.clearAutoSelected(this.par.use_spcc);
 
        this.lightFileNames = null;
        this.darkFileNames = null;

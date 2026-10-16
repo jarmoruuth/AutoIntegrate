@@ -263,6 +263,7 @@ this.par = {
       skip_color_calibration: { val: false, def: false, name : "No color calibration", type : 'B', applies : "color" },
       skip_auto_background: { val: false, def: false, name : "No auto background", type : 'B', applies : "color" },
       use_spcc: { val: false, def: false, name : "Use SPCC for color calibration", type : 'B', applies : "color" },
+      auto_spcc: { val: true, def: true, name : "Auto SPCC", type : 'B', applies : "color" },
       solve_image: { val: false, def: false, name : "Solve image", type : 'B' },
       use_background_neutralization: { val: false, def: false, name : "Background neutralization", type : 'B', applies : "color" },
       use_fastintegration: { val: false, def: false, name : "Use FastIntegration", type : 'B' },

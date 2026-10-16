@@ -5479,6 +5479,13 @@ AutoIntegrateDialog()
             "Integration_RGB image if it is not already done.</p>" +
             "<p>If image does not have correct coordinates or focal length embedded they can be given in <i>Postprocessing / Image solving</i> section.</p>" +
             "<p>SPCC settings can be updated at <i>Postprocessing / Color calibration</i> section.</p>");
+      this.auto_spcc_CheckBox = this.guitools.newCheckBox(this, "Auto SPCC", this.par.auto_spcc,
+            "<p>Use SPCC automatically for color calibration of RGB data when <i>Color calibration using SPCC</i> is not checked.</p>" +
+            "<p>SPCC is not used with narrowband data.</p>" +
+            "<p>If image solving or SPCC fails, for example when the Gaia DR3/SP database needed by SPCC is not installed, " +
+            "ColorCalibration is used instead. The decision is shown in the Auto decisions " +
+            "list at the end of processing.</p>" +
+            "<p>When <i>Color calibration using SPCC</i> is checked, SPCC is always used and a failure stops the processing.</p>");
       this.use_background_neutralization_CheckBox = this.guitools.newCheckBox(this, "Use BackgroundNeutralization", this.par.use_background_neutralization, 
             "<p>Run BackgroundNeutralization before ColorCalibration.</p>" +
             "<p>By default the script tries to automatically detect an area with a true background. If it finds one, an image with name AutoBackgroundModel is created.</p>" +
@@ -5706,6 +5713,7 @@ AutoIntegrateDialog()
       this.imageParamsSet2_right.spacing = 4;
       this.imageParamsSet2_right.add( this.use_background_neutralization_CheckBox );
       this.imageParamsSet2_right.add( this.use_spcc_CheckBox );
+      this.imageParamsSet2_right.add( this.auto_spcc_CheckBox );
 
       this.imageParamsSet2Label = this.guitools.newSectionLabel( this, "Postprocessing" );
       this.imageParamsSet2 = new HorizontalSizer;

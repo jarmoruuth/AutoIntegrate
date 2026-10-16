@@ -420,12 +420,14 @@ runImageSolverVariations(id)
       return solved;
 }
 
-runImageSolver(id)
+// Solve image. If fail_is_error is true a failed solve stops processing,
+// otherwise false is returned. Returns true if image was solved.
+runImageSolver(id, fail_is_error = true)
 {
       console.writeln("runImageSolver on image " + id);
       var node = this.flowchart.flowchartOperation("ImageSolver");
       if (this.global.get_flowchart_data) {
-            return;
+            return true;
       }
       var solved = this.runImageSolverVariations(id);
       if (!solved) {
@@ -453,7 +455,7 @@ runImageSolver(id)
             }
             copyWin.forceClose();
       }
-      if (!solved && this.par.target_interactivesolve.val) {
+      if (!solved && this.par.target_interactivesolve.val && fail_is_error) {
             do {
                   solved = this.runImageSolverEx(id, true, true, 1);
                   if (!solved) {
@@ -467,9 +469,14 @@ runImageSolver(id)
       }
       this.engine.engine_end_process(node);
       if (!solved) {
+            if (!fail_is_error) {
+                  console.warningln("ImageSolver failed on image " + id);
+                  return false;
+            }
             this.engine.save_images_in_save_id_list(); // Save images so we can retur with AutoContinue
             this.util.throwFatalError("ImageSolver failed on image " + id);
       }
+      return true;
 }
 
 } /* AutoIntegrateImageSolver */

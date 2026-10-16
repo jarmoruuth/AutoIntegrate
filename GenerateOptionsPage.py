@@ -235,7 +235,7 @@ RULES = [
     (r'^(use_graxpert_denoise|graxpert_denoise_)', 'noise'),
     (r'^(use_graxpert_deconvolution|graxpert_deconvolution_|graxpert_median_psf'
      r'|use_blurxterminator|bxt_|skip_sharpening|use_mlt_sharpening)', 'sharpen'),
-    (r'^(skip_color_calibration|skip_auto_background|use_spcc|spcc_|use_background_neutralization'
+    (r'^(skip_color_calibration|skip_auto_background|use_spcc|auto_spcc|spcc_|use_background_neutralization'
      r'|color_calibration_|solve_image|target_)', 'colorcal'),
     (r'^(image_stretching|stretching_sky_analysis|STF_targetBackground|STF_shadowsClipping|MaskedStretch_|Arcsinh_|MAS_|veralux_'
      r'|histogram_stretch_|other_stretch_target|stretch_adjust_shadows)', 'stretch'),
