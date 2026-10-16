@@ -440,14 +440,16 @@ runImageSolver(id)
             copyWin = this.util.copyWindow(imgWin, "AutoIntegrateImageSolverCopy");
             if (this.par.use_blurxterminator.val) {
                   console.writeln("runImageSolver: runBlurXTerminator on " + copyWin.mainView.id);
-                  this.engine.runBlurXTerminator(imgWin, false, true);
+                  this.engine.runBlurXTerminator(copyWin, false, true);
             }
             console.writeln("runImageSolver: runNoiseReduction on " + copyWin.mainView.id);
-            this.engine.runNoiseReductionEx(imgWin, null, 3, true);
+            this.engine.runNoiseReductionEx(copyWin, null, 3, true);
             console.writeln("runImageSolver: runImageSolverVariations on " + copyWin.mainView.id);
-            solved = this.runImageSolverVariations(id);
+            solved = this.runImageSolverVariations(copyWin.mainView.id);
             if (solved) {
                   imgWin.copyAstrometricSolution(copyWin);
+                  // Copy window is closed below, use the original image as the solved image
+                  this.solved_imageId = imgWin.mainView.id;
             }
             copyWin.forceClose();
       }
