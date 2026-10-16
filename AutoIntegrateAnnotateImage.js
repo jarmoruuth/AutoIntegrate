@@ -37,7 +37,7 @@ constructor(util, engine)
 
 annotateImage(enhancementsWin, apply_directly)
 {
-    this.engine.addEnhancementsStep("Annotate image " + enhancementsWin.mainView.id);
+    this.engine.enhancements.addEnhancementsStep("Annotate image " + enhancementsWin.mainView.id);
 
     let annotationengine = new AnnotationEngine;
     annotationengine.Init(enhancementsWin);

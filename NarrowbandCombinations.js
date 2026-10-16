@@ -265,7 +265,7 @@ class AutoIntegrateNarrowbandCombinationsDialog extends Dialog {
             );
 
             // Process the temp view
-            this.engine.enhancementsProcessingEngine(this, tempWindow.mainView.id, true);
+            this.engine.enhancements.enhancementsProcessingEngine(this, tempWindow.mainView.id, true);
 
             // Copy result back to preview image
             this.previewImage = new Image(tempWindow.mainView.image);

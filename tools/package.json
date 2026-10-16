@@ -1,0 +1,9 @@
+{
+  "name": "autointegrate-tools",
+  "private": true,
+  "description": "Static checks for AutoIntegrate PJSR sources",
+  "dependencies": {
+    "acorn": "8.14.0",
+    "acorn-walk": "8.3.4"
+  }
+}

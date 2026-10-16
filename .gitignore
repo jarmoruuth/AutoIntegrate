@@ -8,3 +8,4 @@ x
 updateoptions.bat
 include
 __pycache__
+tools/node_modules

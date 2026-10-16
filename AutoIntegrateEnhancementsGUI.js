@@ -506,7 +506,7 @@ newCurvesGraphControl(parent)
             }
             g.pen = new Pen(0xff707070, 0);
             g.drawLine(0, h - 1, w - 1, 0);
-            var pts = engine.enhancementsCurvesPoints();
+            var pts = engine.enhancements.enhancementsCurvesPoints();
             g.pen = new Pen(0xffffffff, 1.5);
             var px = 0;
             var py = (1 - self.curvesAkimaValue(pts, 0)) * (h - 1);
@@ -722,9 +722,9 @@ livePreviewOptions()
             },
             {
                   name: "Curves", param: this.par.enhancements_curves, before_mask: true,
-                  key: () => "curves " + JSON.stringify(this.engine.enhancementsCurvesPoints()),
+                  key: () => "curves " + JSON.stringify(this.engine.enhancements.enhancementsCurvesPoints()),
                   run: (previewWin) => {
-                        this.engine.runCurvesTransformationPoints(previewWin, this.engine.enhancementsCurvesPoints());
+                        this.engine.enhancements.runCurvesTransformationPoints(previewWin, this.engine.enhancements.enhancementsCurvesPoints());
                   }
             },
             {
@@ -736,27 +736,27 @@ livePreviewOptions()
             {
                   name: "Gamma", param: this.par.enhancements_gamma,
                   run: (previewWin) => {
-                        this.engine.runPixelMathExpressions(previewWin, [ this.engine.enhancementsGammaExpression() ]);
+                        this.engine.runPixelMathExpressions(previewWin, [ this.engine.enhancements.enhancementsGammaExpression() ]);
                   }
             },
             {
                   name: "Adjust channels", param: this.par.enhancements_adjust_channels,
                   run: (previewWin) => {
-                        this.engine.runPixelMathExpressions(previewWin, this.engine.enhancementsAdjustChannelsExpressions());
+                        this.engine.runPixelMathExpressions(previewWin, this.engine.enhancements.enhancementsAdjustChannelsExpressions());
                   }
             },
             {     // A user created range mask is not available in the live preview, lightness mask is used instead
                   name: "ExponentialTransformation", param: this.par.enhancements_ET,
                   needs_mask: () => this.livePreviewETAdjustType() != 'All',
                   run: (previewWin, maskWin) => {
-                        this.engine.runExponentialTransformation(previewWin, maskWin, this.par.enhancements_ET_order.val, this.livePreviewETAdjustType());
+                        this.engine.enhancements.runExponentialTransformation(previewWin, maskWin, this.par.enhancements_ET_order.val, this.livePreviewETAdjustType());
                   }
             },
             {     // StdDev is in pixels so it is scaled for a downsampled preview image
                   name: "UnsharpMask", param: this.par.enhancements_unsharpmask,
                   needs_mask: () => true,
                   run: (previewWin, maskWin, scale) => {
-                        this.engine.runUnsharpMask(previewWin, maskWin,
+                        this.engine.enhancements.runUnsharpMask(previewWin, maskWin,
                                                    Math.max(0.1, this.par.enhancements_unsharpmask_stddev.val * scale),
                                                    this.par.enhancements_unsharpmask_amount.val);
                   }
@@ -765,14 +765,14 @@ livePreviewOptions()
                   name: "Saturation", param: this.par.enhancements_saturation,
                   needs_mask: () => !this.par.enhancements_less_saturation.val,
                   run: (previewWin, maskWin) => {
-                        this.engine.runSaturationAmount(previewWin, maskWin, this.par.enhancements_saturation_amount.val, !this.par.enhancements_less_saturation.val);
+                        this.engine.enhancements.runSaturationAmount(previewWin, maskWin, this.par.enhancements_saturation_amount.val, !this.par.enhancements_less_saturation.val);
                   }
             },
             {
                   name: "Clarity", param: this.par.enhancements_clarity,
                   needs_mask: () => this.par.enhancements_clarity_mask.val,
                   run: (previewWin, maskWin, scale) => {
-                        this.engine.runUnsharpMask(previewWin, maskWin,
+                        this.engine.enhancements.runUnsharpMask(previewWin, maskWin,
                                                    Math.max(0.1, this.par.enhancements_clarity_stddev.val * scale),
                                                    this.par.enhancements_clarity_amount.val);
                   }
@@ -1909,7 +1909,7 @@ enhancementsApplyButtonOnClick()
                         this.engine.enhancementsApply = true;
                         this.global.haveIconized = 0;
 
-                        this.engine.enhancementsProcessingEngine(this, this.global.enhancements_target_image_id, this.util.is_narrowband_option());
+                        this.engine.enhancements.enhancementsProcessingEngine(this, this.global.enhancements_target_image_id, this.util.is_narrowband_option());
 
                         if (this.enhancements_gui_info.undo_images.length == 0) {
                               // add first/original undo image

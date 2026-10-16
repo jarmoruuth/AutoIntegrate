@@ -26,6 +26,20 @@ run -a="do_not_read_settings" -a="do_not_write_settings" --execute-mode=auto "pa
 run --reset
 ```
 
+**Static checks (Node.js, run `npm install` in `tools/` once):**
+```bash
+# Syntax check and check that this.X, engine.X, this.engine.enhancements.X etc. exist in the target class
+node tools/check.js
+
+# List methods in a line range and where they are referenced from outside the range
+node tools/methodrefs.js AutoIntegrateEngine.js AutoIntegrateEngine <firstline> <lastline>
+
+# Move methods listed in a file to a new module class, updating all references
+node tools/movemethods.js AutoIntegrateEngine.js AutoIntegrateEngine <Target.js> <TargetClass> <prop> <methods.txt> [title]
+```
+Run `node tools/check.js` after moving or renaming methods. PJSR has no static checking, so a missed
+rename otherwise fails only at runtime on that code path.
+
 ## Architecture
 
 The codebase uses a modular architecture with dependency injection. All modules are loaded via `#include` directives in the main entry point.
@@ -44,7 +58,9 @@ var gui = new AutoIntegrateGUI(global, util, engine, flowchart);
 | Module | Responsibility |
 |--------|---------------|
 | `AutoIntegrateGlobal.js` | Global state, configuration parameters (`this.par`), persistent settings (`this.ppar`), stretching options, narrowband palettes |
-| `AutoIntegrateEngine.js` | Main processing engine - calibration, integration, alignment, enhancements (largest module ~19K lines) |
+| `AutoIntegrateEngine.js` | Main processing engine - integration, alignment, processing flow and shared processing state (largest module ~18K lines) |
+| `AutoIntegrateCalibrate.js` | Image calibration, created by the engine as `engine.calibrate` |
+| `AutoIntegrateEnhancementsEngine.js` | Enhancements processing, created by the engine as `engine.enhancements`. Processing state stays in the engine and is used via `this.engine` |
 | `AutoIntegrateGUI.js` | Main user interface - file selection, options, progress display |
 | `AutoIntegrateUtil.js` | Utility functions, PixInsight process wrappers, logging |
 | `AutoIntegrateGUITools.js` | GUI helper components and UI builders |
