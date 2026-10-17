@@ -28,19 +28,18 @@ super();
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-this.autointegrate_version = "AutoIntegrate v1.88.0 test2"; // Version, also updated into updates.xri
-this.autointegrate_info = "Auto stretching, Auto tools";                // For updates.xri
+this.autointegrate_version = "AutoIntegrate v1.88.0 test3"; // Version, also updated into updates.xri
+this.autointegrate_info = "Auto processing decisions";      // For updates.xri
 
 this.autointegrate_version_info = [
         "Changes since the previous version:",
-        "- Auto image stretching selects the stretching",
+        "- Auto stretching selects the stretching",
         "  method by analyzing the image",
         "- Auto tool selection in Settings / Tools",
-        "- Enhancements live preview",
-        "- New fast mode option Subset, now the default",
-        "- FastIntegration picks a better reference image",
+        "- Auto options for SPCC, Drizzle and Local Normalization",
+        "- Enhancements in live preview",
         "- By default only integrated images and the final images",
-        "  are left on the desktop at the end of processing.",
+        "  are left on the desktop at the end of processing",
   ];
 
 /* Interface version changes:
