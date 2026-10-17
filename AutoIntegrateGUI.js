@@ -5608,7 +5608,13 @@ AutoIntegrateDialog()
             "<p>Do not use star noise reduction. Star noise reduction is used when stars are removed from image.</p>" );
       this.no_mask_contrast_CheckBox = this.guitools.newCheckBox(this, "No added contrast on mask", this.par.skip_mask_contrast, 
             "<p>Do not add contrast on automatically created luminance mask.</p>" );
-      this.auto_builtin_tools_only_CheckBox = this.guitools.newCheckBox(this, "Auto: built-in tools only", this.par.auto_builtin_tools_only, 
+      this.auto_options_in_testmode_CheckBox = this.guitools.newCheckBox(this, "Auto: options in test mode", this.par.auto_options_in_testmode,
+            "<p>Use Auto SPCC, Auto local normalization and Auto drizzle also in test mode, and let Auto tool selection " +
+            "in <i>Settings / Tools</i> use all available tools, including AI tools.</p>" +
+            "<p>In test mode these Auto options are normally not used and Auto tool selection skips AI tools so test results " +
+            "do not depend on the data, installed tools or databases. This option is for testing the Auto options themselves. " +
+            "With <i>Auto: built-in tools only</i> external tools are still skipped. This option has no effect outside test mode.</p>");
+      this.auto_builtin_tools_only_CheckBox = this.guitools.newCheckBox(this, "Auto: built-in tools only", this.par.auto_builtin_tools_only,
             "<p>When <i>Auto</i> is selected in the <i>Settings / Tools</i> section, use only tools that are included in PixInsight, " +
             "like GradientCorrection, MLDenoise and MultiscaleLinearTransform. Installed external tools like RC Astro tools, " +
             "StarNet2, DeepSNR and GraXpert are not selected automatically.</p>" +
@@ -5858,6 +5864,7 @@ AutoIntegrateDialog()
       this.otherParamsSet12.add( this.autodetect_filter_CheckBox );
       this.otherParamsSet12.add( this.autodetect_imagetyp_CheckBox );
       this.otherParamsSet12.add( this.auto_builtin_tools_only_CheckBox );
+      this.otherParamsSet12.add( this.auto_options_in_testmode_CheckBox );
 
       this.otherParamsSet1 = new HorizontalSizer;
       this.otherParamsSet1.margin = 6;
@@ -6601,6 +6608,31 @@ AutoIntegrateDialog()
       this.spccGroupBoxSizer11.add( this.spccMinSNREdit );
       this.spccGroupBoxSizer11.addStretch();
 
+      this.spccFilterSetLabel = this.guitools.newLabel(this, "Filter set",
+            "<p>Filter curves for SPCC with RGB data. <i>Mono</i> filter sets are for mono cameras with separate R, G and B filters. " +
+            "<i>OSC</i> filter sets are for color cameras.</p>" +
+            "<p>With <i>Auto</i>, data from mono RGB filters uses Chroma R, G and B curves which are close to typical mono RGB filters. " +
+            "Color camera data uses Sony Color Sensor UV/IR cut curves.</p>" +
+            "<p>Seestar data is detected from image keywords. With Auto, Seestar LP curves are used with the LP filter, " +
+            "otherwise Sony IMX462/662/585 UV/IR cut curves for the Seestar sensor are used.</p>" +
+            "<p>Curves are read from the PixInsight filters database. If the database is not found, a built-in copy of the curves is used.</p>" +
+            "<p>Filter set is also used with SpectrophotometricFluxCalibration before MultiscaleGradientCorrection.</p>");
+      this.spccFilterSetComboBox = this.guitools.newComboBox(this, this.par.spcc_filter_set, this.engine.spccFilters.getFilterSetNames(), this.spccFilterSetLabel.toolTip);
+      this.spccQECurveLabel = this.guitools.newLabel(this, "QE curve",
+            "<p>Camera sensor quantum efficiency (QE) curve for SPCC.</p>" +
+            "<p>With <i>Auto</i>, the QE curve of Sony IMX411/455/461/533/571 sensors is used with <i>Mono</i> filter sets. " +
+            "These are common sensors in modern mono cameras. With <i>OSC</i> filter sets an ideal QE curve is used because " +
+            "color sensor curves already include the sensor response.</p>");
+      this.spccQECurveComboBox = this.guitools.newComboBox(this, this.par.spcc_qe_curve, this.engine.spccFilters.getQECurveNames(), this.spccQECurveLabel.toolTip);
+
+      this.spccGroupBoxSizer12 = new HorizontalSizer;
+      this.spccGroupBoxSizer12.spacing = 4;
+      this.spccGroupBoxSizer12.add( this.spccFilterSetLabel );
+      this.spccGroupBoxSizer12.add( this.spccFilterSetComboBox );
+      this.spccGroupBoxSizer12.add( this.spccQECurveLabel );
+      this.spccGroupBoxSizer12.add( this.spccQECurveComboBox );
+      this.spccGroupBoxSizer12.addStretch();
+
       this.spccNarrowbandCheckBox = this.guitools.newCheckBox(this, "Narrowband mode", this.par.spcc_narrowband_mode, 
             "Enable SPCC for narrowband images and use narrowband filter values.");
       this.spccBackgroundNeutralizationCheckBox = this.guitools.newCheckBox(this, "Background neutralization", this.par.spcc_background_neutralization, 
@@ -6661,6 +6693,7 @@ AutoIntegrateDialog()
       this.spccGroupBoxSizer.spacing = 4;
       this.spccGroupBoxSizer.add( this.spccGroupBoxSizer0 );
       this.spccGroupBoxSizer.add( this.spccGroupBoxSizer1 );
+      this.spccGroupBoxSizer.add( this.spccGroupBoxSizer12 );
       this.spccGroupBoxSizer.add( this.spccGroupBoxSizer11 );
       this.spccGroupBoxSizer.add( this.spccGroupBoxSizer2 );
       this.spccGroupBoxSizer.addStretch();

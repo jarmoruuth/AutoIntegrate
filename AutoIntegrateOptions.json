@@ -1,6 +1,6 @@
 {
  "version": "AutoIntegrate v1.88.0 test2",
- "generated": "Sat Oct 17 2026 01:00:33 GMT+0300 (FLE Daylight Time)",
+ "generated": "Sat Oct 17 2026 17:21:30 GMT+0300 (FLE Daylight Time)",
  "options": [
   {
    "key": "local_normalization",
@@ -4524,6 +4524,42 @@
    "kind": "checkbox",
    "label": "Auto: built-in tools only",
    "tooltip": "<p>When <i>Auto</i> is selected in the <i>Settings / Tools</i> section, use only tools that are included in PixInsight, like GradientCorrection, MLDenoise and MultiscaleLinearTransform. Installed external tools like RC Astro tools, StarNet2, DeepSNR and GraXpert are not selected automatically.</p><p>Tools that are selected explicitly are still used.</p><p>This option is mainly for testing default processing without external tools. In test mode Auto normally skips all AI tools, with this option built-in AI tools like MLDenoise are used.</p>",
+   "values": null,
+   "min": null,
+   "max": null
+  },
+  {
+   "key": "auto_options_in_testmode",
+   "name": "Auto options in test mode",
+   "type": "B",
+   "def": false,
+   "tip": "",
+   "applies": "",
+   "controls": [
+    {
+     "kind": "checkbox",
+     "label": "Auto: options in test mode",
+     "tooltip": "<p>Use Auto SPCC, Auto local normalization and Auto drizzle also in test mode, and let Auto tool selection in <i>Settings / Tools</i> use all available tools, including AI tools.</p><p>In test mode these Auto options are normally not used and Auto tool selection skips AI tools so test results do not depend on the data, installed tools or databases. This option is for testing the Auto options themselves. With <i>Auto: built-in tools only</i> external tools are still skipped. This option has no effect outside test mode.</p>",
+     "values": null,
+     "min": null,
+     "max": null,
+     "tab": "Other",
+     "section": "Other parameters",
+     "expert": true,
+     "located": true
+    }
+   ],
+   "expert": true,
+   "tabs": [
+    "Other"
+   ],
+   "sections": [
+    "Other parameters"
+   ],
+   "in_gui": true,
+   "kind": "checkbox",
+   "label": "Auto: options in test mode",
+   "tooltip": "<p>Use Auto SPCC, Auto local normalization and Auto drizzle also in test mode, and let Auto tool selection in <i>Settings / Tools</i> use all available tools, including AI tools.</p><p>In test mode these Auto options are normally not used and Auto tool selection skips AI tools so test results do not depend on the data, installed tools or databases. This option is for testing the Auto options themselves. With <i>Auto: built-in tools only</i> external tools are still skipped. This option has no effect outside test mode.</p>",
    "values": null,
    "min": null,
    "max": null
@@ -13366,6 +13402,132 @@
    "label": "",
    "tooltip": "<p>Limit magnitude for catalog search. Can be changed from Auto to something like 20 or larger if SPCC fails. Maximum value is 30.</p>",
    "values": null,
+   "min": null,
+   "max": null
+  },
+  {
+   "key": "spcc_filter_set",
+   "name": "SPCC filter set",
+   "type": "S",
+   "def": "Auto",
+   "tip": "",
+   "applies": "color",
+   "controls": [
+    {
+     "kind": "list",
+     "label": "",
+     "tooltip": "<p>Filter curves for SPCC with RGB data. <i>Mono</i> filter sets are for mono cameras with separate R, G and B filters. <i>OSC</i> filter sets are for color cameras.</p><p>With <i>Auto</i>, data from mono RGB filters uses Chroma R, G and B curves which are close to typical mono RGB filters. Color camera data uses Sony Color Sensor UV/IR cut curves.</p><p>Seestar data is detected from image keywords. With Auto, Seestar LP curves are used with the LP filter, otherwise Sony IMX462/662/585 UV/IR cut curves for the Seestar sensor are used.</p><p>Curves are read from the PixInsight filters database. If the database is not found, a built-in copy of the curves is used.</p><p>Filter set is also used with SpectrophotometricFluxCalibration before MultiscaleGradientCorrection.</p>",
+     "values": [
+      "Auto",
+      "Mono: Chroma",
+      "Mono: Astrodon I-series",
+      "Mono: Astrodon E-series",
+      "Mono: Astronomik Deep Sky",
+      "Mono: Astronomik Typ 2c",
+      "Mono: Baader",
+      "Mono: Antlia V Pro",
+      "Mono: Optolong",
+      "Mono: ZWO",
+      "OSC: Sony Color Sensor UV/IR cut",
+      "OSC: Sony Color Sensor UV cut",
+      "OSC: Sony Color Sensor",
+      "OSC: Sony IMX294 UV/IR cut",
+      "OSC: Sony IMX462/662/585 UV/IR cut",
+      "OSC: Sony IMX533",
+      "OSC: Seestar LP"
+     ],
+     "min": null,
+     "max": null,
+     "tab": "Postprocessing",
+     "section": "Color calibration",
+     "expert": true,
+     "located": true
+    }
+   ],
+   "expert": true,
+   "tabs": [
+    "Postprocessing"
+   ],
+   "sections": [
+    "Color calibration"
+   ],
+   "in_gui": true,
+   "kind": "list",
+   "label": "",
+   "tooltip": "<p>Filter curves for SPCC with RGB data. <i>Mono</i> filter sets are for mono cameras with separate R, G and B filters. <i>OSC</i> filter sets are for color cameras.</p><p>With <i>Auto</i>, data from mono RGB filters uses Chroma R, G and B curves which are close to typical mono RGB filters. Color camera data uses Sony Color Sensor UV/IR cut curves.</p><p>Seestar data is detected from image keywords. With Auto, Seestar LP curves are used with the LP filter, otherwise Sony IMX462/662/585 UV/IR cut curves for the Seestar sensor are used.</p><p>Curves are read from the PixInsight filters database. If the database is not found, a built-in copy of the curves is used.</p><p>Filter set is also used with SpectrophotometricFluxCalibration before MultiscaleGradientCorrection.</p>",
+   "values": [
+    "Auto",
+    "Mono: Chroma",
+    "Mono: Astrodon I-series",
+    "Mono: Astrodon E-series",
+    "Mono: Astronomik Deep Sky",
+    "Mono: Astronomik Typ 2c",
+    "Mono: Baader",
+    "Mono: Antlia V Pro",
+    "Mono: Optolong",
+    "Mono: ZWO",
+    "OSC: Sony Color Sensor UV/IR cut",
+    "OSC: Sony Color Sensor UV cut",
+    "OSC: Sony Color Sensor",
+    "OSC: Sony IMX294 UV/IR cut",
+    "OSC: Sony IMX462/662/585 UV/IR cut",
+    "OSC: Sony IMX533",
+    "OSC: Seestar LP"
+   ],
+   "min": null,
+   "max": null
+  },
+  {
+   "key": "spcc_qe_curve",
+   "name": "SPCC QE curve",
+   "type": "S",
+   "def": "Auto",
+   "tip": "",
+   "applies": "color",
+   "controls": [
+    {
+     "kind": "list",
+     "label": "",
+     "tooltip": "<p>Camera sensor quantum efficiency (QE) curve for SPCC.</p><p>With <i>Auto</i>, the QE curve of Sony IMX411/455/461/533/571 sensors is used with <i>Mono</i> filter sets. These are common sensors in modern mono cameras. With <i>OSC</i> filter sets an ideal QE curve is used because color sensor curves already include the sensor response.</p>",
+     "values": [
+      "Auto",
+      "Ideal",
+      "Sony IMX411/455/461/533/571",
+      "Sony IMX183",
+      "Sony IMX178",
+      "Sony IMX492",
+      "Sony IMX585",
+      "Sony IMX676"
+     ],
+     "min": null,
+     "max": null,
+     "tab": "Postprocessing",
+     "section": "Color calibration",
+     "expert": true,
+     "located": true
+    }
+   ],
+   "expert": true,
+   "tabs": [
+    "Postprocessing"
+   ],
+   "sections": [
+    "Color calibration"
+   ],
+   "in_gui": true,
+   "kind": "list",
+   "label": "",
+   "tooltip": "<p>Camera sensor quantum efficiency (QE) curve for SPCC.</p><p>With <i>Auto</i>, the QE curve of Sony IMX411/455/461/533/571 sensors is used with <i>Mono</i> filter sets. These are common sensors in modern mono cameras. With <i>OSC</i> filter sets an ideal QE curve is used because color sensor curves already include the sensor response.</p>",
+   "values": [
+    "Auto",
+    "Ideal",
+    "Sony IMX411/455/461/533/571",
+    "Sony IMX183",
+    "Sony IMX178",
+    "Sony IMX492",
+    "Sony IMX585",
+    "Sony IMX676"
+   ],
    "min": null,
    "max": null
   },

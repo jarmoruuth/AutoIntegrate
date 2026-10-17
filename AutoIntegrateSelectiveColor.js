@@ -66,17 +66,6 @@ SelectiveColorData() {
    return data;
 }
 
-clone() {
-   if (this.global.debug) console.writeln("SelectiveColor: clone");
-   let copy = this.SelectiveColorData();
-   copy.mode = this.mode;
-   copy.currentRange = this.currentRange;
-   for (let i = 0; i < this.ColorRangeNames.length; i++) {
-      copy.adjustments[i] = this.adjustments[i].slice();
-   }
-   return copy;
-};
-
 // Smooth hue-based weight calculation with cosine interpolation
 smoothHueWeight(h, centerHue, rangeSize, falloffSize) {
    // Calculate angular distance considering 360-degree wraparound

@@ -89,6 +89,7 @@ by Pleiades Astrophoto and its contributors (https://pixinsight.com/).
 #include "AutoIntegrateImageSolver.js"
 #include "AutoIntegrateAnnotateImage.js"
 #include "AutoIntegrateEnhancementsEngine.js"
+#include "AutoIntegrateSPCCFilters.js"
 
 class AutoIntegrateEngine extends Object
 {
@@ -112,6 +113,7 @@ constructor(global, util, flowchart) {
       this.ppar = this.global.ppar;
 
       this.veralux = new AutoIntegrateVeraLuxHMS(this.global.debug);
+      this.spccFilters = new AutoIntegrateSPCCFilters();
       this.calibrate = new AutoIntegrateCalibrate(this.global, this.util, this.flowchart, this);
       this.imageSolver = new AutoIntegrateImageSolver(this.global, this.util, this.flowchart, this);
       this.enhancements = new AutoIntegrateEnhancementsEngine(this.global, this.util, this.flowchart, this);
@@ -8490,6 +8492,47 @@ runGCProcess(win, replaceTarget, postfix, from_lights)
       return GC_id;
 }
 
+// Return Seestar filter name from image keywords, or null if image is not from Seestar.
+// Filter is LP for the dual band light pollution filter and IRCUT for the UV/IR cut filter.
+getSeestarFilter(win)
+{
+      var instrument = this.util.getKeywordValue(win, "INSTRUME");
+      var telescope = this.util.getKeywordValue(win, "TELESCOP");
+      if ((instrument == null || instrument.search(/seestar/i) == -1)
+          && (telescope == null || telescope.search(/seestar/i) == -1))
+      {
+            return null;
+      }
+      var filter = this.util.getKeywordValue(win, "FILTER");
+      return filter == null ? "" : filter.toUpperCase();
+}
+
+// Set SPCC and SPFC filter and QE curves using the SPCC filter set and QE curve options.
+// With Auto, mono RGB filter data uses Chroma R/G/B curves that are close to typical
+// mono RGB filters with the QE curve of common Sony IMX411/455/461/533/571 mono sensors.
+// Color/OSC data uses Sony color sensor curves with an ideal QE curve. Seestar data
+// uses Seestar LP curves with the LP filter and Seestar sensor curves otherwise.
+setSpectrophotometricFilterCurves(P, win)
+{
+      var filterSet = this.spccFilters.resolveFilterSet(this.par.spcc_filter_set.val, this.is_rgb_files && !this.is_color_files,
+                                                        this.getSeestarFilter(win));
+      var qe = this.spccFilters.resolveQECurve(this.par.spcc_qe_curve.val, filterSet);
+      var red = this.spccFilters.getCurve(filterSet.filters[0]);
+      var green = this.spccFilters.getCurve(filterSet.filters[1]);
+      var blue = this.spccFilters.getCurve(filterSet.filters[2]);
+      var qecurve = this.spccFilters.getCurve(qe.filter);
+      console.writeln("SPCC filter set " + filterSet.name + ", QE curve " + qe.name + ", curves from " +
+                      (red.database ? this.spccFilters.databaseFile : "built-in copy"));
+      P.redFilterTrCurve = red.curve;
+      P.redFilterName = red.name;
+      P.greenFilterTrCurve = green.curve;
+      P.greenFilterName = green.name;
+      P.blueFilterTrCurve = blue.curve;
+      P.blueFilterName = blue.name;
+      P.deviceQECurve = qecurve.curve;
+      P.deviceQECurveName = qecurve.name;
+}
+
 runSpectrophotometricFluxCalibration(win)
 {
       var node = this.flowchart.flowchartOperation("SpectrophotometricFluxCalibration");
@@ -8502,12 +8545,7 @@ runSpectrophotometricFluxCalibration(win)
       P.narrowbandMode = this.is_narrowband_files && !this.is_rgb_files && !this.is_color_files;
       P.grayFilterTrCurve = "300,0,380,0,400,1,500,1,675,1,710,0,800,0";
       P.grayFilterName = "Astronomik UV-IR Block L-2";
-      P.redFilterTrCurve = "400,0.088,402,0.084,404,0.080,406,0.076,408,0.072,410,0.068,412,0.065,414,0.061,416,0.058,418,0.055,420,0.052,422,0.049,424,0.046,426,0.044,428,0.041,430,0.039,432,0.037,434,0.035,436,0.033,438,0.031,440,0.030,442,0.028,444,0.027,446,0.026,448,0.025,450,0.024,452,0.023,454,0.022,456,0.021,458,0.021,460,0.021,462,0.020,464,0.020,466,0.020,468,0.020,470,0.020,472,0.021,474,0.021,476,0.022,478,0.022,480,0.023,482,0.024,484,0.025,486,0.026,488,0.027,490,0.028,492,0.029,494,0.031,496,0.032,498,0.034,500,0.036,502,0.037,504,0.039,506,0.041,508,0.043,510,0.045,512,0.048,514,0.050,516,0.052,518,0.055,520,0.057,522,0.060,524,0.063,526,0.071,528,0.072,530,0.070,532,0.067,534,0.064,536,0.059,538,0.054,540,0.050,542,0.045,544,0.041,546,0.037,548,0.034,550,0.032,552,0.031,554,0.031,556,0.032,558,0.035,560,0.038,562,0.043,564,0.048,566,0.055,568,0.062,570,0.070,572,0.122,574,0.187,576,0.262,578,0.346,580,0.433,582,0.521,584,0.606,586,0.686,588,0.755,590,0.812,592,0.851,594,0.871,596,0.876,598,0.885,600,0.892,602,0.896,604,0.897,606,0.897,608,0.895,610,0.891,612,0.887,614,0.882,616,0.878,618,0.873,620,0.870,622,0.867,624,0.863,626,0.860,628,0.858,630,0.856,632,0.854,634,0.852,636,0.850,638,0.848,640,0.846,642,0.844,644,0.841,646,0.837,648,0.834,650,0.829,652,0.824,654,0.819,656,0.813,658,0.806,660,0.799,662,0.791,664,0.783,666,0.774,668,0.765,670,0.755,672,0.745,674,0.735,676,0.725,678,0.715,680,0.704,682,0.695,684,0.685,686,0.676,688,0.668,690,0.660,692,0.654,694,0.649,696,0.648,698,0.649,700,0.649";
-      P.redFilterName = "Sony Color Sensor R-UVIRcut";
-      P.greenFilterTrCurve = "400,0.089,402,0.086,404,0.082,406,0.079,408,0.075,410,0.071,412,0.066,414,0.062,416,0.058,418,0.053,420,0.049,422,0.045,424,0.042,426,0.041,428,0.042,430,0.043,432,0.044,434,0.046,436,0.047,438,0.049,440,0.051,442,0.053,444,0.055,446,0.057,448,0.059,450,0.061,452,0.064,454,0.067,456,0.069,458,0.072,460,0.075,462,0.098,464,0.130,466,0.169,468,0.215,470,0.267,472,0.323,474,0.382,476,0.443,478,0.505,480,0.566,482,0.627,484,0.684,486,0.739,488,0.788,490,0.832,492,0.868,494,0.896,496,0.915,498,0.924,500,0.921,502,0.939,504,0.947,506,0.954,508,0.961,510,0.967,512,0.973,514,0.978,516,0.982,518,0.986,520,0.989,522,0.992,524,0.994,526,0.996,528,0.997,530,0.997,532,0.995,534,0.990,536,0.986,538,0.981,540,0.977,542,0.973,544,0.969,546,0.965,548,0.960,550,0.955,552,0.949,554,0.943,556,0.936,558,0.928,560,0.919,562,0.909,564,0.898,566,0.887,568,0.874,570,0.860,572,0.845,574,0.829,576,0.812,578,0.794,580,0.775,582,0.754,584,0.733,586,0.711,588,0.688,590,0.665,592,0.640,594,0.615,596,0.589,598,0.563,600,0.537,602,0.510,604,0.483,606,0.456,608,0.430,610,0.403,612,0.377,614,0.352,616,0.328,618,0.304,620,0.282,622,0.261,624,0.242,626,0.224,628,0.225,630,0.216,632,0.207,634,0.199,636,0.192,638,0.185,640,0.179,642,0.174,644,0.169,646,0.165,648,0.161,650,0.158,652,0.156,654,0.155,656,0.154,658,0.154,660,0.155,662,0.156,664,0.158,666,0.162,668,0.165,670,0.170,672,0.176,674,0.182,676,0.189,678,0.198,680,0.207,682,0.217,684,0.228,686,0.240,688,0.240,690,0.248,692,0.257,694,0.265,696,0.274,698,0.282,700,0.289";
-      P.greenFilterName = "Sony Color Sensor G-UVIRcut";
-      P.blueFilterTrCurve = "400,0.438,402,0.469,404,0.496,406,0.519,408,0.539,410,0.557,412,0.572,414,0.586,416,0.599,418,0.614,420,0.631,422,0.637,424,0.647,426,0.658,428,0.670,430,0.682,432,0.695,434,0.708,436,0.720,438,0.732,440,0.743,442,0.753,444,0.762,446,0.770,448,0.777,450,0.783,452,0.788,454,0.791,456,0.794,458,0.796,460,0.797,462,0.798,464,0.798,466,0.799,468,0.800,470,0.801,472,0.800,474,0.798,476,0.793,478,0.785,480,0.774,482,0.760,484,0.742,486,0.707,488,0.669,490,0.633,492,0.598,494,0.565,496,0.533,498,0.502,500,0.473,502,0.446,504,0.419,506,0.394,508,0.370,510,0.348,512,0.326,514,0.306,516,0.287,518,0.268,520,0.251,522,0.235,524,0.220,526,0.205,528,0.192,530,0.179,532,0.167,534,0.156,536,0.145,538,0.136,540,0.126,542,0.118,544,0.110,546,0.102,548,0.095,550,0.089,552,0.083,554,0.077,556,0.071,558,0.066,560,0.061,562,0.057,564,0.052,566,0.048,568,0.044,570,0.039,572,0.041,574,0.039,576,0.037,578,0.035,580,0.033,582,0.032,584,0.030,586,0.029,588,0.027,590,0.026,592,0.025,594,0.024,596,0.023,598,0.022,600,0.022,602,0.021,604,0.021,606,0.020,608,0.020,610,0.020,612,0.020,614,0.020,616,0.020,618,0.021,620,0.021,622,0.022,624,0.022,626,0.023,628,0.024,630,0.025,632,0.026,634,0.027,636,0.028,638,0.030,640,0.031,642,0.033,644,0.035,646,0.036,648,0.038,650,0.040,652,0.042,654,0.045,656,0.048,658,0.051,660,0.054,662,0.057,664,0.059,666,0.061,668,0.063,670,0.065,672,0.066,674,0.068,676,0.069,678,0.070,680,0.071,682,0.072,684,0.072,686,0.073,688,0.073,690,0.073,692,0.073,694,0.073,696,0.073,698,0.073,700,0.073";
-      P.blueFilterName = "Sony Color Sensor B-UVIRcut";
+      this.setSpectrophotometricFilterCurves(P, win);
       P.grayFilterWavelength = 656.3;
       P.grayFilterBandwidth = 3.0;
       P.redFilterWavelength = 656.3;
@@ -8516,8 +8554,6 @@ runSpectrophotometricFluxCalibration(win)
       P.greenFilterBandwidth = 3.0;
       P.blueFilterWavelength = 500.7;
       P.blueFilterBandwidth = 3.0;
-      P.deviceQECurve = "1,1.0,500,1.0,1000,1.0,1500,1.0,2000,1.0,2500,1.0";
-      P.deviceQECurveName = "Ideal QE curve";
       P.broadbandIntegrationStepSize = 0.50;
       P.narrowbandIntegrationSteps = 10;
       P.rejectionLimit = 0.30;
@@ -11733,20 +11769,13 @@ runSPCC(imgWin, phase)
                   this.util.throwFatalError("Unknown SPCC white reference " + this.spcc_params.white_reference);
             }
             console.writeln("SpectrophotometricColorCalibration white reference " + P.whiteReferenceName);
-            P.redFilterTrCurve = "400,0.088,402,0.084,404,0.080,406,0.076,408,0.072,410,0.068,412,0.065,414,0.061,416,0.058,418,0.055,420,0.052,422,0.049,424,0.046,426,0.044,428,0.041,430,0.039,432,0.037,434,0.035,436,0.033,438,0.031,440,0.030,442,0.028,444,0.027,446,0.026,448,0.025,450,0.024,452,0.023,454,0.022,456,0.021,458,0.021,460,0.021,462,0.020,464,0.020,466,0.020,468,0.020,470,0.020,472,0.021,474,0.021,476,0.022,478,0.022,480,0.023,482,0.024,484,0.025,486,0.026,488,0.027,490,0.028,492,0.029,494,0.031,496,0.032,498,0.034,500,0.036,502,0.037,504,0.039,506,0.041,508,0.043,510,0.045,512,0.048,514,0.050,516,0.052,518,0.055,520,0.057,522,0.060,524,0.063,526,0.071,528,0.072,530,0.070,532,0.067,534,0.064,536,0.059,538,0.054,540,0.050,542,0.045,544,0.041,546,0.037,548,0.034,550,0.032,552,0.031,554,0.031,556,0.032,558,0.035,560,0.038,562,0.043,564,0.048,566,0.055,568,0.062,570,0.070,572,0.122,574,0.187,576,0.262,578,0.346,580,0.433,582,0.521,584,0.606,586,0.686,588,0.755,590,0.812,592,0.851,594,0.871,596,0.876,598,0.885,600,0.892,602,0.896,604,0.897,606,0.897,608,0.895,610,0.891,612,0.887,614,0.882,616,0.878,618,0.873,620,0.870,622,0.867,624,0.863,626,0.860,628,0.858,630,0.856,632,0.854,634,0.852,636,0.850,638,0.848,640,0.846,642,0.844,644,0.841,646,0.837,648,0.834,650,0.829,652,0.824,654,0.819,656,0.813,658,0.806,660,0.799,662,0.791,664,0.783,666,0.774,668,0.765,670,0.755,672,0.745,674,0.735,676,0.725,678,0.715,680,0.704,682,0.695,684,0.685,686,0.676,688,0.668,690,0.660,692,0.654,694,0.649,696,0.648,698,0.649,700,0.649";
-            P.redFilterName = "Sony Color Sensor R-UVIRcut";
-            P.greenFilterTrCurve = "400,0.089,402,0.086,404,0.082,406,0.079,408,0.075,410,0.071,412,0.066,414,0.062,416,0.058,418,0.053,420,0.049,422,0.045,424,0.042,426,0.041,428,0.042,430,0.043,432,0.044,434,0.046,436,0.047,438,0.049,440,0.051,442,0.053,444,0.055,446,0.057,448,0.059,450,0.061,452,0.064,454,0.067,456,0.069,458,0.072,460,0.075,462,0.098,464,0.130,466,0.169,468,0.215,470,0.267,472,0.323,474,0.382,476,0.443,478,0.505,480,0.566,482,0.627,484,0.684,486,0.739,488,0.788,490,0.832,492,0.868,494,0.896,496,0.915,498,0.924,500,0.921,502,0.939,504,0.947,506,0.954,508,0.961,510,0.967,512,0.973,514,0.978,516,0.982,518,0.986,520,0.989,522,0.992,524,0.994,526,0.996,528,0.997,530,0.997,532,0.995,534,0.990,536,0.986,538,0.981,540,0.977,542,0.973,544,0.969,546,0.965,548,0.960,550,0.955,552,0.949,554,0.943,556,0.936,558,0.928,560,0.919,562,0.909,564,0.898,566,0.887,568,0.874,570,0.860,572,0.845,574,0.829,576,0.812,578,0.794,580,0.775,582,0.754,584,0.733,586,0.711,588,0.688,590,0.665,592,0.640,594,0.615,596,0.589,598,0.563,600,0.537,602,0.510,604,0.483,606,0.456,608,0.430,610,0.403,612,0.377,614,0.352,616,0.328,618,0.304,620,0.282,622,0.261,624,0.242,626,0.224,628,0.225,630,0.216,632,0.207,634,0.199,636,0.192,638,0.185,640,0.179,642,0.174,644,0.169,646,0.165,648,0.161,650,0.158,652,0.156,654,0.155,656,0.154,658,0.154,660,0.155,662,0.156,664,0.158,666,0.162,668,0.165,670,0.170,672,0.176,674,0.182,676,0.189,678,0.198,680,0.207,682,0.217,684,0.228,686,0.240,688,0.240,690,0.248,692,0.257,694,0.265,696,0.274,698,0.282,700,0.289";
-            P.greenFilterName = "Sony Color Sensor G-UVIRcut";
-            P.blueFilterTrCurve = "400,0.438,402,0.469,404,0.496,406,0.519,408,0.539,410,0.557,412,0.572,414,0.586,416,0.599,418,0.614,420,0.631,422,0.637,424,0.647,426,0.658,428,0.670,430,0.682,432,0.695,434,0.708,436,0.720,438,0.732,440,0.743,442,0.753,444,0.762,446,0.770,448,0.777,450,0.783,452,0.788,454,0.791,456,0.794,458,0.796,460,0.797,462,0.798,464,0.798,466,0.799,468,0.800,470,0.801,472,0.800,474,0.798,476,0.793,478,0.785,480,0.774,482,0.760,484,0.742,486,0.707,488,0.669,490,0.633,492,0.598,494,0.565,496,0.533,498,0.502,500,0.473,502,0.446,504,0.419,506,0.394,508,0.370,510,0.348,512,0.326,514,0.306,516,0.287,518,0.268,520,0.251,522,0.235,524,0.220,526,0.205,528,0.192,530,0.179,532,0.167,534,0.156,536,0.145,538,0.136,540,0.126,542,0.118,544,0.110,546,0.102,548,0.095,550,0.089,552,0.083,554,0.077,556,0.071,558,0.066,560,0.061,562,0.057,564,0.052,566,0.048,568,0.044,570,0.039,572,0.041,574,0.039,576,0.037,578,0.035,580,0.033,582,0.032,584,0.030,586,0.029,588,0.027,590,0.026,592,0.025,594,0.024,596,0.023,598,0.022,600,0.022,602,0.021,604,0.021,606,0.020,608,0.020,610,0.020,612,0.020,614,0.020,616,0.020,618,0.021,620,0.021,622,0.022,624,0.022,626,0.023,628,0.024,630,0.025,632,0.026,634,0.027,636,0.028,638,0.030,640,0.031,642,0.033,644,0.035,646,0.036,648,0.038,650,0.040,652,0.042,654,0.045,656,0.048,658,0.051,660,0.054,662,0.057,664,0.059,666,0.061,668,0.063,670,0.065,672,0.066,674,0.068,676,0.069,678,0.070,680,0.071,682,0.072,684,0.072,686,0.073,688,0.073,690,0.073,692,0.073,694,0.073,696,0.073,698,0.073,700,0.073";
-            P.blueFilterName = "Sony Color Sensor B-UVIRcut";
+            this.setSpectrophotometricFilterCurves(P, imgWin);
             P.redFilterWavelength = this.spcc_params.wavelengths[0];         // 656.3;
             P.redFilterBandwidth = this.spcc_params.bandhwidths[0];          // 3.0;
             P.greenFilterWavelength = this.spcc_params.wavelengths[1];       // 500.7;
             P.greenFilterBandwidth = this.spcc_params.bandhwidths[1];        // 3.0;
             P.blueFilterWavelength = this.spcc_params.wavelengths[2];        // 500.7;
             P.blueFilterBandwidth = this.spcc_params.bandhwidths[2];         // 3.0;
-            P.deviceQECurve = "1,1.0,500,1.0,1000,1.0,1500,1.0,2000,1.0,2500,1.0";
-            P.deviceQECurveName = "Ideal QE curve";
             P.broadbandIntegrationStepSize = 0.50;
             P.narrowbandIntegrationSteps = 10;
             P.catalogId = "GaiaDR3SP";
@@ -16857,11 +16886,12 @@ resolveAutoTool(category, candidates)
             }
       }
       for (var i = 0; i < candidates.length; i++) {
-            if (candidates[i].ai && this.global.testmode && !this.par.auto_builtin_tools_only.val) {
+            if (candidates[i].ai && this.autoOptionsDisabledInTestMode() && !this.par.auto_builtin_tools_only.val) {
                   // In test mode Auto uses only non-AI tools so test results do not
                   // depend on installed tools. Tools can still be selected explicitly.
                   // Auto built-in tools only option overrides this so built-in AI tools
-                  // like MLDenoise can be tested.
+                  // like MLDenoise can be tested. Auto options in test mode option
+                  // overrides this so all available tools can be tested.
                   continue;
             }
             if (candidates[i].external && this.par.auto_builtin_tools_only.val) {
@@ -16881,7 +16911,7 @@ resolveAutoTool(category, candidates)
 // Resolve Auto selections in Settings / Tools to the best available tools.
 // Candidate order must match the order of options in Settings / Tools.
 // Candidates with ai: true are AI based tools, they are skipped in test mode
-// unless the Auto built-in tools only option is set.
+// unless the Auto built-in tools only or Auto options in test mode option is set.
 // Candidates with external: true are not included in PixInsight, they are skipped
 // with the Auto built-in tools only option.
 resolveAutoTools()
@@ -16923,6 +16953,14 @@ clearAutoSelected(param)
       }
 }
 
+// In test mode Auto SPCC, Auto local normalization and Auto drizzle are not used
+// and Auto tool selection skips AI tools so test results do not depend on the data,
+// installed tools or databases, unless the Auto options in test mode option is set.
+autoOptionsDisabledInTestMode()
+{
+      return this.global.testmode && !this.par.auto_options_in_testmode.val;
+}
+
 isAutoSPCC()
 {
       return this.par.use_spcc.val && this.par.use_spcc.auto_selected;
@@ -16946,7 +16984,7 @@ resolveAutoSPCC()
       var reason = null;
       if (this.process_narrowband) {
             reason = "narrowband data";
-      } else if (this.global.testmode) {
+      } else if (this.autoOptionsDisabledInTestMode()) {
             reason = "test mode";
       }
       if (reason != null) {
@@ -16981,7 +17019,7 @@ startAutoSPCCForRGBStars()
       if (this.par.use_spcc.val
           || !this.par.auto_spcc.val
           || this.par.skip_color_calibration.val
-          || this.global.testmode)
+          || this.autoOptionsDisabledInTestMode())
       {
             return false;
       }
@@ -17026,7 +17064,7 @@ isAutoDrizzleCandidate()
 // uses the same checks.
 autoDrizzleSettingsReason()
 {
-      if (this.global.testmode) {
+      if (this.autoOptionsDisabledInTestMode()) {
             return "test mode";
       } else if (this.par.fast_mode.val) {
             return "fast mode";
@@ -17125,7 +17163,7 @@ isAutoLocalNormalizationCandidate()
 // uses the same checks.
 autoLocalNormalizationSettingsReason()
 {
-      if (this.global.testmode) {
+      if (this.autoOptionsDisabledInTestMode()) {
             return "test mode";
       } else if (this.par.fast_mode.val) {
             return "fast mode";

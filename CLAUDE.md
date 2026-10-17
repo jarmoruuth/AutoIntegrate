@@ -69,6 +69,7 @@ var gui = new AutoIntegrateGUI(global, util, engine, flowchart);
 | `AutoIntegrateLDD.js` | Linear Defect Detection |
 | `AutoIntegrateBanding.js` | Banding pattern correction |
 | `AutoIntegratePreview.js` | Image preview functionality |
+| `AutoIntegrateSPCCFilters.js` | SPCC filter sets and QE curves, read from PixInsight `library/filters.xspd` with a built-in copy as fallback, created by the engine as `engine.spccFilters` |
 
 **Independent scripts:**
 
