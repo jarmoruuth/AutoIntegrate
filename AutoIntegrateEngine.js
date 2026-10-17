@@ -10276,15 +10276,11 @@ runMultiscaleLinearTransformReduceNoise(imgWin, maskWin, strength)
       imgWin.mainView.endProcess();
 }
 
-runBlurXTerminator(imgWin, correct_only, for_image_solver = false)
+runBlurXTerminator(imgWin, correct_only)
 {
-      if (for_image_solver) {
-            console.writeln("BlurXTerminator for ImageSolver on " + imgWin.mainView.id + " for image solver");
-      } else {
-            console.writeln("BlurXTerminator on " + imgWin.mainView.id + ", sharpen stars " + this.par.bxt_sharpen_stars.val + 
-                        ", adjust star halos " + this.par.bxt_adjust_halo.val + ", sharpen nonstellar " + this.par.bxt_sharpen_nonstellar.val +
-                        ", correct only " + correct_only);
-      }
+      console.writeln("BlurXTerminator on " + imgWin.mainView.id + ", sharpen stars " + this.par.bxt_sharpen_stars.val +
+                  ", adjust star halos " + this.par.bxt_adjust_halo.val + ", sharpen nonstellar " + this.par.bxt_sharpen_nonstellar.val +
+                  ", correct only " + correct_only);
       if (correct_only) {
             var node = this.flowchart.flowchartOperation("BlurXTerminator:correct only");
       } else {
@@ -10295,11 +10291,7 @@ runBlurXTerminator(imgWin, correct_only, for_image_solver = false)
             return;
       }
 
-      if (for_image_solver) {
-            var auto_psf = true;
-            var psf = 0.0;
-            console.writeln("Using auto PSF with image solver");
-      } else if (this.par.bxt_psf.val > 0) {
+      if (this.par.bxt_psf.val > 0) {
             var auto_psf = false;
             var psf = this.par.bxt_psf.val;
             console.writeln("Using user given PSF " + psf);
@@ -10331,18 +10323,12 @@ runBlurXTerminator(imgWin, correct_only, for_image_solver = false)
 
       try {
             var P = new BlurXTerminator;
-            if (for_image_solver) {
-                  P.sharpen_stars = 0.7;
-                  P.auto_nonstellar_psf = true;
-                  P.sharpen_nonstellar = 0;
-            } else {
-                  P.nonstellar_then_stellar = false;
-                  P.sharpen_stars = this.par.bxt_sharpen_stars.val;
-                  P.adjust_halos = this.par.bxt_adjust_halo.val;
-                  P.nonstellar_psf_diameter = psf;
-                  P.auto_nonstellar_psf = auto_psf;
-                  P.sharpen_nonstellar = this.par.bxt_sharpen_nonstellar.val;
-            }
+            P.nonstellar_then_stellar = false;
+            P.sharpen_stars = this.par.bxt_sharpen_stars.val;
+            P.adjust_halos = this.par.bxt_adjust_halo.val;
+            P.nonstellar_psf_diameter = psf;
+            P.auto_nonstellar_psf = auto_psf;
+            P.sharpen_nonstellar = this.par.bxt_sharpen_nonstellar.val;
       } catch(err) {
             this.save_images_in_save_id_list(); // Save images so we can retur with AutoContinue
             console.criticalln("BlurXTerminator failed");

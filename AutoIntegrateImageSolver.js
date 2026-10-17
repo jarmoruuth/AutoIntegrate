@@ -439,31 +439,6 @@ runImageSolver(id, fail_is_error = true)
             return true;
       }
       var solved = this.runImageSolverVariations(id);
-      if (!solved) {
-            // Delete possible old copy windows
-            let copyWin = this.util.findWindow("AutoIntegrateImageSolverCopy");
-            if (copyWin) {
-                  copyWin.forceClose();
-            }
-            // Make a copy of image and try with noise reducted image
-            console.writeln("runImageSolver: copy image and try with noise reducted image");
-            let imgWin = ImageWindow.windowById(id);
-            copyWin = this.util.copyWindow(imgWin, "AutoIntegrateImageSolverCopy");
-            if (this.par.use_blurxterminator.val) {
-                  console.writeln("runImageSolver: runBlurXTerminator on " + copyWin.mainView.id);
-                  this.engine.runBlurXTerminator(copyWin, false, true);
-            }
-            console.writeln("runImageSolver: runNoiseReduction on " + copyWin.mainView.id);
-            this.engine.runNoiseReductionEx(copyWin, null, 3, true);
-            console.writeln("runImageSolver: runImageSolverVariations on " + copyWin.mainView.id);
-            solved = this.runImageSolverVariations(copyWin.mainView.id);
-            if (solved) {
-                  imgWin.copyAstrometricSolution(copyWin);
-                  // Copy window is closed below, use the original image as the solved image
-                  this.solved_imageId = imgWin.mainView.id;
-            }
-            copyWin.forceClose();
-      }
       if (!solved && this.par.target_interactivesolve.val && fail_is_error) {
             do {
                   solved = this.runImageSolverEx(id, true, true, 1);
@@ -475,6 +450,10 @@ runImageSolver(id, fail_is_error = true)
                         }
                   }
             } while (!solved);
+      }
+      if (!solved && node) {
+            // Show in the flowchart that solving failed
+            node.txt = "ImageSolver failed";
       }
       this.engine.engine_end_process(node);
       if (!solved) {
