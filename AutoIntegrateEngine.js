@@ -258,6 +258,7 @@ constructor(global, util, flowchart) {
       this.local_image_stretching = "";
       this.image_stretching_auto = false;
       this.sky_analysis_decided = false;
+      this.sky_analysis_planned_stretching = null;
       this.local_debayer_pattern = "";
       this.local_RGBHa_prepare_method = "";
       this.local_RGBHa_combine_method = "";
@@ -978,6 +979,8 @@ skyAnalysisStretching(win, image_stretching)
             return image_stretching;
       }
       this.sky_analysis_decided = true;
+      // Stretching method used when the flowchart was generated before processing
+      this.sky_analysis_planned_stretching = image_stretching;
       if (res == null) {
             console.writeln("  sky analysis failed, using " + image_stretching);
             this.flowchart.flowchartRenameOperations(this.autoStretchingName, image_stretching);
@@ -997,8 +1000,12 @@ skyAnalysisStretching(win, image_stretching)
                                                             : ", contrast not available"),
                            false);
       // Flowchart generated before processing does not run sky analysis and shows
-      // Auto stretching, update it
+      // Auto stretching, update it. Masks are stretched with the image stretching
+      // method used before the decision, update also them.
       this.flowchart.flowchartRenameOperations(this.autoStretchingName, stretching);
+      if (stretching != image_stretching) {
+            this.flowchart.flowchartRenameOperations(image_stretching + ":mask", stretching + ":mask");
+      }
       this.local_image_stretching = stretching;
       return stretching;
 }
@@ -1030,6 +1037,7 @@ resolveImageStretching()
       // Remember if stretching method was selected automatically, used for sky analysis
       this.image_stretching_auto = (stretching == 'Auto');
       this.sky_analysis_decided = false;
+      this.sky_analysis_planned_stretching = null;
       if (stretching != 'Auto') {
             return stretching;
       }
@@ -6106,7 +6114,7 @@ removeStars(imgWin, linear_data, save_stars, save_array, stars_image_name, use_u
                   save_array[save_array.length] = star_win.mainView.id;
             }
             console.writeln("Removed stars from " + imgWin.mainView.id + " and created stars image " + star_win.mainView.id);
-            this.util.setFITSKeyword(imgWin, "AutoIntegrateStars", "true", "Stars image created by AutoIntegrate");
+            this.util.setFITSKeyword(star_win, "AutoIntegrateStars", "true", "Stars image created by AutoIntegrate");
             this.setAutoIntegrateVersionIfNeeded(star_win);
             this.setImagetypKeyword(star_win, "Master light");
             return star_win;
@@ -6532,6 +6540,12 @@ customMapping(RGBmapping, filtered_lights)
                   {
                         console.writeln("Narrowband linear fit is Auto and stretching is " + this.local_image_stretching + ", do not use linear fit.");
                         narrowband_linear_fit = "None";
+                        var planned = this.sky_analysis_planned_stretching;
+                        if (!this.global.get_flowchart_data && planned != null && planned != 'Auto STF' && planned != 'Histogram stretch') {
+                              // Sky analysis changed the stretching method so the flowchart generated
+                              // before processing has linear fit, remove it
+                              this.flowchart.flowchartRemoveOperations("LinearFit", true);
+                        }
                   } else {
                         console.writeln("Narrowband linear fit is Auto and stretching is " + this.local_image_stretching + ", use linear fit.");
                   }

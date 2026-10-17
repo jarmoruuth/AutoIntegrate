@@ -30,6 +30,9 @@ constructor(global, util) {
       this.flowchartStack = [];
       this.flowchartOperationList = [];
       this.flowchart_operation_level = 0;
+      this.flowchart_has_plan = false;    // flowchart generated before processing is used
+      this.flowchart_not_run = [];        // planned operations that were skipped
+      this.flowchart_unplanned = [];      // operations not in the generated flowchart
 
       // Globals for section: Draw flowchart Preview Image
 
@@ -481,24 +484,47 @@ flowchartNewNode(type, txt)
       return { type: type, txt: txt, list: [], id: this.global.flowchartActiveId, start_time: null, end_time: null };
 }
 
+// Find the operation from the flowchart generated before processing. Operations
+// are matched in order. If the next operation does not match, the operation is
+// searched from a few operations ahead. If found, the skipped operations were not
+// run, for example a step that was decided not to run during processing, and they
+// are removed. If not found, the operation is not in the generated flowchart and
+// the position is not changed so that the following operations still match.
 flowchartCheckOperationList(type, txt)
 {
       if (this.global.debug) console.writeln("flowchartCheckOperationList");
+      const lookahead = 5;
       var node = null;
-      var nodepos = this.global.flowchartActiveId;
-      this.global.flowchartActiveId++;
-      if (this.global.flowchartOperationList.length > 0) {
-            if (nodepos < this.global.flowchartOperationList.length
-                && txt == this.global.flowchartOperationList[nodepos].txt) 
-            {
-                  if (this.par.flowchart_debug.val) console.writeln("flowchartCheckOperationList:match " + txt + ", flowchartOperationList[" + this.global.flowchartActiveId + "] " + this.global.flowchartOperationList[this.global.flowchartActiveId]);
+      var list = this.global.flowchartOperationList;
+      var nodepos = this.global.flowchartActiveId;     // position of the next operation
+      if (list.length > 0) {
+            var matchpos = -1;
+            for (var i = nodepos; i < list.length && i <= nodepos + lookahead; i++) {
+                  if (list[i].txt == txt) {
+                        matchpos = i;
+                        break;
+                  }
+            }
+            if (matchpos >= 0) {
+                  if (matchpos > nodepos) {
+                        if (this.par.flowchart_debug.val) console.writeln("flowchartCheckOperationList:skip " + (matchpos - nodepos) + " operations before " + txt);
+                        for (var i = nodepos; i < matchpos; i++) {
+                              this.flowchart_not_run.push(list[i].txt);
+                        }
+                        this.flowchartRemoveListRange(nodepos, matchpos);
+                        list = this.global.flowchartOperationList;
+                  }
+                  if (this.par.flowchart_debug.val) console.writeln("flowchartCheckOperationList:match " + txt + " at " + nodepos);
                   // Use previously created node
-                  node = this.global.flowchartOperationList[nodepos];
+                  node = list[nodepos];
+                  this.global.flowchartActiveId = nodepos + 1;
             } else {
-                  if (this.par.flowchart_debug.val) console.writeln("flowchartCheckOperationList:mismatch " + txt + ", flowchartOperationList[" + this.global.flowchartActiveId + "] " + this.global.flowchartOperationList[this.global.flowchartActiveId]);
+                  if (this.par.flowchart_debug.val) console.writeln("flowchartCheckOperationList:mismatch " + txt + ", next operation " + (nodepos < list.length ? list[nodepos].txt : "none"));
+                  this.flowchart_unplanned.push(txt);
             }
       } else {
             if (this.par.flowchart_debug.val) console.writeln("flowchartCheckOperationList:flowchartOperationList is empty, txt " + txt);
+            this.global.flowchartActiveId++;
       }
       if (node == null) {
             node = this.flowchartNewNode(type, txt);
@@ -506,6 +532,23 @@ flowchartCheckOperationList(type, txt)
       this.flowchartOperationList.push(node);
 
       return node;
+}
+
+// Remove operations from position first up to but not including position last
+// in the flowchart generated before processing. Operation ids are renumbered so
+// they match operation positions.
+flowchartRemoveListRange(first, last)
+{
+      var list = this.global.flowchartOperationList;
+      var removed = list.slice(first, last);
+      var newlist = list.slice(0, first).concat(list.slice(last));
+      for (var i = 0; i < newlist.length; i++) {
+            newlist[i].id = i + 1;
+      }
+      this.global.flowchartOperationList = newlist;
+      if (this.global.flowchartData != null) {
+            this.flowchartRemoveNodes(this.global.flowchartData, removed);
+      }
 }
 
 flowchartOperation(txt)
@@ -833,6 +876,9 @@ flowchartReset()
       this.global.flowchartOperationList = [];
 
       this.flowchart_operation_level = 0;
+      this.flowchart_has_plan = false;
+      this.flowchart_not_run = [];
+      this.flowchart_unplanned = [];
 }
 
 flowchartCancel()
@@ -859,7 +905,35 @@ flowchartInit(txt)
       this.global.flowchartActiveId = 0;
       this.flowchart_operation_level = 0;
 
+      // Differences to the flowchart generated before processing, logged at the end
+      this.flowchart_has_plan = this.global.flowchartOperationList.length > 0;
+      this.flowchart_not_run = [];
+      this.flowchart_unplanned = [];
+
       this.flowchart_active = true;
+}
+
+// Log differences between the flowchart generated before processing and the
+// operations that were run. Operations removed or renamed by Auto decisions are
+// not differences. Other differences mean that the flowchart generation does not
+// follow the processing and the flowchart shown during processing is not correct.
+flowchartLogDifferences()
+{
+      if (!this.flowchart_has_plan) {
+            return;
+      }
+      var list = this.global.flowchartOperationList;
+      var not_run = this.flowchart_not_run.concat(list.slice(this.global.flowchartActiveId).map((node) => node.txt));
+      var unplanned = this.flowchart_unplanned;
+      var txt = "Flowchart: " + not_run.length + " planned operations not run" +
+                (not_run.length > 0 ? " (" + not_run.join(", ") + ")" : "") +
+                ", " + unplanned.length + " unplanned operations" +
+                (unplanned.length > 0 ? " (" + unplanned.join(", ") + ")" : "");
+      if (not_run.length > 0 || unplanned.length > 0) {
+            console.warningln(txt);
+      } else {
+            console.writeln(txt);
+      }
 }
 
 flowchartDone()
@@ -868,6 +942,7 @@ flowchartDone()
             return;
       }
       console.writeln("flowchartDone");
+      this.flowchartLogDifferences();
       this.flowchart_active = false;
       this.global.flowchartActiveId = 0;
       this.global.flowchartData = this.flowchartCurrent;
