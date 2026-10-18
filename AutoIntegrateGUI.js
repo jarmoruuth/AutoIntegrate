@@ -5572,7 +5572,8 @@ AutoIntegrateDialog()
             "<p>Drizzle is used when the median FWHM measured by SubframeSelector is less than 2 pixels, " +
             "every filter has at least 20 images and the drizzled image is not larger than 150 megapixels. " +
             "Drizzle scale is taken from the <i>Drizzle, scale</i> value.</p>" +
-            "<p>Drizzle needs dithered images. Do not use this option with images that are not dithered.</p>" +
+            "<p>Drizzle needs dithered images. Auto drizzle cannot detect from the images whether they are dithered, " +
+            "so this option is off by default. Do not use this option with images that are not dithered.</p>" +
             "<p>Auto drizzle is not used in fast mode, with FastIntegration, comet alignment, or when " +
             "SubframeSelector is not run. The decision is shown in the Auto decisions list at the end of processing.</p>");
 
