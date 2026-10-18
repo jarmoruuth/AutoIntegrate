@@ -6617,6 +6617,8 @@ AutoIntegrateDialog()
             "Color camera data uses Sony Color Sensor UV/IR cut curves.</p>" +
             "<p>Seestar data is detected from image keywords. With Auto, Seestar LP curves are used with the LP filter, " +
             "otherwise Sony IMX462/662/585 UV/IR cut curves for the Seestar sensor are used.</p>" +
+            "<p>For a color camera with a dual-band filter select <i>OSC: Optolong L-eXtreme</i> or <i>OSC: IDAS NBZ II</i>. " +
+            "These use Sony color sensor curves combined with the filter curve. They are not selected by Auto.</p>" +
             "<p>Curves are read from the PixInsight filters database. If the database is not found, a built-in copy of the curves is used.</p>" +
             "<p>Filter set is also used with SpectrophotometricFluxCalibration before MultiscaleGradientCorrection.</p>");
       this.spccFilterSetComboBox = this.guitools.newComboBox(this, this.par.spcc_filter_set, this.engine.spccFilters.getFilterSetNames(), this.spccFilterSetLabel.toolTip);
