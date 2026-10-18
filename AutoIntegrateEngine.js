@@ -17913,13 +17913,18 @@ autointegrateProcessingEngine(parent, auto_continue, autocontinue_narrowband, tx
              console.writeln("Save generated RGB image");
              this.saveProcessedWindow(this.RGB_win_id);              /* Integration_RGB_combined */
        }
-       if (this.preprocessed_images < this.global.start_images.RGB_HT && LRGB_Combined != null) {
-             // Save stretched L and RGB images used in LRGB combination. They can be combined manually,
-             // or AutoContinue can start from them when renamed to L_HT and RGB_HT. With color files or without luminance
-             // the stretched RGB image is close to the final image, so it is not saved.
-             console.writeln("Save stretched L and RGB images");
-             this.saveProcessedWindow(this.L_processed_HT_id);       /* Integration_L_HT */
-             this.saveProcessedWindow(RGB_processed_HT_id);          /* Integration_RGB_HT */
+       if (this.preprocessed_images < this.global.start_images.RGB_HT) {
+             // Save stretched L and RGB images. They can be combined manually, or AutoContinue
+             // can start from them when renamed to L_HT and RGB_HT. If the RGB image was already
+             // stretched before, it is the processed image and it is not saved again.
+             if (LRGB_Combined != null) {
+                   console.writeln("Save stretched L image");
+                   this.saveProcessedWindow(this.L_processed_HT_id);       /* Integration_L_HT */
+             }
+             if (RGB_processed_HT_id != null && RGB_processed_HT_id != this.RGB_processed_id) {
+                   console.writeln("Save stretched RGB image");
+                   this.saveProcessedWindow(RGB_processed_HT_id);          /* Integration_RGB_HT */
+             }
        }
        if (this.preprocessed_images < this.global.start_images.FINAL && LRGB_processed_HT_id != null) {
              console.writeln("Save final image");
