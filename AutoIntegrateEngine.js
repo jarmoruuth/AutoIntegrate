@@ -259,6 +259,7 @@ constructor(global, util, flowchart) {
       this.image_stretching_auto = false;
       this.sky_analysis_decided = false;
       this.sky_analysis_planned_stretching = null;
+      this.flowchart_light_file_counts = {};    // original number of light files for each filter when generating flowchart
       this.local_debayer_pattern = "";
       this.local_RGBHa_prepare_method = "";
       this.local_RGBHa_combine_method = "";
@@ -515,11 +516,18 @@ flowchartFilterFiles(fileNames, filetype)
       var renamedFileNames = [];
       var maxsize = Math.max(flowchar_filtered_files.maxwidth, flowchar_filtered_files.maxheigth);
 
+      if (filetype == this.global.pages.LIGHTS) {
+            this.flowchart_light_file_counts = {};
+      }
+
       // Pick first files for each channel, one file per exposure time group
       console.writeln("flowchartFilterFiles, " + allfilesarr.length + " channels");
       console.flush();
       for (var i = 0; i < allfilesarr.length; i++) {
             console.writeln("flowchartFilterFiles, " + allfilesarr[i].filter + ", " + allfilesarr[i].files.length);
+            if (filetype == this.global.pages.LIGHTS) {
+                  this.flowchart_light_file_counts[allfilesarr[i].filter] = allfilesarr[i].files.length;
+            }
             var exptimeGroups = this.calibrate.groupLightsByExposureTime(allfilesarr[i].files);
             for (var eg = 0; eg < exptimeGroups.length; eg++) {
                   for (var j = 0; j < exptimeGroups[eg].files.length; j++) {
@@ -6548,6 +6556,12 @@ customMapping(RGBmapping, filtered_lights)
                         }
                   } else {
                         console.writeln("Narrowband linear fit is Auto and stretching is " + this.local_image_stretching + ", use linear fit.");
+                        var planned = this.sky_analysis_planned_stretching;
+                        if (!this.global.get_flowchart_data && (planned == 'Auto STF' || planned == 'Histogram stretch')) {
+                              // Sky analysis changed the stretching method so the flowchart generated
+                              // before processing does not have linear fit
+                              this.flowchart.flowchartAutoAddedOperation("LinearFit");
+                        }
                   }
             }
 
@@ -7863,11 +7877,19 @@ runImageIntegration(channel_images, name, save_to_file, flowchartname)
       if (!this.global.get_flowchart_data) {
             var single_image = this.checkIntegrationImageCount(images, name);
       } else {
-            var single_image = false;
+            // Files are filtered for flowchart, check the original number of files
+            var single_image = this.flowchart_light_file_counts[name == 'RGB' ? 'C' : name] == 1;
       }
 
       if (single_image) {
-            var image_id = this.useSingleImageAsIntegration(images[0][1], name);
+            // Show in the flowchart that integration was skipped
+            var node = this.flowchart.flowchartOperation("ImageIntegration:skipped");
+            if (this.global.get_flowchart_data) {
+                  var image_id = this.flowchartNewIntegrationImage(images[0][1], this.ppar.win_prefix + "Integration_" + name);
+            } else {
+                  var image_id = this.useSingleImageAsIntegration(images[0][1], name);
+                  this.engine_end_process(node, null, null, false);
+            }
 
       } else if (!this.useLocalNormalization(name)) {
             if (this.par.use_drizzle.val) {

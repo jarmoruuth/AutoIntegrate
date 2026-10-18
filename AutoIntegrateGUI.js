@@ -340,6 +340,7 @@ generateNewFlowchartData(parent)
       this.util.closeAllWindows(false, false);
 
       this.global.get_flowchart_data = true;
+      this.engine.flowchart_light_file_counts = {};
       try {
             this.engine.autointegrateProcessingEngine(parent, false, false, "Generate flowchart data");
       } catch (x) {

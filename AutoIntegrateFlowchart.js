@@ -33,6 +33,7 @@ constructor(global, util) {
       this.flowchart_has_plan = false;    // flowchart generated before processing is used
       this.flowchart_not_run = [];        // planned operations that were skipped
       this.flowchart_unplanned = [];      // operations not in the generated flowchart
+      this.flowchart_auto_added = [];     // operations added by Auto decisions during processing
 
       // Globals for section: Draw flowchart Preview Image
 
@@ -520,7 +521,9 @@ flowchartCheckOperationList(type, txt)
                   this.global.flowchartActiveId = nodepos + 1;
             } else {
                   if (this.par.flowchart_debug.val) console.writeln("flowchartCheckOperationList:mismatch " + txt + ", next operation " + (nodepos < list.length ? list[nodepos].txt : "none"));
-                  this.flowchart_unplanned.push(txt);
+                  if (this.flowchart_auto_added.indexOf(txt) < 0) {
+                        this.flowchart_unplanned.push(txt);
+                  }
             }
       } else {
             if (this.par.flowchart_debug.val) console.writeln("flowchartCheckOperationList:flowchartOperationList is empty, txt " + txt);
@@ -619,6 +622,18 @@ flowchartRemoveOperations(txt, first_only = false)
       }
       console.writeln("Flowchart: removed " + removed.length + " operations " + txt);
       this.gui.flowchartUpdated();
+}
+
+// Operation that is not in the previously generated flowchart but an Auto option
+// decides during processing to run it, like narrowband linear fit after sky analysis
+// changed the stretching method. It is added as a new node when run and it is not
+// logged as an unplanned operation.
+flowchartAutoAddedOperation(txt)
+{
+      if (this.flowchart_auto_added.indexOf(txt) < 0) {
+            this.flowchart_auto_added.push(txt);
+      }
+      console.writeln("Flowchart: added operation " + txt);
 }
 
 flowchartRemoveNodes(parent, nodes)
@@ -879,6 +894,7 @@ flowchartReset()
       this.flowchart_has_plan = false;
       this.flowchart_not_run = [];
       this.flowchart_unplanned = [];
+      this.flowchart_auto_added = [];
 }
 
 flowchartCancel()
@@ -909,6 +925,7 @@ flowchartInit(txt)
       this.flowchart_has_plan = this.global.flowchartOperationList.length > 0;
       this.flowchart_not_run = [];
       this.flowchart_unplanned = [];
+      this.flowchart_auto_added = [];
 
       this.flowchart_active = true;
 }
