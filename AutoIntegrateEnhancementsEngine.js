@@ -1090,15 +1090,16 @@ enhancementsAutoContrast(win, contrast_limit_low, contrast_limit_high, channels)
       if (channels) {
             this.addEnhancementsStep("Auto contrast channels with low limit " + contrast_limit_low + ", high limit " + contrast_limit_high);
 
-            this.engine.R_id = this.enhancementsAutoContrastChannel(win, 'R', contrast_limit_low, contrast_limit_high);
-            this.engine.G_id = this.enhancementsAutoContrastChannel(win, 'G', contrast_limit_low, contrast_limit_high);
-            this.engine.B_id = this.enhancementsAutoContrastChannel(win, 'B', contrast_limit_low, contrast_limit_high);
+            // Use local ids, engine R_id/G_id/B_id refer to integrated channel images that are saved later
+            var R_id = this.enhancementsAutoContrastChannel(win, 'R', contrast_limit_low, contrast_limit_high);
+            var G_id = this.enhancementsAutoContrastChannel(win, 'G', contrast_limit_low, contrast_limit_high);
+            var B_id = this.enhancementsAutoContrastChannel(win, 'B', contrast_limit_low, contrast_limit_high);
 
-            this.engine.runPixelMathRGBMapping(null, win, this.engine.R_id, this.engine.G_id, this.engine.B_id);
+            this.engine.runPixelMathRGBMapping(null, win, R_id, G_id, B_id);
 
-            this.util.closeOneWindowById(this.engine.R_id);
-            this.util.closeOneWindowById(this.engine.G_id);
-            this.util.closeOneWindowById(this.engine.B_id);
+            this.util.closeOneWindowById(R_id);
+            this.util.closeOneWindowById(G_id);
+            this.util.closeOneWindowById(B_id);
 
       } else {
             this.addEnhancementsStep("Auto contrast with low limit " + contrast_limit_low + ", high limit " + contrast_limit_high);
