@@ -28,7 +28,7 @@ super();
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-this.autointegrate_version = "AutoIntegrate v1.88.0 test4"; // Version, also updated into updates.xri
+this.autointegrate_version = "AutoIntegrate v1.88.1";       // Version, also updated into updates.xri
 this.autointegrate_info = "Auto processing decisions";      // For updates.xri
 
 this.autointegrate_version_info = [

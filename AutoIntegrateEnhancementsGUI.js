@@ -274,13 +274,13 @@ create_undo_image(id)
 
 add_undo_image(undo_image, histogramInfo)
 {
-      //console.writeln("add_undo_image");
+      if (this.global.debug) console.writeln("add_undo_image");
       while (this.enhancements_gui_info.undo_images.length > this.enhancements_gui_info.undo_images_pos + 1) {
             this.enhancements_gui_info.undo_images.pop();
             console.writeln("Remove undo image " + this.enhancements_gui_info.undo_images.length);
       }
       this.enhancements_gui_info.undo_images_pos++;
-      // console.writeln("undo_images_pos " + this.enhancements_gui_info.undo_images_pos);
+      if (this.global.debug) console.writeln("undo_images_pos " + this.enhancements_gui_info.undo_images_pos);
       this.enhancements_gui_info.undo_images[this.enhancements_gui_info.undo_images_pos] = 
             { 
                   image: undo_image.image, 
@@ -329,13 +329,13 @@ apply_undo()
       this.preview.updatePreviewIdReset(this.global.enhancements_target_image_id, true, source_histogramInfo);
 
       this.enhancements_gui_info.undo_images_pos--;
-      console.writeln("undo_images_pos " + this.enhancements_gui_info.undo_images_pos);
+      if (this.global.debug) console.writeln("undo_images_pos " + this.enhancements_gui_info.undo_images_pos);
       this.update_undo_buttons();
 }
 
 apply_redo()
 {
-      console.writeln("apply_redo");
+      if (this.global.debug) console.writeln("apply_redo");
       if (this.global.enhancements_target_image_id == null || this.global.enhancements_target_image_id == this.imageListFirst) {
             console.criticalln("No target image!");
             return;
