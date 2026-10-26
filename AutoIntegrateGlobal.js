@@ -37,7 +37,7 @@ this.autointegrate_version_info = [
         "  method by analyzing the image",
         "- Auto tool selection in Settings / Tools",
         "- Auto options for SPCC, Drizzle and Local Normalization",
-        "- Enhancements in live preview",
+        "- Some enhancements use live preview",
         "- By default only integrated images and the final images",
         "  are left on the desktop at the end of processing",
   ];

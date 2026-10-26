@@ -1,6 +1,6 @@
 {
- "version": "AutoIntegrate v1.88.0 test2",
- "generated": "Sat Oct 17 2026 17:21:30 GMT+0300 (FLE Daylight Time)",
+ "version": "AutoIntegrate v1.88.1",
+ "generated": "Mon Oct 26 2026 18:11:46 GMT+0200 (FLE Standard Time)",
  "options": [
   {
    "key": "local_normalization",
@@ -2587,7 +2587,7 @@
     {
      "kind": "checkbox",
      "label": "Auto",
-     "tooltip": "<p>Use drizzle automatically when <i>Drizzle</i> is not checked and images are undersampled.</p><p>Drizzle is used when the median FWHM measured by SubframeSelector is less than 2 pixels, every filter has at least 20 images and the drizzled image is not larger than 150 megapixels. Drizzle scale is taken from the <i>Drizzle, scale</i> value.</p><p>Drizzle needs dithered images. Do not use this option with images that are not dithered.</p><p>Auto drizzle is not used in fast mode, with FastIntegration, comet alignment, or when SubframeSelector is not run. The decision is shown in the Auto decisions list at the end of processing.</p>",
+     "tooltip": "<p>Use drizzle automatically when <i>Drizzle</i> is not checked and images are undersampled.</p><p>Drizzle is used when the median FWHM measured by SubframeSelector is less than 2 pixels, every filter has at least 20 images and the drizzled image is not larger than 150 megapixels. Drizzle scale is taken from the <i>Drizzle, scale</i> value.</p><p>Drizzle needs dithered images. Auto drizzle cannot detect from the images whether they are dithered, so this option is off by default. Do not use this option with images that are not dithered.</p><p>Auto drizzle is not used in fast mode, with FastIntegration, comet alignment, or when SubframeSelector is not run. The decision is shown in the Auto decisions list at the end of processing.</p>",
      "values": null,
      "min": null,
      "max": null,
@@ -2607,7 +2607,7 @@
    "in_gui": true,
    "kind": "checkbox",
    "label": "Auto",
-   "tooltip": "<p>Use drizzle automatically when <i>Drizzle</i> is not checked and images are undersampled.</p><p>Drizzle is used when the median FWHM measured by SubframeSelector is less than 2 pixels, every filter has at least 20 images and the drizzled image is not larger than 150 megapixels. Drizzle scale is taken from the <i>Drizzle, scale</i> value.</p><p>Drizzle needs dithered images. Do not use this option with images that are not dithered.</p><p>Auto drizzle is not used in fast mode, with FastIntegration, comet alignment, or when SubframeSelector is not run. The decision is shown in the Auto decisions list at the end of processing.</p>",
+   "tooltip": "<p>Use drizzle automatically when <i>Drizzle</i> is not checked and images are undersampled.</p><p>Drizzle is used when the median FWHM measured by SubframeSelector is less than 2 pixels, every filter has at least 20 images and the drizzled image is not larger than 150 megapixels. Drizzle scale is taken from the <i>Drizzle, scale</i> value.</p><p>Drizzle needs dithered images. Auto drizzle cannot detect from the images whether they are dithered, so this option is off by default. Do not use this option with images that are not dithered.</p><p>Auto drizzle is not used in fast mode, with FastIntegration, comet alignment, or when SubframeSelector is not run. The decision is shown in the Auto decisions list at the end of processing.</p>",
    "values": null,
    "min": null,
    "max": null
@@ -13416,7 +13416,7 @@
     {
      "kind": "list",
      "label": "",
-     "tooltip": "<p>Filter curves for SPCC with RGB data. <i>Mono</i> filter sets are for mono cameras with separate R, G and B filters. <i>OSC</i> filter sets are for color cameras.</p><p>With <i>Auto</i>, data from mono RGB filters uses Chroma R, G and B curves which are close to typical mono RGB filters. Color camera data uses Sony Color Sensor UV/IR cut curves.</p><p>Seestar data is detected from image keywords. With Auto, Seestar LP curves are used with the LP filter, otherwise Sony IMX462/662/585 UV/IR cut curves for the Seestar sensor are used.</p><p>Curves are read from the PixInsight filters database. If the database is not found, a built-in copy of the curves is used.</p><p>Filter set is also used with SpectrophotometricFluxCalibration before MultiscaleGradientCorrection.</p>",
+     "tooltip": "<p>Filter curves for SPCC with RGB data. <i>Mono</i> filter sets are for mono cameras with separate R, G and B filters. <i>OSC</i> filter sets are for color cameras.</p><p>With <i>Auto</i>, data from mono RGB filters uses Chroma R, G and B curves which are close to typical mono RGB filters. Color camera data uses Sony Color Sensor UV/IR cut curves.</p><p>Seestar data is detected from image keywords. With Auto, Seestar LP curves are used with the LP filter, otherwise Sony IMX462/662/585 UV/IR cut curves for the Seestar sensor are used.</p><p>For a color camera with a dual-band filter select <i>OSC: Optolong L-eXtreme</i> or <i>OSC: IDAS NBZ II</i>. These use Sony color sensor curves combined with the filter curve. They are not selected by Auto.</p><p>Curves are read from the PixInsight filters database. If the database is not found, a built-in copy of the curves is used.</p><p>Filter set is also used with SpectrophotometricFluxCalibration before MultiscaleGradientCorrection.</p>",
      "values": [
       "Auto",
       "Mono: Chroma",
@@ -13434,7 +13434,9 @@
       "OSC: Sony IMX294 UV/IR cut",
       "OSC: Sony IMX462/662/585 UV/IR cut",
       "OSC: Sony IMX533",
-      "OSC: Seestar LP"
+      "OSC: Seestar LP",
+      "OSC: Optolong L-eXtreme",
+      "OSC: IDAS NBZ II"
      ],
      "min": null,
      "max": null,
@@ -13454,7 +13456,7 @@
    "in_gui": true,
    "kind": "list",
    "label": "",
-   "tooltip": "<p>Filter curves for SPCC with RGB data. <i>Mono</i> filter sets are for mono cameras with separate R, G and B filters. <i>OSC</i> filter sets are for color cameras.</p><p>With <i>Auto</i>, data from mono RGB filters uses Chroma R, G and B curves which are close to typical mono RGB filters. Color camera data uses Sony Color Sensor UV/IR cut curves.</p><p>Seestar data is detected from image keywords. With Auto, Seestar LP curves are used with the LP filter, otherwise Sony IMX462/662/585 UV/IR cut curves for the Seestar sensor are used.</p><p>Curves are read from the PixInsight filters database. If the database is not found, a built-in copy of the curves is used.</p><p>Filter set is also used with SpectrophotometricFluxCalibration before MultiscaleGradientCorrection.</p>",
+   "tooltip": "<p>Filter curves for SPCC with RGB data. <i>Mono</i> filter sets are for mono cameras with separate R, G and B filters. <i>OSC</i> filter sets are for color cameras.</p><p>With <i>Auto</i>, data from mono RGB filters uses Chroma R, G and B curves which are close to typical mono RGB filters. Color camera data uses Sony Color Sensor UV/IR cut curves.</p><p>Seestar data is detected from image keywords. With Auto, Seestar LP curves are used with the LP filter, otherwise Sony IMX462/662/585 UV/IR cut curves for the Seestar sensor are used.</p><p>For a color camera with a dual-band filter select <i>OSC: Optolong L-eXtreme</i> or <i>OSC: IDAS NBZ II</i>. These use Sony color sensor curves combined with the filter curve. They are not selected by Auto.</p><p>Curves are read from the PixInsight filters database. If the database is not found, a built-in copy of the curves is used.</p><p>Filter set is also used with SpectrophotometricFluxCalibration before MultiscaleGradientCorrection.</p>",
    "values": [
     "Auto",
     "Mono: Chroma",
@@ -13472,7 +13474,9 @@
     "OSC: Sony IMX294 UV/IR cut",
     "OSC: Sony IMX462/662/585 UV/IR cut",
     "OSC: Sony IMX533",
-    "OSC: Seestar LP"
+    "OSC: Seestar LP",
+    "OSC: Optolong L-eXtreme",
+    "OSC: IDAS NBZ II"
    ],
    "min": null,
    "max": null
