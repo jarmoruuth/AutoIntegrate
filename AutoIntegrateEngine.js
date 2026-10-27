@@ -7460,6 +7460,12 @@ useSingleImageAsIntegration(fileName, name)
             }
       }
       var imgWin = this.util.openImageWindowFromFile(fileName);
+      if (imgWin.bitsPerSample != 32 || !imgWin.isFloatSample) {
+            // ImageIntegration output is always 32 bit float, use the same format so
+            // further processing does not lose precision with 16 bit integer images
+            console.writeln("useSingleImageAsIntegration, convert " + imgWin.bitsPerSample + " bit " + (imgWin.isFloatSample ? "float" : "integer") + " image to 32 bit float");
+            imgWin.setSampleFormat(32, true);
+      }
       imgWin.show();
 
       var new_name = this.util.windowRename(imgWin.mainView.id, this.ppar.win_prefix + "Integration_" + name);
