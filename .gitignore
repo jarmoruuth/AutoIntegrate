@@ -1,6 +1,7 @@
 *.bat 
 .vscode
 .tmp.driveupload
+.tmp.drivedownload
 testing.txt
 TODO.txt
 .claude
