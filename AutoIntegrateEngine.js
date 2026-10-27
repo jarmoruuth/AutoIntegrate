@@ -7191,7 +7191,11 @@ runLocalNormalization(imagetable, refImage, filter)
             console.writeln("runLocalNormalization, add targets["+targets.length+"][1]=" + targets[targets.length-1][1]);
       }
       if (unique_files.length == 1) {
-            this.util.addWarningStatus("Local normalization skipped, only one file for filter " + filter);
+            if (this.isMasterImageFile(unique_files[0])) {
+                  this.util.addProcessingStep("Local normalization not needed, filter " + filter + " has an integrated master image");
+            } else {
+                  this.util.addWarningStatus("Local normalization skipped, only one file for filter " + filter);
+            }
             return false;
       }
       if (targets.length == 0) {
@@ -7385,6 +7389,24 @@ getRejectionAlgorithm(numimages)
       }
 }
 
+// Check if a file is an already integrated master image, for example a WBPP
+// master light. Master files have a file name starting with master or an
+// IMAGETYP keyword like Master Light. File name suffixes added by AutoIntegrate,
+// like _cc and _r, do not change the start of the name.
+isMasterImageFile(filePath)
+{
+      if (File.extractName(filePath).toLowerCase().startsWith("master")) {
+            return true;
+      }
+      var keywords = this.getFileKeywords(filePath);
+      for (var i = 0; i < keywords.length; i++) {
+            if (keywords[i].name == "IMAGETYP" && keywords[i].strippedValue.trim().toLowerCase().startsWith("master")) {
+                  return true;
+            }
+      }
+      return false;
+}
+
 // ImageIntegration needs at least three different files. PixInsight detects
 // duplicate file names so we can no longer just duplicate image names.
 // Returns true if there is only one file and integration should be skipped.
@@ -7398,7 +7420,11 @@ checkIntegrationImageCount(images, name)
             }
       }
       if (unique_files.length == 1) {
-            this.util.addWarningStatus("Only one file for " + name + ", skipping ImageIntegration and using the image as is");
+            if (this.isMasterImageFile(unique_files[0])) {
+                  this.util.addProcessingStep("Image " + name + " is an integrated master image, ImageIntegration is not needed");
+            } else {
+                  this.util.addWarningStatus("Only one file for " + name + ", skipping ImageIntegration and using the image as is");
+            }
             return true;
       }
       if (unique_files.length == 2) {
@@ -7413,7 +7439,11 @@ checkIntegrationImageCount(images, name)
 useSingleImageAsIntegration(fileName, name)
 {
       if (this.par.use_drizzle.val && name != 'LDD') {
-            this.util.addWarningStatus("Only one file for " + name + ", skipping DrizzleIntegration");
+            if (this.isMasterImageFile(fileName)) {
+                  this.util.addProcessingStep("Image " + name + " is an integrated master image, DrizzleIntegration is not needed");
+            } else {
+                  this.util.addWarningStatus("Only one file for " + name + ", skipping DrizzleIntegration");
+            }
       }
       var imgWin = this.util.openImageWindowFromFile(fileName);
       imgWin.show();
@@ -7891,8 +7921,10 @@ runImageIntegration(channel_images, name, save_to_file, flowchartname)
       }
 
       if (single_image) {
-            // Show in the flowchart that integration was skipped
-            var node = this.flowchart.flowchartOperation("ImageIntegration:skipped");
+            // Show in the flowchart that integration was skipped, with a master
+            // image integration is already done
+            var master_image = this.isMasterImageFile(images[0][1]);
+            var node = this.flowchart.flowchartOperation(master_image ? "ImageIntegration:master" : "ImageIntegration:skipped");
             if (this.global.get_flowchart_data) {
                   var image_id = this.flowchartNewIntegrationImage(images[0][1], this.ppar.win_prefix + "Integration_" + name);
             } else {
