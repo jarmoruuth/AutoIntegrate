@@ -895,7 +895,9 @@ lightsOptions(parent)
       }
       var interated_lights_checkbox = this.guitools.newCheckBox(parent, "Integrated lights", this.par.integrated_lights, 
             "<p>If checked consider light files to be integrated files for AutoContinue.</p>" +
-            "<p>It is useful for example when using integrated lights from WBPP as there is no need to rename images.</p>");
+            "<p>It is useful for example when using integrated lights from WBPP as there is no need to rename images.</p>" +
+            "<p>This option is not needed with the Run button. Integrated master images like WBPP master lights are detected " +
+            "automatically from a file name starting with master or from the IMAGETYP keyword.</p>");
       this.global.rootingArr.push(interated_lights_checkbox);
 
       var monochrome_image_CheckBox = this.guitools.newCheckBoxEx(parent, "Force monochrome", this.par.monochrome_image, 
@@ -5446,7 +5448,9 @@ AutoIntegrateDialog()
             "<p>Use gradient correction on channel images (L,R,G,B,H,S,O) separately before channels are combined.</p>" +
             "<p>With color/OSC images this does the same thing as <i>Gradient correction on combined images</i>.</p>" );
       this.GC_on_lights_CheckBox = this.guitools.newCheckBox(this, "Gradient correction on light images", this.par.GC_on_lights, 
-            "<p>Use gradient correction on all light images. It is run very early in the processing before cosmetic correction.</p>" );
+            "<p>Use gradient correction on all light images. It is run early in the processing after cosmetic correction and debayering, " +
+            "before SubframeSelector and star alignment.</p>" +
+            "<p>Not used with integrated master images like WBPP master lights, then gradient correction is run on integrated images.</p>" );
       this.use_GC_L_RGB_CheckBox = this.guitools.newCheckBox(this, "Gradient correction on combined images", this.par.use_GC_on_L_RGB, 
             "<p>Use gradient correction on L and combined RGB images while image is still in linear mode.</p>" );
       this.use_GC_L_RGB_stretched_CheckBox = this.guitools.newCheckBox(this, "Gradient correction on stretched images", this.par.use_GC_on_L_RGB_stretched, 

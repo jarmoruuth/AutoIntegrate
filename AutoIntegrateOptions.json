@@ -1,6 +1,6 @@
 {
- "version": "AutoIntegrate v1.88.1",
- "generated": "Mon Oct 26 2026 18:11:46 GMT+0200 (FLE Standard Time)",
+ "version": "AutoIntegrate v1.88.2 test1",
+ "generated": "Tue Oct 27 2026 22:35:58 GMT+0200 (FLE Standard Time)",
  "options": [
   {
    "key": "local_normalization",
@@ -563,7 +563,7 @@
     {
      "kind": "checkbox",
      "label": "Gradient correction on light images",
-     "tooltip": "<p>Use gradient correction on all light images. It is run very early in the processing before cosmetic correction.</p>",
+     "tooltip": "<p>Use gradient correction on all light images. It is run early in the processing after cosmetic correction and debayering, before SubframeSelector and star alignment.</p><p>Not used with integrated master images like WBPP master lights, then gradient correction is run on integrated images.</p>",
      "values": null,
      "min": null,
      "max": null,
@@ -583,7 +583,7 @@
    "in_gui": true,
    "kind": "checkbox",
    "label": "Gradient correction on light images",
-   "tooltip": "<p>Use gradient correction on all light images. It is run very early in the processing before cosmetic correction.</p>",
+   "tooltip": "<p>Use gradient correction on all light images. It is run early in the processing after cosmetic correction and debayering, before SubframeSelector and star alignment.</p><p>Not used with integrated master images like WBPP master lights, then gradient correction is run on integrated images.</p>",
    "values": null,
    "min": null,
    "max": null
@@ -18744,7 +18744,7 @@
     {
      "kind": "checkbox",
      "label": "Integrated lights",
-     "tooltip": "<p>If checked consider light files to be integrated files for AutoContinue.</p><p>It is useful for example when using integrated lights from WBPP as there is no need to rename images.</p>",
+     "tooltip": "<p>If checked consider light files to be integrated files for AutoContinue.</p><p>It is useful for example when using integrated lights from WBPP as there is no need to rename images.</p><p>This option is not needed with the Run button. Integrated master images like WBPP master lights are detected automatically from a file name starting with master or from the IMAGETYP keyword.</p>",
      "values": null,
      "min": null,
      "max": null,
@@ -18764,7 +18764,7 @@
    "in_gui": true,
    "kind": "checkbox",
    "label": "Integrated lights",
-   "tooltip": "<p>If checked consider light files to be integrated files for AutoContinue.</p><p>It is useful for example when using integrated lights from WBPP as there is no need to rename images.</p>",
+   "tooltip": "<p>If checked consider light files to be integrated files for AutoContinue.</p><p>It is useful for example when using integrated lights from WBPP as there is no need to rename images.</p><p>This option is not needed with the Run button. Integrated master images like WBPP master lights are detected automatically from a file name starting with master or from the IMAGETYP keyword.</p>",
    "values": null,
    "min": null,
    "max": null

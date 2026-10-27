@@ -28,7 +28,7 @@ super();
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-this.autointegrate_version = "AutoIntegrate v1.88.1";       // Version, also updated into updates.xri
+this.autointegrate_version = "AutoIntegrate v1.88.2 test1";       // Version, also updated into updates.xri
 this.autointegrate_info = "Auto processing decisions";      // For updates.xri
 
 this.autointegrate_version_info = [
@@ -40,6 +40,7 @@ this.autointegrate_version_info = [
         "- Some enhancements use live preview",
         "- By default only integrated images and the final images",
         "  are left on the desktop at the end of processing",
+        "- Bug fixes and improvements"
   ];
 
 /* Interface version changes:
