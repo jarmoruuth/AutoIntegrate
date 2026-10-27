@@ -389,9 +389,20 @@ flowchartGraph(rootnode, current_preview_image, txt)
       var width = size[0] + margin;
       var height = size[1] + margin;
 
+      // Use the real size of the preview if available so the flowchart can be
+      // shown 1:1 without scaling
+      var viewport = this.gui.previewControl.scrollbox.viewport;
+      if (viewport.width >= 100 && viewport.height >= 100) {
+            var preview_width = viewport.width;
+            var preview_height = viewport.height;
+      } else {
+            var preview_width = this.ppar.preview.side_preview_width;
+            var preview_height = this.ppar.preview.side_preview_height;
+      }
+
       // We have " / 2" below to keep text size readable
-      width = Math.max(width, this.ppar.preview.side_preview_width / 2);
-      height = Math.max(height, this.ppar.preview.side_preview_height / 2);
+      width = Math.max(width, preview_width / 2);
+      height = Math.max(height, preview_height / 2);
 
       if (this.par.flowchart_debug.val || this.par.debug.val) {
             console.writeln("flowchartGraph:background bitmap " + width + "x" + height);
@@ -404,10 +415,9 @@ flowchartGraph(rootnode, current_preview_image, txt)
       } else {
             // Without a background image the preview would zoom in a small bitmap
             // and text would look blocky. Draw the flowchart scaled to the preview
-            // size instead so text is drawn sharp.
-            var draw_scale = Math.max(1, Math.min(this.ppar.preview.side_preview_width / width,
-                                                  this.ppar.preview.side_preview_height / height));
-            var bitmap = this.util.createEmptyBitmap(Math.round(width * draw_scale), Math.round(height * draw_scale), 0xffC0C0C0);  // gray background
+            // size instead so text is drawn sharp and the preview shows it 1:1.
+            var draw_scale = Math.max(1, Math.min(preview_width / width, preview_height / height));
+            var bitmap = this.util.createEmptyBitmap(Math.floor(width * draw_scale), Math.floor(height * draw_scale), 0xffC0C0C0);  // gray background
             this.flowchart_is_background_image = false;
             txt = null;
       }
@@ -482,7 +492,7 @@ flowchartGraph(rootnode, current_preview_image, txt)
             console.writeln("flowchartGraph:end");
       }
 
-      return { image: this.global.flowchart_image, text: txt };
+      return { image: this.global.flowchart_image, text: txt, background_image: this.flowchart_is_background_image };
 }
 
 // =============================================================================

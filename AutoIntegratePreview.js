@@ -103,23 +103,27 @@ class AutoIntegratePreviewControl extends Frame
       } // constructor
 
        // Set image window and bitmap
-       SetImage(image, txt)
+       // With fit_without_zoom_in an image that fits into the preview is shown 1:1
+       // and not zoomed in to fill the preview. It is used for example with the
+       // flowchart image that is drawn to the preview size.
+       SetImage(image, txt, fit_without_zoom_in = false)
        {
              if (!this.global.interactiveMode) {
                   return;
              }
              if (this.par.debug.val) console.writeln(this.name + ":SetImage:image " + image.width + "x" + image.height + ", txt " + txt);
 
-             this.SetImageBitmap(image.render(), txt);
+             this.SetImageBitmap(image.render(), txt, fit_without_zoom_in);
       }
 
-      SetImageBitmap(bitmap, txt)
+      SetImageBitmap(bitmap, txt, fit_without_zoom_in = false)
       {
              if (this.par.debug.val) console.writeln(this.name + ":SetImageBitmap:bitmap " + bitmap.width + "x" + bitmap.height + ", txt " + txt);
              if (this.bitmap != null) {
                   this.bitmap.clear();
              }
              this.bitmap = bitmap;
+             this.fitWithoutZoomIn = fit_without_zoom_in;
              if (this.scaledBitmap != null) {
                   this.scaledBitmap.clear();
                   this.scaledBitmap = null;
@@ -138,25 +142,26 @@ class AutoIntegratePreviewControl extends Frame
       }
 
        // Update image window and bitmap
-       UpdateImage(image, txt)
+       UpdateImage(image, txt, fit_without_zoom_in = false)
        {
              if (!this.global.interactiveMode) {
                   return;
              }
              if (this.par.debug.val) console.writeln(this.name + ":UpdateImage:image " + image.width + "x" + image.height + ", txt " + txt);
-             this.UpdateImageBitmap(image.render(), txt)
+             this.UpdateImageBitmap(image.render(), txt, fit_without_zoom_in)
        }
 
-       UpdateImageBitmap(bitmap, txt)
+       UpdateImageBitmap(bitmap, txt, fit_without_zoom_in = false)
        {
              if (this.par.debug.val) console.writeln(this.name + ":UpdateImageBitmap:bitmap " + bitmap.width + "x" + bitmap.height + ", txt " + txt);
              if (this.zoom == this.zoomOutLimit) {
-                   this.SetImageBitmap(bitmap, txt);
+                   this.SetImageBitmap(bitmap, txt, fit_without_zoom_in);
              } else {
                   if (this.bitmap != null) {
                         this.bitmap.clear();
                   }
                    this.bitmap = bitmap;
+                   this.fitWithoutZoomIn = fit_without_zoom_in;
                    if (this.scaledBitmap != null) {
                         this.scaledBitmap.clear();
                         this.scaledBitmap = null;
@@ -301,6 +306,10 @@ class AutoIntegratePreviewControl extends Frame
                    } else if (this.zoom > this.zoomOutLimit) {
                         if (this.par.debug.val) console.writeln(this.name + ":UpdateZoom:scale " + this.scale);
                         this.scaledBitmap = this.bitmap.scaled(this.scale);
+                   } else if (this.fitWithoutZoomIn && this.scale == 1) {
+                        // Show 1:1 without scaling so for example text stays sharp
+                        if (this.par.debug.val) console.writeln(this.name + ":UpdateZoom:fit without zoom in, scale 1");
+                        this.scaledBitmap = this.bitmap.scaled(1);
                    } else {
                         if (this.par.debug.val) console.writeln(this.name + ":UpdateZoom:0.98 * scale " + (0.98 * this.scale));
                         this.scaledBitmap = this.bitmap.scaled(0.98 * this.scale);
@@ -466,6 +475,7 @@ class AutoIntegratePreviewControl extends Frame
        this.scale = 1;
        this.zoomOutLimit = -100;
        this.zoomInLimit = 8;          // max zoom 8:1
+       this.fitWithoutZoomIn = false; // show an image that fits into the preview 1:1
        this.drag = null;              // mouse drag start position when moving the image
        this.scrollbox = new ScrollBox(this);
        this.scrollbox.autoScroll = true;
@@ -755,6 +765,10 @@ class AutoIntegratePreviewControl extends Frame
              var scaleX = this.scrollbox.viewport.width/this.bitmap.width;
              var scaleY = this.scrollbox.viewport.height/this.bitmap.height;
              var scale = Math.min(scaleX,scaleY);
+             if (this.fitWithoutZoomIn && scale > 1) {
+                  // Image fits into the preview, show it 1:1
+                  scale = 1;
+             }
              this.zoomOutLimit = scale;
              if (this.par.debug.val) console.writeln(this.name + ":SetZoomOutLimit:scale ", scale, ", zoomOutLimit ", this.zoomOutLimit);
        }

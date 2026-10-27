@@ -278,7 +278,8 @@ flowchartUpdated()
             try {
                   var obj = this.flowchart.flowchartGraph(this.global.flowchartData, this.guitools.current_preview.image, this.guitools.current_preview.txt);
                   if (obj) {
-                        this.updatePreviewImage(this.previewControl, obj.image, obj.text, this.histogramControl, this.global.enhancements_target_histogram_info, true);
+                        // Flowchart without background image is drawn to the preview size, show it 1:1
+                        this.updatePreviewImage(this.previewControl, obj.image, obj.text, this.histogramControl, this.global.enhancements_target_histogram_info, true, !obj.background_image);
                   }
             } catch (ex) {
                   console.writeln("flowchartUpdated: " + ex);
@@ -1122,18 +1123,18 @@ flatdarksOptions(parent)
       return main_sizer;
 }
 
-updatePreviewImage(updPreviewControl, image, txt, histogramControl, histogramInfo, force_setimage = false)
+updatePreviewImage(updPreviewControl, image, txt, histogramControl, histogramInfo, force_setimage = false, fit_without_zoom_in = false)
 {
       if (updPreviewControl == null) {
             return;
       }
-      if (!force_setimage 
-          && ((this.is_some_preview && this.global.is_processing == this.global.processing_state.none) 
+      if (!force_setimage
+          && ((this.is_some_preview && this.global.is_processing == this.global.processing_state.none)
               || this.preview_keep_zoom))
       {
-            updPreviewControl.UpdateImage(image, txt);
+            updPreviewControl.UpdateImage(image, txt, fit_without_zoom_in);
       } else {
-            updPreviewControl.SetImage(image, txt);
+            updPreviewControl.SetImage(image, txt, fit_without_zoom_in);
       }
       if (histogramControl != null && histogramInfo != null) {
             histogramControl.aiInfo = histogramInfo;
