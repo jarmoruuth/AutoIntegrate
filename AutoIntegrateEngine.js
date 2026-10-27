@@ -11708,6 +11708,31 @@ runDBE(imgWin, replaceTarget, postfix, skip_flowchart)
       return GC_id;
 }
 
+// Check if color calibration broke a channel that had data before. Returns the
+// channel number or -1 if all channels are ok. A channel is broken if it became
+// empty, fully saturated or has non-finite values.
+findColorCalibrationBadChannel(original_image, image)
+{
+      var bad_channel = -1;
+      for (var c = 0; c < image.numberOfChannels && bad_channel < 0; c++) {
+            original_image.selectedChannel = c;
+            image.selectedChannel = c;
+            var original_max = original_image.maximum();
+            var original_min = original_image.minimum();
+            var max = image.maximum();
+            var min = image.minimum();
+            if (original_max > original_min
+                && (!isFinite(max) || !isFinite(min) || max == min))
+            {
+                  console.writeln("findColorCalibrationBadChannel, channel " + c + ", original min " + original_min + " max " + original_max + ", new min " + min + " max " + max);
+                  bad_channel = c;
+            }
+      }
+      original_image.resetSelections();
+      image.resetSelections();
+      return bad_channel;
+}
+
 // If node is given, it is an already started flowchart operation that is used
 // for ColorCalibration, used when ColorCalibration replaces failed Auto SPCC.
 runColorCalibrationProcess(imgWin, roi, structureDetection = false, node = null)
@@ -11739,11 +11764,26 @@ runColorCalibrationProcess(imgWin, roi, structureDetection = false, node = null)
                   P.structureDetection = true;
             }
 
+            // Keep a copy so we can restore the image if color calibration fails
+            var original_image = new Image(imgWin.mainView.image);
+
             imgWin.mainView.beginProcess(UndoFlag.NoSwapFile);
 
             P.executeOn(imgWin.mainView, false);
 
             imgWin.mainView.endProcess();
+
+            var bad_channel = this.findColorCalibrationBadChannel(original_image, imgWin.mainView.image);
+            if (bad_channel >= 0) {
+                  // A zero white reference in a channel gives an infinite white balance
+                  // factor and the channel becomes empty, for example with narrowband
+                  // images in the nonlinear phase
+                  imgWin.mainView.beginProcess(UndoFlag.NoSwapFile);
+                  imgWin.mainView.image.assign(original_image);
+                  imgWin.mainView.endProcess();
+                  this.util.addCriticalStatus("ColorCalibration failed on channel " + bad_channel + " of " + imgWin.mainView.id + ", color calibration was not done");
+            }
+            original_image.free();
 
             this.printAndSaveProcessValues(P, "", imgWin.mainView.id);
             this.engine_end_process(node, imgWin, "ColorCalibration");
