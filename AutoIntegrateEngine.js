@@ -7407,6 +7407,20 @@ isMasterImageFile(filePath)
       return false;
 }
 
+// Returns true if all light files are integrated master images
+isMasterLightFiles(fileNames)
+{
+      if (fileNames == null || fileNames.length == 0) {
+            return false;
+      }
+      for (var i = 0; i < fileNames.length; i++) {
+            if (!this.isMasterImageFile(fileNames[i])) {
+                  return false;
+            }
+      }
+      return true;
+}
+
 // ImageIntegration needs at least three different files. PixInsight detects
 // duplicate file names so we can no longer just duplicate image names.
 // Returns true if there is only one file and integration should be skipped.
@@ -13452,6 +13466,14 @@ createChannelImages(parent, auto_continue)
                   var skip_early_steps = false;
             }
 
+            // With integrated master images, like WBPP master lights, skip steps that are
+            // meant for single light frames. SubframeSelector is still run to get median
+            // FWHM and StarAlignment to align masters from different filters.
+            var master_lights = this.isMasterLightFiles(this.lightFileNames);
+            if (master_lights) {
+                  this.util.addProcessingStep("Light files are integrated master images, skipping CosmeticCorrection, Debayer and GC on light images");
+            }
+
             /********************************************************************
              * Binning
              * 
@@ -13491,7 +13513,7 @@ createChannelImages(parent, auto_continue)
              ********************************************************************/
             if (this.par.skip_cosmeticcorrection.val) {
                   var do_cosmeticcorrection = false;
-            } else if (skip_early_steps) {
+            } else if (skip_early_steps || master_lights) {
                   var do_cosmeticcorrection = false;
             } else if (this.par.use_fastintegration.val && this.par.fastintegration_skip_cosmeticcorrection.val) {
                   var do_cosmeticcorrection = false;
@@ -13546,7 +13568,7 @@ createChannelImages(parent, auto_continue)
              * Debayer OSC/RAW images
              * Output is *_d.xisf files.
              ********************************************************************/
-            if (this.is_color_files && this.local_debayer_pattern != 'None' && !skip_early_steps) {
+            if (this.is_color_files && this.local_debayer_pattern != 'None' && !skip_early_steps && !master_lights) {
                   /* After cosmetic correction we need to debayer
                    * OSC/RAW images
                    */
@@ -13619,7 +13641,7 @@ createChannelImages(parent, auto_continue)
              * Run GradientCorrection for each file.
              * Output is *_GC.xisf files.
              ********************************************************************/
-            if (this.par.GC_on_lights.val && !skip_early_steps) {
+            if (this.par.GC_on_lights.val && !skip_early_steps && !master_lights) {
                   let postfix = '_GC';
                   var fileProcessedStatus = this.getFileProcessedStatus(fileNames, postfix);
 
