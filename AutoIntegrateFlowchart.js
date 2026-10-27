@@ -398,15 +398,24 @@ flowchartGraph(rootnode, current_preview_image, txt)
       }
 
       if (current_preview_image != null && this.par.flowchart_background_image.val) {
+            var draw_scale = 1;
             var bitmap = this.util.createEmptyBitmap(width, height, 0x00C0C0C0);  // transparent background
             this.flowchart_is_background_image = true;
       } else {
-            var bitmap = this.util.createEmptyBitmap(width, height, 0xffC0C0C0);  // gray background
+            // Without a background image the preview would zoom in a small bitmap
+            // and text would look blocky. Draw the flowchart scaled to the preview
+            // size instead so text is drawn sharp.
+            var draw_scale = Math.max(1, Math.min(this.ppar.preview.side_preview_width / width,
+                                                  this.ppar.preview.side_preview_height / height));
+            var bitmap = this.util.createEmptyBitmap(Math.round(width * draw_scale), Math.round(height * draw_scale), 0xffC0C0C0);  // gray background
             this.flowchart_is_background_image = false;
             txt = null;
       }
 
       var graphics = new Graphics(bitmap);
+      if (draw_scale != 1) {
+            graphics.scaleTransformation(draw_scale, draw_scale);
+      }
       graphics.font = font;
       graphics.transparentBackground = true;
       graphics.pen = new Pen(this.flowchartLineColor(), 1);
