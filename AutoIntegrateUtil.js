@@ -36,6 +36,8 @@ constructor(global) {
 
       this.executed_processes = [];
 
+      this.last_memory_used_mb = null;
+
 } // constructor
 
 /* Set optional GUI object to update GUI components.
@@ -2217,9 +2219,17 @@ getMemoryUsedMB()
       return parseInt((memoryStatus.totalBytes - memoryStatus.availableBytes) / (1024 * 1024));
 }
 
-printMemoryStatus(txt = "")
+// With only_if_changed the status is printed only if memory usage has changed since
+// the last print, so for example the list of processing options does not print it
+// on every line.
+printMemoryStatus(txt = "", only_if_changed = false)
 {
-      console.writeln("Memory status: " + this.getMemoryUsedMB() + " MB used" + (txt ? " - " + txt : ""));
+      var used_mb = this.getMemoryUsedMB();
+      if (only_if_changed && used_mb == this.last_memory_used_mb) {
+            return;
+      }
+      this.last_memory_used_mb = used_mb;
+      console.writeln("Memory status: " + used_mb + " MB used" + (txt ? " - " + txt : ""));
 }
 
 // Report processing progress to the test program. Test program writes it
@@ -2239,7 +2249,7 @@ testProgress(txt)
 addProcessingStep(txt)
 {
       console.noteln("AutoIntegrate: " + txt);
-      this.printMemoryStatus(txt);
+      this.printMemoryStatus(txt, true);
       this.testProgress(txt);
       this.global.processing_steps = this.global.processing_steps + "\n" + txt;
 }

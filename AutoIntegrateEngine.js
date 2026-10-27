@@ -2268,7 +2268,16 @@ writeImage(filePath, imageWindow)
             console.writeln("writeImage:fileFormatInstance.create failed");
             return false;
       }
-   
+
+      // Keep the sample format of the image, without options the image is written as 16 bit integer
+      var description = new ImageDescription;
+      description.bitsPerSample = imageWindow.bitsPerSample;
+      description.ieeefpSampleFormat = imageWindow.isFloatSample;
+      if (!fileFormatInstance.setOptions(description)) {
+            console.writeln("writeImage:fileFormatInstance.setOptions failed");
+            return false;
+      }
+
       fileFormatInstance.keywords = imageWindow.keywords;
       if (!fileFormatInstance.writeImage(imageWindow.mainView.image)) {
             console.writeln("writeImage:fileFormatInstance.writeImage failed");
@@ -16923,7 +16932,9 @@ resolveAutoTool(category, candidates)
             if (candidates[i].available()) {
                   candidates[i].param.val = true;
                   candidates[i].param.auto_selected = true;
-                  this.addAutoDecision(category + " tool", candidates[i].name, "best available tool");
+                  // Tool is selected even if the category is not used so make it clear
+                  // that this does not enable the processing
+                  this.addAutoDecision(category + " tool", candidates[i].name, "best available tool, used if " + category + " is enabled");
                   return;
             }
       }
