@@ -11642,7 +11642,7 @@ findDBEsamples(w)
                   }
             }
 
-            this.engine_end_process(null, w);
+            this.engine_end_process(null, w, "findDBEsamples");
 
             return { data: data, samples: samples, radius: Math.floor(windowSize / 2) };
 
